@@ -293,9 +293,9 @@ def generate_chart(target_date, intervals, schedule_intervals, theme='dark'):
     else:
         bg_color = '#f8fafc'
         text_color = '#0f172a'
-        fact_on_color = '#14b8a6'
+        fact_on_color = '#fef08a'
         fact_off_color = '#f43f5e'
-        plan_on_color = '#818cf8'
+        plan_on_color = '#fef08a'
         plan_off_color = '#64748b'
         plt_style = 'default'
 

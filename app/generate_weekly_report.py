@@ -185,17 +185,17 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
     if theme == 'dark':
         bg_color = '#0f172a'
         text_color = '#f8fafc'
-        fact_on_color = '#14b8a6' # Vibrant Teal
+        fact_on_color = '#fef08a' # Pastel Yellow
         fact_off_color = '#f43f5e' # Vibrant Rose
-        plan_on_color = '#818cf8' # Distinct Indigo
+        plan_on_color = '#fef08a' # Pastel Yellow
         plan_off_color = '#475569' # Distinct Slate
         plt_style = 'dark_background'
     else:
         bg_color = '#f8fafc'
         text_color = '#0f172a'
-        fact_on_color = '#14b8a6'
+        fact_on_color = '#fef08a'
         fact_off_color = '#f43f5e'
-        plan_on_color = '#818cf8'
+        plan_on_color = '#fef08a'
         plan_off_color = '#64748b'
         plt_style = 'default'
 
@@ -493,3 +493,4 @@ if __name__ == "__main__":
         os.remove(filename)
     if os.path.exists(filename_light):
         os.remove(filename_light)
+
