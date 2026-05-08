@@ -399,7 +399,7 @@ def generate_chart(target_date, intervals, schedule_intervals, theme='dark'):
         yellow_patch = mpatches.Patch(color=plan_on_color, label='Графік: Є')
         gray_patch = mpatches.Patch(color=plan_off_color, label='Графік: Немає')
         
-        alert_patch = mpatches.Patch(color='#ef4444', label='Тривога')
+        alert_patch = mpatches.Patch(color='#fef08a', label='Тривога')
         alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label='Немає тривог')
 
 
@@ -698,3 +698,4 @@ if __name__ == "__main__":
         os.remove(filename)
     if os.path.exists(filename_light):
         os.remove(filename_light)
+me_light)

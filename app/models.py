@@ -32,7 +32,7 @@ class SourcesConfig(BaseModel):
 class AdvancedSettings(BaseModel):
     model_config = ConfigDict(extra='ignore')
     notifications: Notifications = Notifications()
-    retention: Dict[str, int] = {"event_log_days": 7, "schedule_history_days": 7}
+    retention: Dict[str, int] = {"event_log_days": 30, "schedule_history_days": 14}
     data_sources: Dict[str, Any] = {"priority": "github", "custom_url": "", "smart_deduplication": True, "rollover_hour": 1}
     dashboard: Dict[str, bool] = {"show_aq": True, "show_radiation": True, "show_temp_graph": True, "show_charts": True}
     monitoring: Dict[str, Any] = {"push_timeout": 35, "push_interval_min": 20, "push_interval_max": 65, "safety_net_delay": 5}
