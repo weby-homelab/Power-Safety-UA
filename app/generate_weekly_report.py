@@ -272,7 +272,7 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
 
 
             # --- 3. Draw Alert Data (Bottom-most Strip) ---
-            alert_on_color = '#ef4444' # Red for alerts
+            alert_on_color = '#FEF9C3' # Pastel Yellow for alerts
             alert_off_color = '#334155' if theme == 'dark' else '#cbd5e1'
             x_start_num = mdates.date2num(datetime.datetime.combine(dummy_date, datetime.time.min))
             x_end_num = mdates.date2num(datetime.datetime.combine(dummy_date, datetime.time.max))
@@ -322,7 +322,7 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
         red_patch = mpatches.Patch(color=fact_off_color, label='Світла немає')
         yellow_patch = mpatches.Patch(color=plan_on_color, label='Графік: Є')
         gray_patch = mpatches.Patch(color=plan_off_color, label='Графік: Немає')
-        alert_patch = mpatches.Patch(color='#fef08a', label='Тривога')
+        alert_patch = mpatches.Patch(color='#FEF9C3', label='Тривога')
         alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label='Немає тривог')
 
         legend = plt.legend(handles=[green_patch, red_patch, yellow_patch, gray_patch, alert_patch, alert_off_patch],

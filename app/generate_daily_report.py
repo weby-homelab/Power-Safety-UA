@@ -326,7 +326,7 @@ def generate_chart(target_date, intervals, schedule_intervals, theme='dark'):
 
         
         # --- Alert Data (Bottom Bar) ---
-        alert_on_color = '#ef4444' # Red for alerts
+        alert_on_color = '#FEF9C3' # Pastel Yellow for alerts
         alert_off_color = '#334155' if theme == 'dark' else '#cbd5e1'
         ax.broken_barh([(mdates.date2num(day_start), mdates.date2num(day_end) - mdates.date2num(day_start))], (alert_y, alert_h), facecolors=alert_off_color, edgecolor='none')
         alert_intervals = get_alert_intervals(target_date)
@@ -399,7 +399,7 @@ def generate_chart(target_date, intervals, schedule_intervals, theme='dark'):
         yellow_patch = mpatches.Patch(color=plan_on_color, label='Графік: Є')
         gray_patch = mpatches.Patch(color=plan_off_color, label='Графік: Немає')
         
-        alert_patch = mpatches.Patch(color='#fef08a', label='Тривога')
+        alert_patch = mpatches.Patch(color='#FEF9C3', label='Тривога')
         alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label='Немає тривог')
 
 
