@@ -280,7 +280,7 @@ def format_duration(seconds):
     if m > 0: parts.append(f"{m} хв")
     return " ".join(parts) if parts else "0 хв"
 
-def generate_chart(target_date, intervals, schedule_intervals, theme='dark'):
+def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, theme='dark'):
     # Vibrant colors for Fact, Muted for Plan
     if theme == 'dark':
         bg_color = '#0f172a'
@@ -588,16 +588,17 @@ if __name__ == "__main__":
     
     intervals = get_intervals_for_date(target_date, events)
     sched_intervals = get_schedule_intervals(target_date, slots)
+    alert_intervals = get_alert_intervals(target_date)
     
     if not intervals:
         day_start = datetime.datetime.combine(target_date, datetime.time.min).replace(tzinfo=KYIV_TZ)
         now = datetime.datetime.now(KYIV_TZ)
         calc_end = now if target_date == now.date() else day_start + datetime.timedelta(hours=24)
         intervals = [(day_start, calc_end, "unknown")]
+    # 3. Generate Charts
+    filename, t_up, t_down = generate_chart(target_date, intervals, sched_intervals, alert_intervals, theme='dark')
+    filename_light, _, _ = generate_chart(target_date, intervals, sched_intervals, alert_intervals, theme='light')
 
-    filename, t_up, t_down = generate_chart(target_date, intervals, sched_intervals, theme='dark')
-    filename_light, _, _ = generate_chart(target_date, intervals, sched_intervals, theme='light')
-    
     # Save copy for Web Dashboard
     web_dir = os.path.join(DATA_DIR, "static")
     if not os.path.exists(web_dir): os.makedirs(web_dir)
