@@ -698,4 +698,3 @@ if __name__ == "__main__":
         os.remove(filename)
     if os.path.exists(filename_light):
         os.remove(filename_light)
-me_light)
