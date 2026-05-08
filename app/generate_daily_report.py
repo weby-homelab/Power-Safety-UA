@@ -326,15 +326,16 @@ def generate_chart(target_date, intervals, schedule_intervals, theme='dark'):
 
         
         # --- Alert Data (Bottom Bar) ---
-        alert_on_color = '#ef4444' # Red for alerts
+        alert_on_color = '#FFFDE7' # Pastel white-yellow for alerts
         alert_off_color = '#334155' if theme == 'dark' else '#cbd5e1'
         ax.broken_barh([(mdates.date2num(day_start), mdates.date2num(day_end) - mdates.date2num(day_start))], (alert_y, alert_h), facecolors=alert_off_color, edgecolor='none')
-        alert_intervals = get_alert_intervals(target_date)
-        for start, end, is_alert in alert_intervals:
-            if is_alert:
+
+        for start, end, is_active in alert_intervals:
+            if is_active:
                 start_num = mdates.date2num(start)
                 end_num = mdates.date2num(end)
                 ax.broken_barh([(start_num, end_num - start_num)], (alert_y, alert_h), facecolors=alert_on_color, edgecolor='none')
+
         
         # --- Separators ---
         ax.axhline(y=15, color=bg_color, linewidth=0.5, zorder=5)
@@ -399,7 +400,7 @@ def generate_chart(target_date, intervals, schedule_intervals, theme='dark'):
         yellow_patch = mpatches.Patch(color=plan_on_color, label='Графік: Є')
         gray_patch = mpatches.Patch(color=plan_off_color, label='Графік: Немає')
         
-        alert_patch = mpatches.Patch(color='#ef4444', label='Тривога')
+        alert_patch = mpatches.Patch(color='#FFFDE7', label='Тривога')
         alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label='Немає тривог')
 
 
