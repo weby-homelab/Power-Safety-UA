@@ -1,13 +1,13 @@
-# Release v3.4.10
+# Release v3.4.11
 
-**Security Hardening (CVE Mitigation)**
-В цьому релізі усунено критичні вразливості в базовому образі шляхом оновлення пакетів ОС.
+**Security Hardening (Bookworm Base Image & pip Upgrade)**
+В цьому релізі усунено решту вразливостей в базовому образі через перехід на стабільний Debian Bookworm та оновлення інструменту `pip`.
 
 ## Що нового / What's New:
 🇺🇦 **Українська:**
-- Оновлено `Dockerfile`: додано `apt-get upgrade -y` для усунення вразливостей в пакетах `krb5` та `glibc` (включаючи CVE-2026-40355, CVE-2026-40356, CVE-2024-26458 та інші).
-- Виправлено збірку образу на базі `python:3.12-slim`.
+- Переведено базовий образ на `python:3.12-slim-bookworm` замість звичайного `slim` (який використовує нестабільний Debian Trixie). Це усунуло вразливості в `tar` та `krb5`.
+- Додано оновлення `pip` (`pip install --upgrade pip`) перед встановленням залежностей, що усунуло вразливості `CVE-2025-8869`, `CVE-2026-6357` та інші у самому `pip`.
 
 🇬🇧 **English:**
-- Updated `Dockerfile`: added `apt-get upgrade -y` to mitigate vulnerability risks in base image OS packages (`krb5`, `glibc` including CVE-2026-40355, CVE-2026-40356, CVE-2024-26458 etc.).
-- Fixed Docker image build based on `python:3.12-slim`.
+- Switched base image to `python:3.12-slim-bookworm` (eliminating Trixie-based vulnerabilities in `tar` and `krb5`).
+- Upgraded `pip` (`pip install --upgrade pip`) to resolve CVEs (`CVE-2025-8869`, `CVE-2026-6357` etc.) in `pip` itself.
