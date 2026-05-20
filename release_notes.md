@@ -1,15 +1,13 @@
-# Release v3.4.8
+# Release v3.4.10
 
-**Stability & Visualization Fixes**
-В цьому релізі виправлено проблему з відображенням повітряних тривог на графіках та підвищено загальну стабільність фонового процесу.
+**Security Hardening (CVE Mitigation)**
+В цьому релізі усунено критичні вразливості в базовому образі шляхом оновлення пакетів ОС.
 
 ## Що нового / What's New:
 🇺🇦 **Українська:**
-- Повернуто яскраво-червоний колір (`#ef4444`) для повітряних тривог на щоденних та тижневих графіках для кращої видимості.
-- Впроваджено атомарне блокування (atomic locks) для генерації звітів (`generate_daily_report.py`, `generate_weekly_report.py`, `generate_text_report.py`), щоб усунути стан гонитви (race conditions) та зависання воркера.
-- Додано виведення поточного стану при старті з `flush=True` для миттєвого відображення логів сервісу в `journalctl`.
+- Оновлено `Dockerfile`: додано `apt-get upgrade -y` для усунення вразливостей в пакетах `krb5` та `glibc` (включаючи CVE-2026-40355, CVE-2026-40356, CVE-2024-26458 та інші).
+- Виправлено збірку образу на базі `python:3.12-slim`.
 
 🇬🇧 **English:**
-- Reverted the air raid alert color to bright red (`#ef4444`) on daily and weekly charts for better visibility.
-- Implemented atomic file locks for report generation processes to prevent race conditions and background worker freezes.
-- Added immediate startup state logging (`flush=True`) for better visibility in `journalctl`.
+- Updated `Dockerfile`: added `apt-get upgrade -y` to mitigate vulnerability risks in base image OS packages (`krb5`, `glibc` including CVE-2026-40355, CVE-2026-40356, CVE-2024-26458 etc.).
+- Fixed Docker image build based on `python:3.12-slim`.
