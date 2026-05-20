@@ -1,13 +1,15 @@
-# Release v3.4.11
+# Release v3.4.12
 
-**Security Hardening (Bookworm Base Image & pip Upgrade)**
-В цьому релізі усунено решту вразливостей в базовому образі через перехід на стабільний Debian Bookworm та оновлення інструменту `pip`.
+**Deep Security Hardening (Removing krb5 & curl, Python-Native Healthcheck)**
+В цьому релізі повністю ліквідовано всі вразливості пакетів `krb5` шляхом повного видалення некурсованих системних бібліотек Kerberos та утиліти `curl` з підсумкового образу.
 
 ## Що нового / What's New:
 🇺🇦 **Українська:**
-- Переведено базовий образ на `python:3.12-slim-bookworm` замість звичайного `slim` (який використовує нестабільний Debian Trixie). Це усунуло вразливості в `tar` та `krb5`.
-- Додано оновлення `pip` (`pip install --upgrade pip`) перед встановленням залежностей, що усунуло вразливості `CVE-2025-8869`, `CVE-2026-6357` та інші у самому `pip`.
+- Повністю видалено пакети `libkrb5-3`, `libgssapi-krb5-2`, `libkrb5support0` та `libk5crypto3` (разом з їхніми залежностями), що ліквідувало 5 вразливостей (включаючи `CVE-2026-40355`, `CVE-2026-40356` тощо).
+- Видалено системну утиліту `curl` та `libcurl4`, що усунуло додаткові потенційні вектори вразливостей.
+- Переписано `HEALTHCHECK` на використання чистих стандартних бібліотек Python (`urllib.request`), тому робота моніторингу працездатності контейнера не змінилася та не потребує зовнішніх утиліт.
 
 🇬🇧 **English:**
-- Switched base image to `python:3.12-slim-bookworm` (eliminating Trixie-based vulnerabilities in `tar` and `krb5`).
-- Upgraded `pip` (`pip install --upgrade pip`) to resolve CVEs (`CVE-2025-8869`, `CVE-2026-6357` etc.) in `pip` itself.
+- Fully purged `libkrb5-3`, `libgssapi-krb5-2`, `libkrb5support0`, and `libk5crypto3` packages, eliminating all Kerberos vulnerabilities.
+- Removed system utilities `curl` and `libcurl4` to minimize attack surface.
+- Replaced container `HEALTHCHECK` command with a native Python script using `urllib.request`.
