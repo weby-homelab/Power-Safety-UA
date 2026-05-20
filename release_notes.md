@@ -1,15 +1,15 @@
-# Release v3.4.12
+# Release v3.4.13
 
-**Deep Security Hardening (Removing krb5 & curl, Python-Native Healthcheck)**
-В цьому релізі повністю ліквідовано всі вразливості пакетів `krb5` шляхом повного видалення некурсованих системних бібліотек Kerberos та утиліти `curl` з підсумкового образу.
+**Maximum Security Hardening (Purged tar / CVE-2025-45582 Remediation)**
+В цьому релізі досягнуто найвищого рівня безпеки образу шляхом примусового видалення системної утиліти `tar` та її метаданих, що ліквідувало останню вразливість `CVE-2025-45582`.
 
 ## Що нового / What's New:
 🇺🇦 **Українська:**
-- Повністю видалено пакети `libkrb5-3`, `libgssapi-krb5-2`, `libkrb5support0` та `libk5crypto3` (разом з їхніми залежностями), що ліквідувало 5 вразливостей (включаючи `CVE-2026-40355`, `CVE-2026-40356` тощо).
-- Видалено системну утиліту `curl` та `libcurl4`, що усунуло додаткові потенційні вектори вразливостей.
-- Переписано `HEALTHCHECK` на використання чистих стандартних бібліотек Python (`urllib.request`), тому робота моніторингу працездатності контейнера не змінилася та не потребує зовнішніх утиліт.
+- Завдяки інструкції `dpkg --force-all --purge tar` з образу повністю видалено утиліту `tar`, яка мала вразливість середньої важливості `CVE-2025-45582`.
+- Оскільки додаток є веб-сервісом моніторингу і не виконує операцій архівування/розархівування, відсутність `tar` жодним чином не впливає на працездатність програми в рантаймі.
+- Тепер у підсумковому образі **повністю відсутні** будь-які медіум/хай/крітікал CVE.
 
 🇬🇧 **English:**
-- Fully purged `libkrb5-3`, `libgssapi-krb5-2`, `libkrb5support0`, and `libk5crypto3` packages, eliminating all Kerberos vulnerabilities.
-- Removed system utilities `curl` and `libcurl4` to minimize attack surface.
-- Replaced container `HEALTHCHECK` command with a native Python script using `urllib.request`.
+- Completely purged the `tar` package and its metadata from the container using `dpkg --force-all --purge tar`, mitigating the remaining `CVE-2025-45582` vulnerability.
+- As the application is a monitoring service and doesn't unpack untrusted files, the absence of `tar` has zero impact on runtime behavior.
+- The image is now free of any Medium, High, or Critical CVEs.
