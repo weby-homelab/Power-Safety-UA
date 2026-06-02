@@ -78,6 +78,61 @@ def get_alert_intervals(target_date):
     return intervals
 
 
+def get_weekly_alerts_stats(monday, sunday):
+    import os, json, datetime
+    from zoneinfo import ZoneInfo
+    KYIV_TZ = ZoneInfo("Europe/Kyiv")
+    
+    # Start and end of the week
+    week_start = datetime.datetime.combine(monday, datetime.time.min).replace(tzinfo=KYIV_TZ)
+    week_end = datetime.datetime.combine(sunday, datetime.time.max).replace(tzinfo=KYIV_TZ)
+    
+    log_file = os.path.join(DATA_DIR, "air_raid_log.json")
+    if not os.path.exists(log_file):
+        return 0, 0, 0.0
+        
+    try:
+        with open(log_file, "r") as f:
+            data = json.load(f)
+    except Exception:
+        return 0, 0, 0.0
+        
+    alerts = []
+    current_start = None
+    
+    for event in data:
+        dt = datetime.datetime.fromtimestamp(event["timestamp"], tz=KYIV_TZ)
+        if event["event"] == "active":
+            if current_start is None:
+                current_start = dt
+        elif event["event"] == "clear":
+            if current_start is not None:
+                # Truncate to the week range
+                start = max(current_start, week_start)
+                end = min(dt, week_end)
+                if start < end:
+                    alerts.append((start, end))
+                current_start = None
+                
+    if current_start is not None:
+        start = max(current_start, week_start)
+        now = datetime.datetime.now(tz=KYIV_TZ)
+        end = min(now, week_end)
+        if start < end:
+            alerts.append((start, end))
+            
+    count = len(alerts)
+    total_duration_sec = sum((end - start).total_seconds() for start, end in alerts)
+    total_hours = total_duration_sec / 3600.0
+    
+    # Percentage of weekly time
+    total_week_hours = 168.0
+    pct = (total_hours / total_week_hours * 100) if total_week_hours > 0 else 0
+    
+    return count, total_duration_sec, pct
+
+
+
 def get_schedule_slots(date_obj):
     """
     Wrapper around load_schedule_slots from daily report to ensure consistent logic.
@@ -200,7 +255,7 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
         plt_style = 'default'
 
     with plt.style.context(plt_style):
-        fig, ax = plt.subplots(figsize=(10, 5.0), facecolor=bg_color)
+        fig, ax = plt.subplots(figsize=(10, 5.5), facecolor=bg_color)
         ax.set_facecolor(bg_color)
         
         # Colors
@@ -212,16 +267,55 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
         
         dummy_date = datetime.date(2000, 1, 1)
         
+        # Get coordinates from config
+        config_path = os.path.join(DATA_DIR, "config.json")
+        if not os.path.exists(config_path):
+            config_path = "config.json"
+        
+        cfg = {}
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    cfg = json.load(f)
+            except Exception:
+                pass
+                
+        aq_cfg = cfg.get("sources", {}).get("air_quality", {})
+        lat = aq_cfg.get("lat", "50.408")
+        lon = aq_cfg.get("lon", "30.400")
+
+        # Fetch weekly AQI in one request
+        aqi_by_date = {}
+        try:
+            start_date = daily_data[0]['date']
+            end_date = daily_data[-1]['date']
+            start_str = start_date.strftime("%Y-%m-%d")
+            end_str = end_date.strftime("%Y-%m-%d")
+            aq_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&start_date={start_str}&end_date={end_str}&hourly=pm2_5&timezone=Europe%2FKyiv"
+            r_aq = requests.get(aq_url, timeout=10)
+            if r_aq.status_code == 200:
+                aq_data = r_aq.json()
+                pm25_hourly = aq_data.get("hourly", {}).get("pm2_5", [])
+                time_hourly = aq_data.get("hourly", {}).get("time", [])
+                for t_str, val in zip(time_hourly, pm25_hourly):
+                    dt = datetime.datetime.fromisoformat(t_str)
+                    d_str = dt.strftime("%Y-%m-%d")
+                    if d_str not in aqi_by_date:
+                        aqi_by_date[d_str] = []
+                    aqi_by_date[d_str].append((dt.hour, val))
+        except Exception as e:
+            print(f"Error fetching weekly AQI data: {e}")
+        
         for i, day_info in enumerate(daily_data):
             day_date = day_info['date']
             intervals = day_info['intervals']
             
-            y_pos = 9 - i * 1.3
+            y_pos = 11 - i * 1.8
             
             day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
             label = f"{day_names[day_date.weekday()]} {day_date.strftime('%d.%m')}"
             y_labels.append(label)
-            y_ticks.append(y_pos)
+            y_ticks.append(y_pos + 0.18) # Center of the day stack
             
             # --- 1. Draw Actual Data (Top Strip) ---
             now_kyiv = datetime.datetime.now(KYIV_TZ)
@@ -246,19 +340,9 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
                     
                     if duration_num > 0:
                         color = color_map.get(state, fact_on_color)
-                        ax.broken_barh([(start_num, duration_num)], (y_pos + 0.18, 0.36), facecolors=color, edgecolor='none')
+                        ax.broken_barh([(start_num, duration_num)], (y_pos + 0.54, 0.36), facecolors=color, edgecolor='none')
 
-            # --- Separator Lines ---
-
-            ax.axhline(y=y_pos + 0.18, color=bg_color, linewidth=0.5, zorder=5)
-            ax.axhline(y=y_pos - 0.18, color=bg_color, linewidth=0.5, zorder=5)
-
-
-            # --- Hour Markers on the Bars (Background Color) ---
-            hour_points = [mdates.date2num(datetime.datetime.combine(dummy_date, datetime.time(h, 0))) for h in range(1, 24)]
-            ax.vlines(hour_points, y_pos - 0.54, y_pos + 0.54, colors=bg_color, linewidth=0.8, zorder=6)
-
-            # --- 2. Draw Schedule Data (Bottom Strip) ---
+            # --- 2. Draw Schedule Data (Second Strip) ---
             slots = get_schedule_slots(day_date)
             if slots:
                 sched_intervals = slots_to_intervals(slots)
@@ -268,15 +352,15 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
                     duration_n = duration_h / 24.0
                     
                     color = sched_map.get(is_on, plan_off_color)
-                    ax.broken_barh([(start_n, duration_n)], (y_pos - 0.18, 0.36), facecolors=color, edgecolor='none')
+                    ax.broken_barh([(start_n, duration_n)], (y_pos + 0.18, 0.36), facecolors=color, edgecolor='none')
 
 
-            # --- 3. Draw Alert Data (Bottom-most Strip) ---
+            # --- 3. Draw Alert Data (Third Strip) ---
             alert_on_color = '#FFFDE7' # Pastel white-yellow for alerts
             alert_off_color = '#334155' if theme == 'dark' else '#cbd5e1'
             x_start_num = mdates.date2num(datetime.datetime.combine(dummy_date, datetime.time.min))
             x_end_num = mdates.date2num(datetime.datetime.combine(dummy_date, datetime.time.max))
-            ax.broken_barh([(x_start_num, x_end_num - x_start_num)], (y_pos - 0.54, 0.36), facecolors=alert_off_color, edgecolor='none')
+            ax.broken_barh([(x_start_num, x_end_num - x_start_num)], (y_pos - 0.18, 0.36), facecolors=alert_off_color, edgecolor='none')
             
             alert_intervals = get_alert_intervals(day_date)
             for start, end, is_alert in alert_intervals:
@@ -293,11 +377,43 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
                     duration_num = mdates.date2num(d_end) - start_num
                     
                     if duration_num > 0:
-                        ax.broken_barh([(start_num, duration_num)], (y_pos - 0.54, 0.36), facecolors=alert_on_color, edgecolor='none')
+                        ax.broken_barh([(start_num, duration_num)], (y_pos - 0.18, 0.36), facecolors=alert_on_color, edgecolor='none')
 
+
+            # --- 4. Draw AQI Data (Fourth Strip) ---
+            d_str = day_date.strftime("%Y-%m-%d")
+            hourly_pm = aqi_by_date.get(d_str, [])
+            if not hourly_pm:
+                hourly_pm = [(h, 0) for h in range(24)]
+                
+            for hour, val in hourly_pm:
+                if val is None:
+                    val = 0
+                aqi_val = int(val * 3)
+                if aqi_val <= 50:
+                    color = "#22c55e" # Green
+                elif aqi_val <= 100:
+                    color = "#eab308" # Yellow
+                else:
+                    color = "#ef4444" # Red
+                    
+                s_date = datetime.datetime.combine(dummy_date, datetime.time(hour, 0))
+                start_n = mdates.date2num(s_date)
+                duration_n = 1.0 / 24.0
+                ax.broken_barh([(start_n, duration_n)], (y_pos - 0.54, 0.36), facecolors=color, edgecolor='none')
+
+
+            # --- Separator Lines ---
+            ax.axhline(y=y_pos + 0.54, color=bg_color, linewidth=0.5, zorder=5)
+            ax.axhline(y=y_pos + 0.18, color=bg_color, linewidth=0.5, zorder=5)
+            ax.axhline(y=y_pos - 0.18, color=bg_color, linewidth=0.5, zorder=5)
+
+            # --- Hour Markers on the Bars (Background Color) ---
+            hour_points = [mdates.date2num(datetime.datetime.combine(dummy_date, datetime.time(h, 0))) for h in range(1, 24)]
+            ax.vlines(hour_points, y_pos - 0.54, y_pos + 0.90, colors=bg_color, linewidth=0.8, zorder=6)
 
         # Formatting
-        ax.set_ylim(-0.5, 10.5)
+        ax.set_ylim(-1.0, 12.5)
         ax.set_yticks(y_ticks)
         ax.set_yticklabels(y_labels, color=text_color)
         ax.tick_params(axis='x', colors=text_color)
@@ -324,8 +440,12 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
         gray_patch = mpatches.Patch(color=plan_off_color, label='Графік: Немає')
         alert_patch = mpatches.Patch(color='#FFFDE7', label='Тривога')
         alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label='Немає тривог')
+        
+        aqi_green = mpatches.Patch(color='#22c55e', label='AQI: Добре')
+        aqi_yellow = mpatches.Patch(color='#eab308', label='AQI: Помірне')
+        aqi_red = mpatches.Patch(color='#ef4444', label='AQI: Шкідливе')
 
-        legend = plt.legend(handles=[green_patch, red_patch, yellow_patch, gray_patch, alert_patch, alert_off_patch],
+        legend = plt.legend(handles=[green_patch, red_patch, yellow_patch, gray_patch, alert_patch, alert_off_patch, aqi_green, aqi_yellow, aqi_red],
                    loc='upper center', bbox_to_anchor=(0.5, -0.1),
                    fancybox=False, frameon=False, shadow=False, ncol=3, fontsize='small')
         plt.setp(legend.get_texts(), color=text_color)
@@ -467,12 +587,18 @@ if __name__ == "__main__":
              
              plan_section += f"\n🌤 <b>Легше ніж очікувалось:</b> {e_name} ({e_sign}{format_duration_h(abs(e_diff))} понад план)\n🌩 <b>Важче ніж очікувалось:</b> {h_name} ({h_sign}{format_duration_h(abs(h_diff))} від плану)"
 
+    alerts_count, alerts_dur_sec, alerts_pct = get_weekly_alerts_stats(monday, sunday)
+    alerts_h = alerts_dur_sec / 3600
+    alerts_h_int = int(alerts_h)
+    alerts_m_int = int((alerts_h % 1) * 60)
+
     caption = f"""📅 <b>Енергетичний тиждень ({monday.strftime('%d.%m')} - {sunday.strftime('%d.%m')})</b>
 
 📊 <b>Загальні підсумки:</b>
  • Світло було 🔆 <b>{int(up_h)}г {int((up_h%1)*60)}хв</b> ({int(up_pct)}%)
  • Відключення ✖️ <b>{int(down_h)}г {int((down_h%1)*60)}хв</b>
  • В середньому без світла: <b>{int(down_h/7)}г {int(((down_h/7)%1)*60)}хв</b> на добу
+ • Повітряні тривоги 🚨 <b>{alerts_count}</b> за тиждень (сумарно <b>{alerts_h_int}г {alerts_m_int}хв</b>, або <b>{alerts_pct:.1f}%</b> від усього часу)
 {plan_section}
 
 🏆 <b>Найменше відключень:</b> {day_names[best_day['date'].weekday()]}
