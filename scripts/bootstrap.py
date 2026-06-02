@@ -174,7 +174,8 @@ def perform_cold_start_if_needed():
             try:
                 from parser_service import update_local_schedules
                 print("⏳ Завантаження планових графіків згідно з config.json...")
-                update_local_schedules(config_file, sched_file)
+                import asyncio
+                asyncio.run(update_local_schedules(config_file, sched_file))
                 print("✅ last_schedules.json успішно згенеровано!")
             except Exception as e:
                 print(f"❌ Помилка завантаження першого графіку: {e}")
