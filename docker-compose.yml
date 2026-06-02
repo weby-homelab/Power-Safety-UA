@@ -24,5 +24,7 @@ services:
       - ./data:/app/data
     env_file:
       - .env
+    environment:
+      - PYTHONPATH=/app
     healthcheck:
       disable: true
