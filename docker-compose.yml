@@ -19,7 +19,7 @@ services:
     image: webyhomelab/flash-monitor-kyiv:latest
     container_name: flash-monitor-worker
     restart: unless-stopped
-    command: python run_background.py
+    command: python app/run_background.py
     volumes:
       - ./data:/app/data
     env_file:
