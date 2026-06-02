@@ -300,10 +300,12 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         plt_style = 'default'
 
     with plt.style.context(plt_style):
-        fig, ax = plt.subplots(figsize=(10, 2.0), facecolor=bg_color)
+        fig, ax = plt.subplots(figsize=(10, 2.3), facecolor=bg_color)
         ax.set_facecolor(bg_color)
         
         # Define geometries - Glued together
+        aqi_y = 9.0
+        aqi_h = 2.0
         alert_y = 11.0
         alert_h = 2.0
         sched_y = 13.0
@@ -314,7 +316,60 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         day_start = datetime.datetime.combine(target_date, datetime.time.min).replace(tzinfo=KYIV_TZ)
         day_end = datetime.datetime.combine(target_date, datetime.time.max).replace(tzinfo=KYIV_TZ)
         
-        # --- Schedule Data (Bottom Bar) ---
+        # --- AQI Data (Bottom Bar) ---
+        config_path = os.path.join(DATA_DIR, "config.json")
+        if not os.path.exists(config_path):
+            config_path = "config.json"
+        
+        cfg = {}
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    cfg = json.load(f)
+            except Exception:
+                pass
+                
+        aq_cfg = cfg.get("sources", {}).get("air_quality", {})
+        lat = aq_cfg.get("lat", "50.408")
+        lon = aq_cfg.get("lon", "30.400")
+        
+        aqi_intervals = []
+        try:
+            date_str = target_date.strftime("%Y-%m-%d")
+            aq_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&start_date={date_str}&end_date={date_str}&hourly=pm2_5&timezone=Europe%2FKyiv"
+            r_aq = requests.get(aq_url, timeout=5)
+            if r_aq.status_code == 200:
+                aq_data = r_aq.json()
+                pm25_hourly = aq_data.get("hourly", {}).get("pm2_5", [])
+                
+                for i in range(min(len(pm25_hourly), 24)):
+                    val = pm25_hourly[i]
+                    if val is None:
+                        val = 0
+                    aqi_val = int(val * 3)
+                    
+                    if aqi_val <= 50:
+                        color = "#22c55e" # Green
+                    elif aqi_val <= 100:
+                        color = "#eab308" # Yellow
+                    else:
+                        color = "#ef4444" # Red
+                    
+                    start_t = datetime.datetime.combine(target_date, datetime.time(i, 0)).replace(tzinfo=KYIV_TZ)
+                    end_t = start_t + datetime.timedelta(hours=1)
+                    aqi_intervals.append((start_t, end_t, color))
+        except Exception as e:
+            print(f"Error fetching daily AQI for chart: {e}")
+
+        if not aqi_intervals:
+            aqi_intervals = [(day_start, day_end, "#22c55e")]
+
+        for start, end, color in aqi_intervals:
+            start_num = mdates.date2num(start)
+            end_num = mdates.date2num(end)
+            ax.broken_barh([(start_num, end_num - start_num)], (aqi_y, aqi_h), facecolors=color, edgecolor='none')
+        
+        # --- Schedule Data (Middle Bar) ---
         sched_color_map = {True: plan_on_color, False: plan_off_color}
         
         if schedule_intervals:
@@ -325,7 +380,7 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
                 ax.broken_barh([(start_num, duration_days)], (sched_y, sched_h), facecolors=color, edgecolor='none')
 
         
-        # --- Alert Data (Bottom Bar) ---
+        # --- Alert Data (Middle Bar) ---
         alert_on_color = '#FFFDE7' # Pastel white-yellow for alerts
         alert_off_color = '#334155' if theme == 'dark' else '#cbd5e1'
         ax.broken_barh([(mdates.date2num(day_start), mdates.date2num(day_end) - mdates.date2num(day_start))], (alert_y, alert_h), facecolors=alert_off_color, edgecolor='none')
@@ -340,6 +395,7 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         # --- Separators ---
         ax.axhline(y=15, color=bg_color, linewidth=0.5, zorder=5)
         ax.axhline(y=13, color=bg_color, linewidth=0.5, zorder=5)
+        ax.axhline(y=11, color=bg_color, linewidth=0.5, zorder=5)
 
 
         # --- Hour Markers on the Bars (Background Color) ---
@@ -348,7 +404,7 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
             point_time = datetime.datetime.combine(target_date, datetime.time.min).replace(tzinfo=KYIV_TZ) + datetime.timedelta(hours=h)
             hour_points.append(mdates.date2num(point_time))
             
-        ax.vlines(hour_points, 11.0, 17.0, colors=bg_color, linewidth=0.8, zorder=10)
+        ax.vlines(hour_points, 9.0, 17.0, colors=bg_color, linewidth=0.8, zorder=10)
 
         # --- Actual Data (Top Bar) ---
         color_map = {'up': fact_on_color, 'down': fact_off_color, 'unknown': fact_on_color}
@@ -374,7 +430,7 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
             ax.broken_barh([(start_num, duration_num)], (act_y, act_h), facecolors=color, edgecolor='none')
 
         # --- Formatting ---
-        ax.set_ylim(9.5, 18.5) 
+        ax.set_ylim(7.5, 18.5) 
         ax.set_xlim(mdates.date2num(day_start), mdates.date2num(day_end))
         
         ax.spines['top'].set_visible(False)
@@ -389,8 +445,8 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         ax.tick_params(axis='x', colors=text_color)
         ax.tick_params(axis='y', colors=text_color)
         
-        ax.set_yticks([alert_y + alert_h/2, sched_y + sched_h/2, act_y + act_h/2])
-        ax.set_yticklabels(['Тривоги', 'Графік', 'Факт'], color=text_color)
+        ax.set_yticks([aqi_y + aqi_h/2, alert_y + alert_h/2, sched_y + sched_h/2, act_y + act_h/2])
+        ax.set_yticklabels(['Повітря', 'Тривоги', 'Графік', 'Факт'], color=text_color)
         
         ax.set_title(f"Статистика світла за {target_date.strftime('%d.%m.%Y')}", fontsize=12, color=text_color)
         
@@ -399,12 +455,14 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         red_patch = mpatches.Patch(color=fact_off_color, label=f'Світла немає')
         yellow_patch = mpatches.Patch(color=plan_on_color, label='Графік: Є')
         gray_patch = mpatches.Patch(color=plan_off_color, label='Графік: Немає')
-        
         alert_patch = mpatches.Patch(color='#FFFDE7', label='Тривога')
         alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label='Немає тривог')
+        
+        aqi_green = mpatches.Patch(color='#22c55e', label='AQI: Добре')
+        aqi_yellow = mpatches.Patch(color='#eab308', label='AQI: Помірне')
+        aqi_red = mpatches.Patch(color='#ef4444', label='AQI: Шкідливе')
 
-
-        legend = plt.legend(handles=[green_patch, red_patch, yellow_patch, gray_patch, alert_patch, alert_off_patch],
+        legend = plt.legend(handles=[green_patch, red_patch, yellow_patch, gray_patch, alert_patch, alert_off_patch, aqi_green, aqi_yellow, aqi_red],
                    loc='upper center', bbox_to_anchor=(0.5, -0.25),
                    fancybox=False, frameon=False, shadow=False, ncol=3, fontsize='small')
         plt.setp(legend.get_texts(), color=text_color)

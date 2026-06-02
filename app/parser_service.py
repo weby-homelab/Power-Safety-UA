@@ -3,7 +3,7 @@ import json
 import httpx
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
 import aiofiles
@@ -141,17 +141,44 @@ def extract_github(data: dict, cfg: dict) -> dict:
     fact = data.get("fact", {}).get("data", {})
     if isinstance(fact, list):
         fact = {}
+    preset = data.get("preset", {}).get("data", {})
+    
+    now = datetime.now(KYIV_TZ)
+    dates_to_populate = [
+        now,
+        now + timedelta(days=1),
+        now + timedelta(days=2)
+    ]
+    
     for grp in cfg['settings'].get('groups', []):
         res[grp] = {}
-        for ts in sorted(fact.keys(), key=int)[:3]:
-            d = fact.get(ts, {}).get(grp)
-            if not d: continue
-            dt = datetime.fromtimestamp(int(ts), tz=KYIV_TZ)
+        for dt in dates_to_populate:
             d_str = dt.strftime("%Y-%m-%d")
-            if all(d.get(str(h), "yes") == "yes" for h in range(1, 25)):
-                res[grp][d_str] = {"slots": [True] * 48, "status": "normal"}
-            else:
-                res[grp][d_str] = {"slots": parse_github_day(d), "status": "normal"}
+            
+            # 1. Try to find date in fact overrides
+            found_in_fact = False
+            for ts, group_data in fact.items():
+                try:
+                    f_dt = datetime.fromtimestamp(int(ts), tz=KYIV_TZ)
+                    if f_dt.strftime("%Y-%m-%d") == d_str:
+                        d = group_data.get(grp)
+                        if d:
+                            if all(d.get(str(h), "yes") == "yes" for h in range(1, 25)):
+                                res[grp][d_str] = {"slots": [True] * 48, "status": "normal"}
+                            else:
+                                res[grp][d_str] = {"slots": parse_github_day(d), "status": "normal"}
+                            found_in_fact = True
+                            break
+                except (ValueError, TypeError):
+                    continue
+            
+            # 2. If not found in fact, fall back to preset
+            if not found_in_fact:
+                day_num = str(dt.isoweekday()) # 1=Monday, ..., 7=Sunday
+                d = preset.get(grp, {}).get(day_num)
+                if d:
+                    res[grp][d_str] = {"slots": parse_github_day(d), "status": "normal"}
+                    
     return res
 
 def extract_yasno(data: dict, cfg: dict) -> dict:

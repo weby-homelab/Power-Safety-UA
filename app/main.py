@@ -178,6 +178,13 @@ async def get_power_events_data(limit=5):
     sched_light_now, current_end, next_range, next_duration, is_emergency = get_schedule_context()
     if is_emergency:
         latest_event_text = "• можливі аварійні відключення ⚠️"
+    elif sched_light_now and (
+        "не плануються" in next_range.lower() or 
+        "невідомий час" in next_range.lower() or 
+        "час невідомий" in next_range.lower() or 
+        "час очікується" in next_range.lower()
+    ):
+        latest_event_text = "• Відключення не плануються 🔆"
     else:
         latest_event_text = f"• Наступне планове: {next_range}"
     
@@ -277,8 +284,13 @@ async def get_power_events_data(limit=5):
                         latest_event_text = f"{dev_line}"
                     elif wait_line:
                         latest_event_text = f"{wait_line}"
-                    elif sched_light_now and (next_range == "відключення не плануються 🔆" or next_range == "відключення не плануються ✅" or next_range == "час невідомий 🤷‍♂️" or next_range == "час очікується"):
-                        latest_event_text = "• відключення не плануються 🔆"
+                    elif sched_light_now and (
+                        "не плануються" in next_range.lower() or 
+                        "невідомий час" in next_range.lower() or 
+                        "час невідомий" in next_range.lower() or 
+                        "час очікується" in next_range.lower()
+                    ):
+                        latest_event_text = "• Відключення не плануються 🔆"
                     else:
                         latest_event_text = f"• Наступне планове: {next_range}"
                     
@@ -350,8 +362,7 @@ def get_today_schedule_text():
         config_path = os.path.join(DATA_DIR, "config.json")
         if not os.path.exists(config_path):
             config_path = "config.json"
-        data_dir = os.environ.get("DATA_DIR", ".")
-        schedule_file = os.path.join(data_dir, "last_schedules.json")
+        schedule_file = os.path.join(DATA_DIR, "last_schedules.json")
         if not os.path.exists(schedule_file):
             return "Графік відсутній"
 
@@ -468,77 +479,121 @@ async def get_air_quality():
         lon = aq_cfg.get("lon", "30.52")
         om_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&current=pm10,pm2_5&hourly=pm2_5&past_days=1"
         
-        # SaveEcoBot for Station-specific (Station 17095)
+        # SaveEcoBot for Station-specific (Station 17095 or user-defined)
         seb_id = aq_cfg.get("seb_station", "17095")
-        seb_url = f"https://www.saveecobot.com/platform/api/v1/stations/{seb_id}"
+        seb_url = f"https://www.saveecobot.com/station/{seb_id}.json"
         
         # Weather for Temp/Hum
         w_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,relative_humidity_2m&past_days=1"
 
         def fetch_all():
-            pm_data = requests.get(om_url, timeout=5).json()
-            w_data = requests.get(w_url, timeout=5).json()
+            seb_data = {}
+            try:
+                r_seb = requests.get(seb_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+                if r_seb.status_code == 200:
+                    seb_data = r_seb.json()
+            except Exception as e:
+                logger.error("seb_fetch_error", error=str(e))
 
-            pm25 = pm_data.get('current', {}).get('pm2_5', 0)
-            pm10 = pm_data.get('current', {}).get('pm10', 0)
+            pm_data = {}
+            try:
+                pm_data = requests.get(om_url, timeout=5).json()
+            except Exception as e:
+                logger.error("om_fetch_error", error=str(e))
+
+            w_data = {}
+            try:
+                w_data = requests.get(w_url, timeout=5).json()
+            except Exception as e:
+                logger.error("w_fetch_error", error=str(e))
+
+            # Extract data
+            pm25 = None
+            pm10 = None
+            pm1 = None
+            seb_temp = None
+            seb_hum = None
+            
+            if seb_data and "last_data" in seb_data:
+                for item in seb_data["last_data"]:
+                    phen = item.get("phenomenon")
+                    val = item.get("value")
+                    if phen == "pm25":
+                        pm25 = val
+                    elif phen == "pm10":
+                        pm10 = val
+                    elif phen == "pm1":
+                        pm1 = val
+                    elif phen == "temperature":
+                        seb_temp = val
+                    elif phen == "humidity":
+                        seb_hum = val
+
+            if pm25 is None:
+                pm25 = pm_data.get('current', {}).get('pm2_5', 0) if pm_data else 0
+            if pm10 is None:
+                pm10 = pm_data.get('current', {}).get('pm10', 0) if pm_data else 0
+
+            aqi = seb_data.get("aqi")
+            if aqi is None:
+                aqi = int(pm25 * 3)
+            else:
+                aqi = int(aqi)
 
             history_hourly = []
             history_times = []
             temp_history = []
             hum_history = []
             try:
-                pm25_hourly = pm_data.get('hourly', {}).get('pm2_5', [])
-                time_hourly = pm_data.get('hourly', {}).get('time', [])
+                if pm_data:
+                    pm25_hourly = pm_data.get('hourly', {}).get('pm2_5', [])
+                    time_hourly = pm_data.get('hourly', {}).get('time', [])
+                    if time_hourly:
+                        now_iso = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:00")
+                        try:
+                            idx = time_hourly.index(now_iso)
+                        except ValueError:
+                            idx = len(time_hourly) - 1
 
-                temp_hourly = w_data.get('hourly', {}).get('temperature_2m', [])
-                hum_hourly = w_data.get('hourly', {}).get('relative_humidity_2m', [])
-                w_time_hourly = w_data.get('hourly', {}).get('time', [])
+                        if idx >= 23:
+                            recent = pm25_hourly[idx-23:idx+1]
+                            recent_times = time_hourly[idx-23:idx+1]
+                        else:
+                            recent = pm25_hourly[:idx+1]
+                            recent_times = time_hourly[:idx+1]
 
-                if time_hourly:
-                    now_iso = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:00")
-                    try:
-                        idx = time_hourly.index(now_iso)
-                    except ValueError:
-                        idx = len(time_hourly) - 1
+                        for i in range(len(recent)):
+                            val_h = recent[i] or 0
+                            dt = datetime.fromisoformat(recent_times[i]).replace(tzinfo=ZoneInfo("UTC")).astimezone(KYIV_TZ)
+                            history_hourly.append(int(val_h * 3))
+                            history_times.append(dt.strftime("%H:%M"))
 
-                    if idx >= 23:
-                        recent = pm25_hourly[idx-23:idx+1]
-                        recent_times = time_hourly[idx-23:idx+1]
-                    else:
-                        recent = pm25_hourly[:idx+1]
-                        recent_times = time_hourly[:idx+1]
+                if w_data:
+                    temp_hourly = w_data.get('hourly', {}).get('temperature_2m', [])
+                    hum_hourly = w_data.get('hourly', {}).get('relative_humidity_2m', [])
+                    w_time_hourly = w_data.get('hourly', {}).get('time', [])
+                    if w_time_hourly:
+                        now_iso = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:00")
+                        try:
+                            idx = w_time_hourly.index(now_iso)
+                        except ValueError:
+                            idx = len(w_time_hourly) - 1
 
-                    for i in range(len(recent)):
-                        val = recent[i] or 0
-                        dt = datetime.fromisoformat(recent_times[i]).replace(tzinfo=ZoneInfo("UTC")).astimezone(KYIV_TZ)
-                        history_hourly.append(int(val * 3))
-                        history_times.append(dt.strftime("%H:%M"))
+                        if idx >= 11:
+                            recent_temp = temp_hourly[idx-11:idx+1]
+                            recent_hum = hum_hourly[idx-11:idx+1]
+                        else:
+                            recent_temp = temp_hourly[:idx+1]
+                            recent_hum = hum_hourly[:idx+1]
 
-                if w_time_hourly:
-                    now_iso = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:00")
-                    try:
-                        idx = w_time_hourly.index(now_iso)
-                    except ValueError:
-                        idx = len(w_time_hourly) - 1
-
-                    if idx >= 11:
-                        recent_temp = temp_hourly[idx-11:idx+1]
-                        recent_hum = hum_hourly[idx-11:idx+1]
-                    else:
-                        recent_temp = temp_hourly[:idx+1]
-                        recent_hum = hum_hourly[:idx+1]
-
-                    for i in range(len(recent_temp)):
-                        t_val = recent_temp[i] if recent_temp[i] is not None else 0
-                        h_val = recent_hum[i] if recent_hum[i] is not None else 0
-                        temp_history.append(t_val)
-                        hum_history.append(h_val)
+                        for i in range(len(recent_temp)):
+                            t_val = recent_temp[i] if recent_temp[i] is not None else 0
+                            h_val = recent_hum[i] if recent_hum[i] is not None else 0
+                            temp_history.append(t_val)
+                            hum_history.append(h_val)
 
             except Exception as e:
                 logger.error("aq_history_error", error=str(e))
-
-            # Simple AQI calculation based on PM2.5 (standard European scale approx)
-            aqi = int(pm25 * 3) # rough proxy for simplified dashboard
 
             status = "ok"
             status_text = "Низький"
@@ -549,6 +604,9 @@ async def get_air_quality():
                 status = "danger"
                 status_text = "Високе"
 
+            temp = seb_temp if seb_temp is not None else (w_data.get('current', {}).get('temperature_2m') if w_data else None)
+            hum = seb_hum if seb_hum is not None else (w_data.get('current', {}).get('relative_humidity_2m') if w_data else None)
+
             return {
                 "aqi": aqi,
                 "history_hourly": history_hourly,
@@ -557,12 +615,13 @@ async def get_air_quality():
                 "hum_history": hum_history,
                 "status": status,
                 "text": status_text,
-                "pm25": pm25,                "pm10": pm10,
-                "pm1": None,
-                "temp": w_data.get('current', {}).get('temperature_2m'),
-                "hum": w_data.get('current', {}).get('relative_humidity_2m'),
-                "wind_speed": w_data.get('current', {}).get('wind_speed_10m'),
-                "wind_dir": get_wind_label(w_data.get('current', {}).get('wind_direction_10m')),
+                "pm25": pm25,
+                "pm10": pm10,
+                "pm1": pm1,
+                "temp": temp,
+                "hum": hum,
+                "wind_speed": w_data.get('current', {}).get('wind_speed_10m') if w_data else None,
+                "wind_dir": get_wind_label(w_data.get('current', {}).get('wind_direction_10m')) if w_data else "-",
                 "location": aq_cfg.get("location_name", "Київ")
             }
 
@@ -641,8 +700,7 @@ async def api_status():
     now = datetime.now(KYIV_TZ)
     date_str = now.strftime("%Y-%m-%d")
     slots = [True] * 48
-    data_dir = os.environ.get("DATA_DIR", "data")
-    sched_file = os.path.join(data_dir, "last_schedules.json")
+    sched_file = os.path.join(DATA_DIR, "last_schedules.json")
     if os.path.exists(sched_file):
         try:
             with open(sched_file, 'r') as f:
