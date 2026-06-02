@@ -178,7 +178,7 @@ async def get_power_events_data(limit=5):
     sched_light_now, current_end, next_range, next_duration, is_emergency = get_schedule_context()
     if is_emergency:
         latest_event_text = "• можливі аварійні відключення ⚠️"
-    elif sched_light_now and (
+    elif (
         "не плануються" in next_range.lower() or 
         "невідомий час" in next_range.lower() or 
         "час невідомий" in next_range.lower() or 
@@ -284,7 +284,7 @@ async def get_power_events_data(limit=5):
                         latest_event_text = f"{dev_line}"
                     elif wait_line:
                         latest_event_text = f"{wait_line}"
-                    elif sched_light_now and (
+                    elif (
                         "не плануються" in next_range.lower() or 
                         "невідомий час" in next_range.lower() or 
                         "час невідомий" in next_range.lower() or 
@@ -1057,8 +1057,6 @@ async def admin_config_post(request: Request, new_config: dict = Body(None)):
         await asyncio.to_thread(create_backup, "auto_before_save")
 
         config_path = os.path.join(DATA_DIR, "config.json")
-        if not os.path.exists(config_path):
-            config_path = "config.json"
         
         def save_config():
             with open(config_path, 'w', encoding='utf-8') as f:
