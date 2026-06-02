@@ -4,7 +4,7 @@ services:
     container_name: flash-monitor
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5050:5050"
+      - "${PORT_BINDING:-127.0.0.1}:5050:5050"
     volumes:
       - ./data:/app/data
     env_file:
