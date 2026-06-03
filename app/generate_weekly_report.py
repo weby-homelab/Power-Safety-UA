@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import necessary functions from the daily report script to reuse logic
-from app.generate_daily_report import load_events, get_intervals_for_date, format_duration, KYIV_TZ, load_schedule_slots, get_quiet_status
+from app.generate_daily_report import load_events, get_intervals_for_date, format_duration, KYIV_TZ, load_schedule_slots, get_quiet_status, get_now
 
 # --- Configuration ---
 DATA_DIR = os.environ.get("DATA_DIR", "data")
@@ -70,7 +70,7 @@ def get_alert_intervals(target_date):
                 
     if current_start is not None:
         start = max(current_start, day_start)
-        now = datetime.datetime.now(tz=KYIV_TZ)
+        now = get_now()
         end = min(now, day_end)
         if start < end:
             intervals.append((start, end, True))
@@ -116,7 +116,7 @@ def get_weekly_alerts_stats(monday, sunday):
                 
     if current_start is not None:
         start = max(current_start, week_start)
-        now = datetime.datetime.now(tz=KYIV_TZ)
+        now = get_now()
         end = min(now, week_end)
         if start < end:
             alerts.append((start, end))
@@ -318,7 +318,7 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
             y_ticks.append(y_pos + 0.18) # Center of the day stack
             
             # --- 1. Draw Actual Data (Top Strip) ---
-            now_kyiv = datetime.datetime.now(KYIV_TZ)
+            now_kyiv = get_now()
             
             if day_date <= now_kyiv.date():
                 for start, end, state in intervals:
@@ -384,9 +384,18 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
             d_str = day_date.strftime("%Y-%m-%d")
             hourly_pm = aqi_by_date.get(d_str, [])
             if not hourly_pm:
-                hourly_pm = [(h, 0) for h in range(24)]
+                if day_date <= now_kyiv.date():
+                    limit_h = now_kyiv.hour + 1 if day_date == now_kyiv.date() else 24
+                    hourly_pm = [(h, 0) for h in range(limit_h)]
+                else:
+                    hourly_pm = []
                 
             for hour, val in hourly_pm:
+                # Filter out future AQI hours
+                s_date = datetime.datetime.combine(day_date, datetime.time(hour, 0)).replace(tzinfo=KYIV_TZ)
+                if s_date > now_kyiv:
+                    continue
+                    
                 if val is None:
                     val = 0
                 aqi_val = int(val * 3)
@@ -397,8 +406,8 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
                 else:
                     color = "#ef4444" # Red
                     
-                s_date = datetime.datetime.combine(dummy_date, datetime.time(hour, 0))
-                start_n = mdates.date2num(s_date)
+                dummy_s_date = datetime.datetime.combine(dummy_date, datetime.time(hour, 0))
+                start_n = mdates.date2num(dummy_s_date)
                 duration_n = 1.0 / 24.0
                 ax.broken_barh([(start_n, duration_n)], (y_pos - 0.54, 0.36), facecolors=color, edgecolor='none')
 
@@ -483,7 +492,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-send", action="store_true", help="Do not send to Telegram")
     args = parser.parse_args()
 
-    now = datetime.datetime.now(KYIV_TZ)
+    now = get_now()
     if args.date:
         target_date = datetime.datetime.strptime(args.date, "%Y-%m-%d").date()
     else:
