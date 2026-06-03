@@ -47,6 +47,9 @@ def get_timezone():
 
 KYIV_TZ = get_timezone()
 
+def get_now():
+    return datetime.datetime.now(KYIV_TZ)
+
 DAYS_UA = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота", "Неділя"]
 
 def get_quiet_status():
@@ -95,7 +98,7 @@ def get_alert_intervals(target_date):
     # If alert is still ongoing
     if current_start is not None:
         start = max(current_start, day_start)
-        now = datetime.datetime.now(tz=KYIV_TZ)
+        now = get_now()
         end = min(now, day_end)
         if start < end:
             intervals.append((start, end, True))
@@ -191,7 +194,7 @@ def get_intervals_for_date(target_date, events):
     
     # If target is today, clip the calculation end to NOW for stats, 
     # but the chart X-axis will still cover the full day.
-    now = datetime.datetime.now(KYIV_TZ)
+    now = get_now()
     if target_date == now.date():
         calc_end = now
     else:
@@ -304,19 +307,20 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         ax.set_facecolor(bg_color)
         
         # Define geometries - Glued together
-        aqi_y = 9.0
-        aqi_h = 2.0
-        alert_y = 11.0
-        alert_h = 2.0
-        sched_y = 13.0
-        sched_h = 2.0
-        act_y = 15.0
-        act_h = 2.0
+        aqi_y = 9.5
+        aqi_h = 1.0
+        alert_y = 11.5
+        alert_h = 1.0
+        sched_y = 13.5
+        sched_h = 1.0
+        act_y = 15.5
+        act_h = 1.0
         
         day_start = datetime.datetime.combine(target_date, datetime.time.min).replace(tzinfo=KYIV_TZ)
         day_end = datetime.datetime.combine(target_date, datetime.time.max).replace(tzinfo=KYIV_TZ)
         
         # --- AQI Data (Bottom Bar) ---
+        now = get_now()
         config_path = os.path.join(DATA_DIR, "config.json")
         if not os.path.exists(config_path):
             config_path = "config.json"
@@ -356,13 +360,18 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
                         color = "#ef4444" # Red
                     
                     start_t = datetime.datetime.combine(target_date, datetime.time(i, 0)).replace(tzinfo=KYIV_TZ)
+                    if start_t > now:
+                        continue
                     end_t = start_t + datetime.timedelta(hours=1)
                     aqi_intervals.append((start_t, end_t, color))
         except Exception as e:
             print(f"Error fetching daily AQI for chart: {e}")
 
         if not aqi_intervals:
-            aqi_intervals = [(day_start, day_end, "#22c55e")]
+            if target_date <= now.date():
+                end_fallback = min(day_end, now)
+                if day_start < end_fallback:
+                    aqi_intervals = [(day_start, end_fallback, '#22c55e')]
 
         for start, end, color in aqi_intervals:
             start_num = mdates.date2num(start)
@@ -556,7 +565,7 @@ def send_telegram_photo(photo_path, caption, target_date):
 
 def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
     if now_time is None:
-        now_time = datetime.datetime.now(KYIV_TZ)
+        now_time = get_now()
         
     # Terminology: "Monitoring" for today's ongoing day before noon, "Report" for finished days or today after noon.
     is_today = (target_date == now_time.date())
@@ -623,7 +632,7 @@ if __name__ == "__main__":
     # New logic: 
     # 00:00 - 00:09 -> Updates yesterday's report (Final summary at 00:01)
     # 00:10 - 23:59 -> Starts/updates today's report
-    now = datetime.datetime.now(KYIV_TZ)
+    now = get_now()
     
     if now.hour == 0 and now.minute < 10:
         target_date = (now - datetime.timedelta(days=1)).date()
@@ -650,7 +659,7 @@ if __name__ == "__main__":
     
     if not intervals:
         day_start = datetime.datetime.combine(target_date, datetime.time.min).replace(tzinfo=KYIV_TZ)
-        now = datetime.datetime.now(KYIV_TZ)
+        now = get_now()
         calc_end = now if target_date == now.date() else day_start + datetime.timedelta(hours=24)
         intervals = [(day_start, calc_end, "unknown")]
     # 3. Generate Charts
@@ -673,7 +682,7 @@ if __name__ == "__main__":
                 "fact_up": format_duration(t_up),
                 "diff": diff_hours,
                 "pct": int(compliance_pct),
-                "updated_at": datetime.datetime.now(KYIV_TZ).strftime("%H:%M")
+                "updated_at": get_now().strftime("%H:%M")
             }
             with open(os.path.join(web_dir, "stats.json"), "w") as f:
                 json.dump(stats_data, f)

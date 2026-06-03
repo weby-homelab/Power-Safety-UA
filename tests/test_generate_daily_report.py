@@ -67,12 +67,8 @@ def test_get_intervals_for_date():
         {"timestamp": datetime.datetime(2026, 4, 6, 10, 0, tzinfo=KYIV_TZ).timestamp(), "event": "down"},
         {"timestamp": datetime.datetime(2026, 4, 6, 12, 0, tzinfo=KYIV_TZ).timestamp(), "event": "up"},
     ]
-    class MockDatetime(datetime.datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime.datetime(2026, 4, 6, 14, 0, tzinfo=KYIV_TZ)
-            
-    with patch("app.generate_daily_report.datetime.datetime", MockDatetime):
+    with patch("app.generate_daily_report.get_now") as mock_get_now:
+        mock_get_now.return_value = datetime.datetime(2026, 4, 6, 14, 0, tzinfo=KYIV_TZ)
         intervals = get_intervals_for_date(date, events)
         assert len(intervals) == 3
         assert intervals[0][2] == "unknown" # 00:00 to 10:00
@@ -123,8 +119,30 @@ def test_generate_chart(mock_savefig):
         (day_start, 24.0, True)
     ]
     
-    filename, t_up, t_down = generate_chart(date, intervals, schedule_intervals, theme='dark')
+    filename, t_up, t_down = generate_chart(date, intervals, schedule_intervals, [], theme='dark')
     assert "report_2026-04-06.png" in filename
     assert t_up == 22 * 3600
     assert t_down == 2 * 3600
     mock_savefig.assert_called_once()
+
+@patch("requests.get")
+@patch("matplotlib.pyplot.savefig")
+def test_generate_chart_filters_future_aqi(mock_savefig, mock_get):
+    date = datetime.date(2026, 4, 6)
+    day_start = datetime.datetime.combine(date, datetime.time.min).replace(tzinfo=KYIV_TZ)
+    
+    # Mock Open-Meteo API response
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {
+        "hourly": {
+            "pm2_5": [10.0] * 24
+        }
+    }
+    
+    # Mock get_now to 12:00 in Kyiv timezone
+    with patch("app.generate_daily_report.get_now") as mock_get_now:
+        mock_get_now.return_value = datetime.datetime(2026, 4, 6, 12, 0, tzinfo=KYIV_TZ)
+        filename, t_up, t_down = generate_chart(date, [], [], [], theme='dark')
+        assert "report_2026-04-06.png" in filename
+        mock_savefig.assert_called()
+

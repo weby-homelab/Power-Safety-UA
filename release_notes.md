@@ -1,10 +1,12 @@
-# Release v3.5.1
+# Release v3.5.2
 
-**Daily Chart Legend Bugfix**
+**Chart Optimization & Air Quality Filtering**
 
 ## Що нового / What's New:
 🇺🇦 **Українська:**
-- **Виправлення денного графіка:** Перекомпоновано легенду на 5 колонок та збільшено висоту графіка, щоб легенда не зарізалася при відображенні.
+- **Денний графік:** Зроблено смужки на 50% вужчими для компактнішого вигляду.
+- **Моніторинг повітря:** Прибрано майбутні прогнозовані смужки якості повітря, відображаються лише минулі та поточні.
 
 🇬🇧 **English:**
-- **Daily Chart Fix:** Rearranged legend to 5 columns and increased figure height to prevent legend cutoff in daily reports.
+- **Daily Chart:** Reduced bar widths by 50% for a cleaner look.
+- **Air Quality:** Removed future hourly forecast bars from the daily chart; only past and current AQI hours are now shown.
