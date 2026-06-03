@@ -1049,7 +1049,7 @@ async def admin_config_post(request: Request, new_config: dict = Body(None)):
         return JSONResponse({"status": "error", "msg": "Invalid JSON"}, status_code=400)
 
     try:
-        from models import AppConfig
+        from app.models import AppConfig
         # Validate configuration before saving
         validated_config = AppConfig(**new_config).model_dump(exclude_unset=False, by_alias=True)
 
