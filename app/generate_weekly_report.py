@@ -408,8 +408,16 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
                     
                 dummy_s_date = datetime.datetime.combine(dummy_date, datetime.time(hour, 0))
                 start_n = mdates.date2num(dummy_s_date)
-                duration_n = 1.0 / 24.0
-                ax.broken_barh([(start_n, duration_n)], (y_pos - 0.54, 0.36), facecolors=color, edgecolor='none')
+                
+                # Check if it needs clipping (only for today's current hour)
+                if day_date == now_kyiv.date() and s_date + datetime.timedelta(hours=1) > now_kyiv:
+                    clipped_duration = (now_kyiv - s_date).total_seconds() / (24.0 * 3600.0)
+                    duration_n = max(0.0, clipped_duration)
+                else:
+                    duration_n = 1.0 / 24.0
+                    
+                if duration_n > 0:
+                    ax.broken_barh([(start_n, duration_n)], (y_pos - 0.54, 0.36), facecolors=color, edgecolor='none')
 
 
             # --- Separator Lines ---

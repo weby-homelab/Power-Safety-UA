@@ -48,7 +48,9 @@ def get_timezone():
 KYIV_TZ = get_timezone()
 
 def get_now():
-    return datetime.datetime.now(KYIV_TZ)
+    now = datetime.datetime.now(KYIV_TZ)
+    minutes = now.minute - now.minute % 10
+    return now.replace(minute=minutes, second=0, microsecond=0)
 
 DAYS_UA = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота", "Неділя"]
 
@@ -363,6 +365,8 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
                     if start_t > now:
                         continue
                     end_t = start_t + datetime.timedelta(hours=1)
+                    if end_t > now:
+                        end_t = now
                     aqi_intervals.append((start_t, end_t, color))
         except Exception as e:
             print(f"Error fetching daily AQI for chart: {e}")
