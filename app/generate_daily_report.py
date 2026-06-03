@@ -309,14 +309,14 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         ax.set_facecolor(bg_color)
         
         # Define geometries - Glued together
-        aqi_y = 9.5
-        aqi_h = 1.0
-        alert_y = 11.5
-        alert_h = 1.0
-        sched_y = 13.5
-        sched_h = 1.0
-        act_y = 15.5
-        act_h = 1.0
+        aqi_y = 9.15
+        aqi_h = 1.7
+        alert_y = 11.15
+        alert_h = 1.7
+        sched_y = 13.15
+        sched_h = 1.7
+        act_y = 15.15
+        act_h = 1.7
         
         day_start = datetime.datetime.combine(target_date, datetime.time.min).replace(tzinfo=KYIV_TZ)
         day_end = datetime.datetime.combine(target_date, datetime.time.max).replace(tzinfo=KYIV_TZ)
@@ -396,13 +396,26 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         # --- Alert Data (Middle Bar) ---
         alert_on_color = '#FFFDE7' # Pastel white-yellow for alerts
         alert_off_color = '#334155' if theme == 'dark' else '#cbd5e1'
-        ax.broken_barh([(mdates.date2num(day_start), mdates.date2num(day_end) - mdates.date2num(day_start))], (alert_y, alert_h), facecolors=alert_off_color, edgecolor='none')
+        if target_date == now.date():
+            alert_end = now
+        elif target_date < now.date():
+            alert_end = day_end
+        else:
+            alert_end = day_start
+
+        if day_start < alert_end:
+            ax.broken_barh([(mdates.date2num(day_start), mdates.date2num(alert_end) - mdates.date2num(day_start))], (alert_y, alert_h), facecolors=alert_off_color, edgecolor='none')
 
         for start, end, is_active in alert_intervals:
             if is_active:
+                if start > now:
+                    continue
+                if end > now:
+                    end = now
                 start_num = mdates.date2num(start)
                 end_num = mdates.date2num(end)
-                ax.broken_barh([(start_num, end_num - start_num)], (alert_y, alert_h), facecolors=alert_on_color, edgecolor='none')
+                if end_num > start_num:
+                    ax.broken_barh([(start_num, end_num - start_num)], (alert_y, alert_h), facecolors=alert_on_color, edgecolor='none')
 
         
         # --- Separators ---
