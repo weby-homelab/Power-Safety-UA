@@ -358,26 +358,44 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
             # --- 3. Draw Alert Data (Third Strip) ---
             alert_on_color = '#FFFDE7' # Pastel white-yellow for alerts
             alert_off_color = '#334155' if theme == 'dark' else '#cbd5e1'
-            x_start_num = mdates.date2num(datetime.datetime.combine(dummy_date, datetime.time.min))
-            x_end_num = mdates.date2num(datetime.datetime.combine(dummy_date, datetime.time.max))
-            ax.broken_barh([(x_start_num, x_end_num - x_start_num)], (y_pos - 0.18, 0.36), facecolors=alert_off_color, edgecolor='none')
             
-            alert_intervals = get_alert_intervals(day_date)
-            for start, end, is_alert in alert_intervals:
-                if is_alert:
-                    d_start = datetime.datetime.combine(dummy_date, start.time())
-                    d_end = datetime.datetime.combine(dummy_date, end.time())
-                    
-                    if end.time() == datetime.time.min and end != start:
-                         d_end += datetime.timedelta(days=1)
-                    elif d_end < d_start:
-                         d_end += datetime.timedelta(days=1)
+            if day_date == now_kyiv.date():
+                x_end_dt = datetime.datetime.combine(dummy_date, now_kyiv.time())
+            elif day_date < now_kyiv.date():
+                x_end_dt = datetime.datetime.combine(dummy_date, datetime.time.max)
+            else:
+                x_end_dt = datetime.datetime.combine(dummy_date, datetime.time.min) # Future day: don't draw
+            
+            x_start_dt = datetime.datetime.combine(dummy_date, datetime.time.min)
+            x_start_num = mdates.date2num(x_start_dt)
+            x_end_num = mdates.date2num(x_end_dt)
+            duration_x = x_end_num - x_start_num
+            
+            if duration_x > 0:
+                ax.broken_barh([(x_start_num, duration_x)], (y_pos - 0.18, 0.36), facecolors=alert_off_color, edgecolor='none')
+                
+                alert_intervals = get_alert_intervals(day_date)
+                for start, end, is_alert in alert_intervals:
+                    if is_alert:
+                        if day_date == now_kyiv.date():
+                            if start > now_kyiv:
+                                continue
+                            if end > now_kyiv:
+                                end = now_kyiv
                         
-                    start_num = mdates.date2num(d_start)
-                    duration_num = mdates.date2num(d_end) - start_num
-                    
-                    if duration_num > 0:
-                        ax.broken_barh([(start_num, duration_num)], (y_pos - 0.18, 0.36), facecolors=alert_on_color, edgecolor='none')
+                        d_start = datetime.datetime.combine(dummy_date, start.time())
+                        d_end = datetime.datetime.combine(dummy_date, end.time())
+                        
+                        if end.time() == datetime.time.min and end != start:
+                             d_end += datetime.timedelta(days=1)
+                        elif d_end < d_start:
+                             d_end += datetime.timedelta(days=1)
+                            
+                        start_num = mdates.date2num(d_start)
+                        duration_num = mdates.date2num(d_end) - start_num
+                        
+                        if duration_num > 0:
+                            ax.broken_barh([(start_num, duration_num)], (y_pos - 0.18, 0.36), facecolors=alert_on_color, edgecolor='none')
 
 
             # --- 4. Draw AQI Data (Fourth Strip) ---
