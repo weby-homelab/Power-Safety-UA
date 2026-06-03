@@ -1,10 +1,12 @@
-# Release v3.5.6
+# Release v3.5.7
 
-**Fix configuration saving issue on Admin panel**
+**Admin UI Refresh Rate & Focus Protection**
 
 ## Що нового / What's New:
 🇺🇦 **Українська:**
-- **Виправлено збереження конфігурації:** Виправлено помилку `ModuleNotFoundError` при збереженні конфігурації на адмін панелі (включаючи ID Станції 13992).
+- **Збільшено інтервал оновлення:** Збільшено інтервал фонового оновлення адмін-панелі з 10 до 60 секунд.
+- **Захист введення (UI Race Protection):** Додано перевірку фокусу для полів введення, щоб запобігти їх перезаписуванню під час набору тексту.
 
 🇬🇧 **English:**
-- **Fixed configuration saving:** Fixed `ModuleNotFoundError` when saving settings on the Admin panel (including Station ID 13992).
+- **Increased refresh interval:** Changed the admin page background update rate from 10 seconds to 60 seconds.
+- **Input protection (UI Race Protection):** Prevent overwriting active input values when fields are focused during typing.

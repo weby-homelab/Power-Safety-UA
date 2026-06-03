@@ -798,7 +798,9 @@
 
                 const setVal = (id, val, def = '') => {
                     const el = document.getElementById(id);
-                    if (el) el.value = val !== undefined && val !== null && val !== "" ? val : def;
+                    if (el && document.activeElement !== el) {
+                        el.value = val !== undefined && val !== null && val !== "" ? val : def;
+                    }
                 };
 
                 // Telegram & API
@@ -1246,7 +1248,7 @@
         });
 
         fetchData();
-        setInterval(fetchData, 10000);
+        setInterval(fetchData, 60000);
         </script>
         </body>
         </html>
