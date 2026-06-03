@@ -300,7 +300,7 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         plt_style = 'default'
 
     with plt.style.context(plt_style):
-        fig, ax = plt.subplots(figsize=(10, 2.3), facecolor=bg_color)
+        fig, ax = plt.subplots(figsize=(10, 2.8), facecolor=bg_color)
         ax.set_facecolor(bg_color)
         
         # Define geometries - Glued together
@@ -463,12 +463,12 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         aqi_red = mpatches.Patch(color='#ef4444', label='AQI: Шкідливе')
 
         legend = plt.legend(handles=[green_patch, red_patch, yellow_patch, gray_patch, alert_patch, alert_off_patch, aqi_green, aqi_yellow, aqi_red],
-                   loc='upper center', bbox_to_anchor=(0.5, -0.25),
-                   fancybox=False, frameon=False, shadow=False, ncol=3, fontsize='small')
+                   loc='upper center', bbox_to_anchor=(0.5, -0.22),
+                   fancybox=False, frameon=False, shadow=False, ncol=5, fontsize='small')
         plt.setp(legend.get_texts(), color=text_color)
 
         plt.tight_layout()
-        plt.subplots_adjust(bottom=0.35)
+        plt.subplots_adjust(bottom=0.28)
         
         suffix = "_light" if theme == 'light' else ""
         filename = os.path.join(DATA_DIR, f"report_{target_date.strftime('%Y-%m-%d')}{suffix}.png")
