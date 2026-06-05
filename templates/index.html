@@ -98,6 +98,28 @@
         .bell-btn.off { opacity: 0.5; grayscale: 1; }
         .bell-btn:active { transform: scale(0.9); }
 
+        /* Lang Button Style */
+        .lang-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 700;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.2s;
+            box-shadow: var(--card-shadow);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .lang-btn:active { transform: scale(0.9); }
+
         .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 28px; padding: 24px; margin-bottom: 16px; backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); box-shadow: var(--card-shadow); position: relative; overflow: hidden; transition: transform 0.2s, background-color 0.3s, box-shadow 0.3s; }
         .card-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-secondary); margin-bottom: 16px; display: block; font-weight: 700; }
         .status-row { display: flex; align-items: center; gap: 16px; width: 100%; }
@@ -218,8 +240,11 @@
     <div id="connection-status" style="display: none; background: #fbbf24; color: #000; text-align: center; padding: 8px; font-weight: bold; font-size: 0.9rem; z-index: 9999; position: relative;">⚠️ Втрачено з'єднання з сервером. Перепідключення...</div>
     <div class="container">
         <header>
-            <div class="logo">СВІТЛО<span>⚡</span>БЕЗПЕКА</div>
-            <div id="bell-btn" class="bell-btn off" onclick="toggleNotifications()" title="Увімкнути сповіщення">🔕</div>
+            <div class="logo" id="logo-text">СВІТЛО<span>⚡</span>БЕЗПЕКА</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <div id="bell-btn" class="bell-btn off" onclick="toggleNotifications()" title="Увімкнути сповіщення">🔕</div>
+                <div id="lang-btn" class="lang-btn" onclick="toggleLang()">UA</div>
+            </div>
         </header>
         
         <div id="light-card" class="card"><div class="status-row"><div class="status-icon" id="light-icon">⏳</div><div class="status-info"><div class="status-title" id="light-text">Завантаження</div><div class="status-desc" id="light-event">...</div></div></div></div>
@@ -244,29 +269,29 @@
                 </div>
                 <div class="grid">
                     <div class="grid-item" style="display: flex; justify-content: space-between; align-items: center;">
-                        <div><div class="grid-val" id="temp">--</div><div class="grid-label">Температура</div></div>
+                        <div><div class="grid-val" id="temp">--</div><div class="grid-label" id="label-temp">Температура</div></div>
                         <div id="temp-graph" style="display: flex; align-items: flex-end; gap: 2px; height: 30px; position: relative;"></div>
                     </div>
                     <div class="grid-item" style="display: flex; justify-content: space-between; align-items: center;">
-                        <div><div class="grid-val" id="hum">--</div><div class="grid-label">Вологість</div></div>
+                        <div><div class="grid-val" id="hum">--</div><div class="grid-label" id="label-hum">Вологість</div></div>
                         <div id="hum-graph" style="display: flex; align-items: flex-end; gap: 2px; height: 30px; position: relative;"></div>
                     </div>
                 </div>
-                <div class="weather-info"><span id="wind-status">---</span><span id="rad-container">☢️ <span id="rad-val">--</span> мкЗв/год <span class="rad-norm">(норма)</span></span></div>
+                <div class="weather-info"><span id="wind-status">---</span><span id="rad-container">☢️ <span id="rad-val">--</span> <span id="rad-unit">мкЗв/год</span> <span class="rad-norm" id="rad-norm-tag">(норма)</span></span></div>
             </div>
         </div>
         
         <div id="analytics-block">
-            <div class="section-header">Аналітика за сьогодні</div>
+            <div class="section-header" id="header-today">Аналітика за сьогодні</div>
             <div class="chart-wrap" onclick="zoomImage(this.querySelector('img').src)"><img id="main-chart" src="/static/chart.png"></div>
-            <div class="section-header">Тижневий звіт</div>
+            <div class="section-header" id="header-weekly">Тижневий звіт</div>
             <div class="chart-wrap" onclick="zoomImage(this.querySelector('img').src)"><img id="weekly-chart" src="/static/weekly.png"></div>
         </div>
         <div class="section-header" id="group-schedule-header">Графік</div>
         <div id="schedule-text" class="schedule-text">...</div>
         
         <footer>
-            Оновлено: <span id="last-update">--:--:--</span><br>
+            <span id="footer-updated-label">Оновлено:</span> <span id="last-update">--:--:--</span><br>
             © 2026 <a href="https://github.com/weby-homelab/flash-monitor-kyiv" target="_blank">Weby Homelab</a><span id="footer-version"></span>
         </footer>
     </div>
@@ -277,7 +302,83 @@
         let lastLightStatus = null;
         let lastAlertStatus = null;
         let notificationsEnabled = localStorage.getItem('notifications') === 'true';
+        let currentLang = localStorage.getItem('lang') || 'ua';
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Light "ding"
+
+        const translations = {
+            ua: {
+                title: "Flash Monitor Kyiv | СВІТЛО⚡БЕЗПЕКА — Моніторинг світла та тривог",
+                logo: "СВІТЛО<span>⚡</span>БЕЗПЕКА",
+                safetyTitle: "⚠️ Світло зникло? Підтвердіть статус:",
+                btnConfirm: "🔴 Вимкнули",
+                btnIgnore: "🛠 Збій / Не знаю",
+                tempLabel: "Температура",
+                humLabel: "Вологість",
+                headerToday: "Аналітика за сьогодні",
+                headerWeekly: "Тижневий звіт",
+                footerUpdated: "Оновлено:",
+                connStatus: "⚠️ Втрачено з'єднання з сервером. Перепідключення...",
+                bellTitle: "Увімкнути сповіщення",
+                bellTitleOff: "Вимкнути сповіщення",
+                toastNotificationsOn: "Сповіщення увімкнено",
+                toastNotificationsOff: "Сповіщення вимкнено",
+                alertNotificationsBrowser: "Будь ласка, дозвольте сповіщення у налаштуваннях браузера",
+                lightOn: "Світло Є!",
+                lightOff: "Світло зникло!",
+                lightLoading: "Завантаження",
+                lightStatusOn: "Світло з'явилося!",
+                lightStatusOff: "Світло зникло!",
+                pushTitleLight: "⚡ СВІТЛО⚡БЕЗПЕКА",
+                alertActive: "ТРИВОГА",
+                alertQuiet: "СПОКІЙНО",
+                alertActiveDesc: "Київ. Пройдіть в укриття!",
+                alertQuietDesc: "Київ. Тривоги немає",
+                pushTitleAlert: "🚨 ПОВІТРЯНА ТРИВОГА",
+                alertPushStart: "Початок повітряної тривоги!",
+                alertPushEnd: "Відбій тривоги",
+                groupHeader: "Графік групи",
+                airLabel: "Повітря",
+                airQualityLabel: "Якість повітря",
+                windUnit: "км/год",
+                radNormal: "(норма)"
+            },
+            en: {
+                title: "Flash Monitor Kyiv | POWER⚡SAFETY — Power and Alert Monitoring",
+                logo: "POWER<span>⚡</span>SAFETY",
+                safetyTitle: "⚠️ Power lost? Confirm status:",
+                btnConfirm: "🔴 Outage",
+                btnIgnore: "🛠 Glitch / Don't know",
+                tempLabel: "Temperature",
+                humLabel: "Humidity",
+                headerToday: "Today's Analytics",
+                headerWeekly: "Weekly Report",
+                footerUpdated: "Updated:",
+                connStatus: "⚠️ Connection to server lost. Reconnecting...",
+                bellTitle: "Enable notifications",
+                bellTitleOff: "Disable notifications",
+                toastNotificationsOn: "Notifications enabled",
+                toastNotificationsOff: "Notifications disabled",
+                alertNotificationsBrowser: "Please allow notifications in your browser settings",
+                lightOn: "Power ON",
+                lightOff: "Power OUTAGE",
+                lightLoading: "Loading",
+                lightStatusOn: "Power restored!",
+                lightStatusOff: "Power outage!",
+                pushTitleLight: "⚡ POWER⚡SAFETY",
+                alertActive: "AIR RAID",
+                alertQuiet: "CALM",
+                alertActiveDesc: "Kyiv. Proceed to shelter!",
+                alertQuietDesc: "Kyiv. No active alerts",
+                pushTitleAlert: "🚨 AIR RAID ALERT",
+                alertPushStart: "Air raid alert started!",
+                alertPushEnd: "Alert cleared",
+                groupHeader: "Schedule Group",
+                airLabel: "Air",
+                airQualityLabel: "Air Quality",
+                windUnit: "km/h",
+                radNormal: "(normal)"
+            }
+        };
 
         function triggerHaptic(pattern = 10) {
             try {
@@ -290,10 +391,75 @@
             } catch (e) { console.log("Haptic failed:", e); }
         }
 
+        function applyTranslations() {
+            const t = translations[currentLang];
+            document.title = t.title;
+            const logoText = document.getElementById('logo-text');
+            if (logoText) logoText.innerHTML = t.logo;
+            
+            // Safety net card
+            const safetyTitle = document.querySelector('#safety-net-card .safety-net-title');
+            if (safetyTitle) safetyTitle.innerText = t.safetyTitle;
+            const btnConfirm = document.querySelector('#safety-net-card .btn-confirm');
+            if (btnConfirm) btnConfirm.innerText = t.btnConfirm;
+            const btnIgnore = document.querySelector('#safety-net-card .btn-ignore');
+            if (btnIgnore) btnIgnore.innerText = t.btnIgnore;
+            
+            // AQI grids labels
+            const labelTemp = document.getElementById('label-temp');
+            if (labelTemp) labelTemp.innerText = t.tempLabel;
+            const labelHum = document.getElementById('label-hum');
+            if (labelHum) labelHum.innerText = t.humLabel;
+            
+            // Section headers
+            const headerToday = document.getElementById('header-today');
+            if (headerToday) headerToday.innerText = t.headerToday;
+            const headerWeekly = document.getElementById('header-weekly');
+            if (headerWeekly) headerWeekly.innerText = t.headerWeekly;
+            
+            // Footer updated label
+            const footerUpdatedLabel = document.getElementById('footer-updated-label');
+            if (footerUpdatedLabel) footerUpdatedLabel.innerText = t.footerUpdated;
+            
+            // Connection status banner
+            const connStatus = document.getElementById('connection-status');
+            if (connStatus) connStatus.innerText = t.connStatus;
+            
+            // Lang button text
+            const langBtn = document.getElementById('lang-btn');
+            if (langBtn) langBtn.innerText = currentLang.toUpperCase();
+            
+            // AQI location evaluation label if present
+            const aqiLoc = document.getElementById('aqi-loc');
+            if (aqiLoc) {
+                if (aqiLoc.innerText.includes(':')) {
+                    const loc = aqiLoc.innerText.split(':')[1].trim();
+                    aqiLoc.innerText = (currentLang === 'ua' ? 'Повітря: ' : 'Air: ') + loc;
+                } else {
+                    aqiLoc.innerText = currentLang === 'ua' ? 'Якість повітря' : 'Air Quality';
+                }
+            }
+
+            // Update bell UI title/icon
+            updateBellUI();
+        }
+
+        function toggleLang() {
+            currentLang = currentLang === 'ua' ? 'en' : 'ua';
+            localStorage.setItem('lang', currentLang);
+            triggerHaptic(20);
+            applyTranslations();
+            refreshCharts();
+            update();
+        }
+
         function updateBellUI() {
             const btn = document.getElementById('bell-btn');
-            btn.innerText = notificationsEnabled ? '🔔' : '🔕';
-            btn.className = notificationsEnabled ? 'bell-btn' : 'bell-btn off';
+            if (btn) {
+                btn.innerText = notificationsEnabled ? '🔔' : '🔕';
+                btn.className = notificationsEnabled ? 'bell-btn' : 'bell-btn off';
+                btn.title = notificationsEnabled ? translations[currentLang].bellTitleOff : translations[currentLang].bellTitle;
+            }
         }
 
         async function toggleNotifications() {
@@ -303,9 +469,9 @@
                 if (permission === 'granted') {
                     notificationsEnabled = true;
                     localStorage.setItem('notifications', 'true');
-                    showToast("Сповіщення увімкнено");
+                    showToast(translations[currentLang].toastNotificationsOn);
                 } else {
-                    alert("Будь ласка, дозвольте сповіщення у налаштуваннях браузера");
+                    alert(translations[currentLang].alertNotificationsBrowser);
                 }
             } else {
                 notificationsEnabled = false;
@@ -339,9 +505,10 @@
         function refreshCharts() {
             const t = Date.now();
             const theme = getTheme();
-            const suffix = theme === 'light' ? '_light' : '';
-            document.getElementById('main-chart').src = `/static/chart${suffix}.png?t=${t}`;
-            document.getElementById('weekly-chart').src = `/static/weekly${suffix}.png?t=${t}`;
+            const themeSuffix = theme === 'light' ? '_light' : '';
+            const langSuffix = currentLang === 'en' ? '_en' : '';
+            document.getElementById('main-chart').src = `/static/chart${themeSuffix}${langSuffix}.png?t=${t}`;
+            document.getElementById('weekly-chart').src = `/static/weekly${themeSuffix}${langSuffix}.png?t=${t}`;
         }
         function updateMapTheme() {
             const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -350,18 +517,18 @@
         }
 
         function update() {
-            fetch('/api/status').then(r => r.json()).then(data => {
+            fetch(`/api/status?lang=${currentLang}`).then(r => r.json()).then(data => {
                 const lCard = document.getElementById('light-card');
                 const currentLight = data.light;
                 if (lCard) {
                     if (currentLight === 'on') { 
                         lCard.className = 'card status-on'; 
                         document.getElementById('light-icon').innerText = '💡'; 
-                        document.getElementById('light-text').innerText = "Світло Є!"; 
+                        document.getElementById('light-text').innerText = translations[currentLang].lightOn; 
                     } else {
                         lCard.className = 'card status-off';
                         document.getElementById('light-icon').innerText = '✖️';
-                        document.getElementById('light-text').innerText = 'Світло зникло!';
+                        document.getElementById('light-text').innerText = translations[currentLang].lightOff;
                     }
                 }
                 
@@ -372,8 +539,8 @@
                 if (lastLightStatus && currentLight !== lastLightStatus) {
                     playDing();
                     if (document.hasFocus()) triggerHaptic([50, 100, 50]);
-                    const statusText = currentLight === 'on' ? "Світло з'явилося!" : "Світло зникло!";
-                    sendPush("⚡ СВІТЛО⚡БЕЗПЕКА", statusText);
+                    const statusText = currentLight === 'on' ? translations[currentLang].lightStatusOn : translations[currentLang].lightStatusOff;
+                    sendPush(translations[currentLang].pushTitleLight, statusText);
                     refreshCharts();
                 }
                 lastLightStatus = currentLight;
@@ -381,7 +548,7 @@
                 // Group name
                 if (data.group) { 
                     const groupHeader = document.getElementById('group-schedule-header');
-                    if (groupHeader) groupHeader.innerText = 'Графік групи ' + data.group; 
+                    if (groupHeader) groupHeader.innerText = translations[currentLang].groupHeader + ' ' + data.group; 
                 }
 
                 // Alert
@@ -391,21 +558,21 @@
                     if (isAlert) { 
                         aCard.className = 'card alert-active'; 
                         document.getElementById('alert-icon').innerText = '🚨'; 
-                        document.getElementById('alert-val').innerText = 'ТРИВОГА'; 
-                        document.getElementById('alert-status').innerText = 'Київ. Пройдіть в укриття!'; 
+                        document.getElementById('alert-val').innerText = translations[currentLang].alertActive; 
+                        document.getElementById('alert-status').innerText = translations[currentLang].alertActiveDesc; 
                     } else { 
                         aCard.className = 'card'; 
                         document.getElementById('alert-icon').innerText = '🛡️'; 
-                        document.getElementById('alert-val').innerText = 'СПОКІЙНО'; 
-                        document.getElementById('alert-status').innerText = 'Київ. Тривоги немає'; 
+                        document.getElementById('alert-val').innerText = translations[currentLang].alertQuiet; 
+                        document.getElementById('alert-status').innerText = translations[currentLang].alertQuietDesc; 
                     }
                 }
 
                 if (lastAlertStatus !== null && isAlert !== lastAlertStatus) {
                     playDing();
                     if (document.hasFocus()) triggerHaptic([100, 200, 100]);
-                    const alertMsg = isAlert ? "Початок повітряної тривоги!" : "Відбій тривоги";
-                    sendPush("🚨 ПОВІТРЯНА ТРИВОГА", alertMsg);
+                    const alertMsg = isAlert ? translations[currentLang].alertPushStart : translations[currentLang].alertPushEnd;
+                    sendPush(translations[currentLang].pushTitleAlert, alertMsg);
                 }
                 lastAlertStatus = isAlert;
                 
@@ -423,7 +590,7 @@
                         if (aqiText) aqiText.innerText = data.aqi.text;
                         
                         const aqiLoc = document.getElementById('aqi-loc');
-                        if (aqiLoc && data.aqi.location) aqiLoc.innerText = 'Повітря: ' + data.aqi.location;
+                        if (aqiLoc && data.aqi.location) aqiLoc.innerText = (currentLang === 'ua' ? 'Повітря: ' : 'Air: ') + data.aqi.location;
                         
                         // Update fields
                         document.getElementById('temp').innerText = data.aqi.temp || '--';
@@ -434,7 +601,7 @@
                         if (tempGraph) tempGraph.style.display = data.show_graphs ? 'flex' : 'none';
                         if (humGraph) humGraph.style.display = data.show_graphs ? 'flex' : 'none';
 
-                        document.getElementById('wind-status').innerText = data.aqi.wind_speed ? `${data.aqi.wind_speed} м/с, ${data.aqi.wind_dir}` : '---';
+                        document.getElementById('wind-status').innerText = data.aqi.wind_speed ? `${data.aqi.wind_speed} ${currentLang === 'ua' ? 'м/с' : 'm/s'}, ${data.aqi.wind_dir}` : '---';
                     } else {
                         aqBlock.style.display = 'none';
                     }
@@ -632,7 +799,7 @@
                     renderMiniGraph('hum-graph', data.aqi.hum_history, 'var(--color-graph-fact-on)', '%');
                     
                     const windStatus = document.getElementById('wind-status');
-                    if (windStatus) windStatus.innerText = '💨 ' + (data.aqi.wind_dir || '--') + ', ' + (data.aqi.wind_speed || '--') + ' км/год';
+                    if (windStatus) windStatus.innerText = '💨 ' + (data.aqi.wind_dir || '--') + ', ' + (data.aqi.wind_speed || '--') + ' ' + translations[currentLang].windUnit;
                     
                     const radVal = document.getElementById('rad-val');
                     if (radVal) radVal.innerText = (data.radiation && data.radiation.level) || '--';
@@ -662,7 +829,7 @@
             });
         }
 
-        updateBellUI();
+        applyTranslations();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { updateMapTheme(); refreshCharts(); });
         updateMapTheme();
         refreshCharts();
