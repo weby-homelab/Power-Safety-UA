@@ -10,23 +10,23 @@
 <br>
 
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/weby-homelab/flash-monitor-kyiv?style=for-the-badge&color=purple" alt="Latest Release">
+  <img src="https://img.shields.io/github/v/release/weby-homelab/Power-Safety-UA?style=for-the-badge&color=purple" alt="Latest Release">
   <img src="https://img.shields.io/badge/Branch-main_(Docker)-2496ed?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
-  <img src="https://img.shields.io/docker/v/webyhomelab/flash-monitor-kyiv?style=for-the-badge&logo=docker&logoColor=white&label=Docker%20Hub" alt="Docker Hub Version">
-  <img src="https://img.shields.io/docker/pulls/webyhomelab/flash-monitor-kyiv?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
+  <img src="https://img.shields.io/docker/v/webyhomelab/Power-Safety-UA?style=for-the-badge&logo=docker&logoColor=white&label=Docker%20Hub" alt="Docker Hub Version">
+  <img src="https://img.shields.io/docker/pulls/webyhomelab/Power-Safety-UA?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/weby-homelab/flash-monitor-kyiv/main/docs/assets/dashboard_preview.jpg" alt="Dashboard Preview" width="100%">
+  <img src="docs/assets/Flash-monitor-dash-ENG.png" alt="Dashboard Preview" width="100%">
 </p>
 
-# POWER⚡️ SAFETY (FLASH MONITOR KYIV) - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/flash-monitor-kyiv)](https://github.com/weby-homelab/flash-monitor-kyiv/releases/latest)
+# POWER⚡️ SAFETY (POWER-SAFETY-UA) - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/Power-Safety-UA)](https://github.com/weby-homelab/Power-Safety-UA/releases/latest)
 
-**Flash Monitor Kyiv** is a professional autonomous monitoring system for critical infrastructure and environmental safety. The project provides precision real-time electricity monitoring, intelligent outage schedule processing (DTEK/Yasno), air raid alert tracking, air quality (AQI), and radiation background levels.
+**Power-Safety-UA** (formerly *Flash Monitor Kyiv*) is a professional autonomous monitoring system for critical infrastructure and environmental safety. The project provides precision real-time electricity monitoring, intelligent outage schedule processing (DTEK/Yasno), air raid alert tracking, air quality (AQI), and radiation background levels.
 
 This branch (`main`) contains the **Docker Edition** of the project, designed for fast, portable, and isolated deployment in any environment. It is a fully containerized version, which is the industry standard for modern server deployments.
 
-> **Project Status:** Stable v3.4.1 (Docker Optimized)
+> **Project Status:** Stable v3.5.8 (Updated: 06.2026)
 > **Architecture:** FastAPI + Docker Compose + JSON Flat-DB
 > **Brand:** Weby Homelab
 

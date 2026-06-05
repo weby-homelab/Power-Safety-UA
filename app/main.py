@@ -634,6 +634,14 @@ async def get_air_quality(lang='ua'):
                         for i in range(len(recent_temp)):
                             t_val = recent_temp[i] if recent_temp[i] is not None else 0
                             h_val = recent_hum[i] if recent_hum[i] is not None else 0
+                            try:
+                                t_val = int(round(float(t_val)))
+                            except (ValueError, TypeError):
+                                pass
+                            try:
+                                h_val = int(round(float(h_val)))
+                            except (ValueError, TypeError):
+                                pass
                             temp_history.append(t_val)
                             hum_history.append(h_val)
 
@@ -651,6 +659,16 @@ async def get_air_quality(lang='ua'):
 
             temp = seb_temp if seb_temp is not None else (w_data.get('current', {}).get('temperature_2m') if w_data else None)
             hum = seb_hum if seb_hum is not None else (w_data.get('current', {}).get('relative_humidity_2m') if w_data else None)
+            if temp is not None:
+                try:
+                    temp = int(round(float(temp)))
+                except (ValueError, TypeError):
+                    pass
+            if hum is not None:
+                try:
+                    hum = int(round(float(hum)))
+                except (ValueError, TypeError):
+                    pass
 
             loc_name = aq_cfg.get("location_name", "Київ")
             if lang == 'en' and loc_name == "Київ":

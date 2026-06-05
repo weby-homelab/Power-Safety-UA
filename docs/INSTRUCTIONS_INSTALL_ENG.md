@@ -9,7 +9,7 @@
 
 <br>
 
-# 🐳 Flash Monitor Kyiv Installation Guide (Docker Edition) [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/flash-monitor-kyiv)](https://github.com/weby-homelab/flash-monitor-kyiv/releases/latest)
+# 🐳 Power-Safety-UA Installation Guide (Docker Edition) [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/Power-Safety-UA)](https://github.com/weby-homelab/Power-Safety-UA/releases/latest)
 
 This guide is intended for rapid system deployment using **Docker** and **Docker Compose**. This is the recommended installation method as it provides full dependency isolation and easy updates.
 
@@ -28,7 +28,7 @@ If you need a standard configuration, simply download the file and run it:
 
 ```bash
 # 1. Download docker-compose.yml
-curl -O https://raw.githubusercontent.com/weby-homelab/flash-monitor-kyiv/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/weby-homelab/Power-Safety-UA/main/docker-compose.yml
 
 # 2. Run the system in background
 docker-compose up -d
@@ -74,7 +74,7 @@ docker-compose up -d
 After the first run, the system automatically generates an access token. You need to extract it from inside the container:
 
 ```bash
-docker exec -it flash-monitor-kyiv cat data/power_monitor_state.json | grep admin_token
+docker exec -it flash-monitor cat data/power_monitor_state.json | grep admin_token
 ```
 
 Now open your browser:
