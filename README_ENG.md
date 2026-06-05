@@ -12,8 +12,8 @@
 <p align="center">
   <img src="https://img.shields.io/github/v/release/weby-homelab/Power-Safety-UA?style=for-the-badge&color=purple" alt="Latest Release">
   <img src="https://img.shields.io/badge/Branch-main_(Docker)-2496ed?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
-  <img src="https://img.shields.io/docker/v/webyhomelab/Power-Safety-UA?style=for-the-badge&logo=docker&logoColor=white&label=Docker%20Hub" alt="Docker Hub Version">
-  <img src="https://img.shields.io/docker/pulls/webyhomelab/Power-Safety-UA?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
+  <img src="https://img.shields.io/docker/v/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white&label=Docker%20Hub" alt="Docker Hub Version">
+  <img src="https://img.shields.io/docker/pulls/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
 </p>
 
 <p align="center">
