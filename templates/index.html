@@ -530,7 +530,7 @@
             if (!mapIframe) return;
             const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
             const currentSrc = mapIframe.src;
-            const baseSrc = currentLang === 'en' ? 'https://alerts.in.ua/en/?minimal=true' : 'https://alerts.in.ua/?minimal=true';
+            const baseSrc = currentLang === 'en' ? 'https://alerts.in.ua/en?minimal=true' : 'https://alerts.in.ua/?minimal=true';
             const newSrc = isDark ? `${baseSrc}&darkMode` : `${baseSrc}&lightMode`;
             if (currentSrc !== newSrc) {
                 mapIframe.src = newSrc;
