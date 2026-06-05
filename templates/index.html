@@ -339,7 +339,8 @@
                 groupHeader: "Графік групи",
                 airLabel: "Повітря",
                 airQualityLabel: "Якість повітря",
-                windUnit: "км/год",
+                                windUnit: "км/год",
+                radUnit: "мкЗв/год",
                 radNormal: "(норма)"
             },
             en: {
@@ -376,6 +377,7 @@
                 airLabel: "Air",
                 airQualityLabel: "Air Quality",
                 windUnit: "km/h",
+                radUnit: "µSv/h",
                 radNormal: "(normal)"
             }
         };
@@ -428,6 +430,12 @@
             // Lang button text
             const langBtn = document.getElementById('lang-btn');
             if (langBtn) langBtn.innerText = currentLang.toUpperCase();
+            
+            // Radiation labels
+            const radNormTag = document.getElementById('rad-norm-tag');
+            if (radNormTag) radNormTag.innerText = t.radNormal;
+            const radUnit = document.getElementById('rad-unit');
+            if (radUnit) radUnit.innerText = t.radUnit;
             
             // AQI location evaluation label if present
             const aqiLoc = document.getElementById('aqi-loc');
