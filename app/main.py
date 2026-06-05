@@ -75,29 +75,33 @@ PARSING_DURATION = Histogram('flash_parsing_duration_seconds', 'Time spent parsi
 # --- SSE Logic ---
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[asyncio.Queue] = []
+        self.active_connections: list[tuple[asyncio.Queue, str]] = []
 
-    async def connect(self, q: asyncio.Queue):
-        self.active_connections.append(q)
+    async def connect(self, q: asyncio.Queue, lang: str = "ua"):
+        self.active_connections.append((q, lang))
         ACTIVE_SSE_CONNECTIONS.inc()
 
     def disconnect(self, q: asyncio.Queue):
-        if q in self.active_connections:
-            self.active_connections.remove(q)
-            ACTIVE_SSE_CONNECTIONS.dec()
+        self.active_connections = [item for item in self.active_connections if item[0] != q]
+        ACTIVE_SSE_CONNECTIONS.dec()
 
-    async def broadcast(self, message: dict):
-        for connection in self.active_connections:
+    async def broadcast(self, message_ua: dict, message_en: dict):
+        for q, lang in self.active_connections:
+            msg = message_en if lang == 'en' else message_ua
             try:
-                connection.put_nowait(message)
+                q.put_nowait(msg)
             except asyncio.QueueFull:
                 pass
 
 manager = ConnectionManager()
 
 async def broadcast_state_update():
-    status_data = await api_status()
-    await manager.broadcast({"type": "update", "data": status_data})
+    status_data_ua = await api_status(lang="ua")
+    status_data_en = await api_status(lang="en")
+    await manager.broadcast(
+        {"type": "update", "data": status_data_ua},
+        {"type": "update", "data": status_data_en}
+    )
 
 # --- Caching ---
 CACHE = cachetools.TTLCache(maxsize=100, ttl=60)
@@ -171,22 +175,25 @@ def get_radiation():
         "status": "normal"
     }
 
-async def get_power_events_data(limit=5):
+async def get_power_events_data(limit=5, lang='ua'):
     recent_events = []
     
     # Default schedule info
-    sched_light_now, current_end, next_range, next_duration, is_emergency = get_schedule_context()
+    sched_light_now, current_end, next_range, next_duration, is_emergency = get_schedule_context(lang=lang)
     if is_emergency:
-        latest_event_text = "• можливі аварійні відключення ⚠️"
+        latest_event_text = "• possible emergency outages ⚠️" if lang == 'en' else "• можливі аварійні відключення ⚠️"
     elif (
         "не плануються" in next_range.lower() or 
         "невідомий час" in next_range.lower() or 
         "час невідомий" in next_range.lower() or 
-        "час очікується" in next_range.lower()
+        "час очікується" in next_range.lower() or
+        "no outages" in next_range.lower() or
+        "unknown" in next_range.lower()
     ):
-        latest_event_text = "• Відключення не плануються 🔆"
+        latest_event_text = "• No outages scheduled 🔆" if lang == 'en' else "• Відключення не плануються 🔆"
     else:
-        latest_event_text = f"• Наступне планове: {next_range}"
+        prefix = "• Next scheduled: " if lang == 'en' else "• Наступне планове: "
+        latest_event_text = f"{prefix}{next_range}"
     
     try:
         if os.path.exists(EVENT_LOG_FILE):
@@ -210,10 +217,14 @@ async def get_power_events_data(limit=5):
                         
                         dt_str = datetime.fromtimestamp(ts).strftime("%d.%m %H:%M")
                         icon = "🟢" if evt == "up" else "🔴"
-                        text = "Світло з'явилося" if evt == "up" else "Світло зникло"
-                        pre_text = "не було" if evt == "up" else "було"
+                        if lang == 'en':
+                            text = "Power restored" if evt == "up" else "Power outage"
+                            pre_text = "offline" if evt == "up" else "online"
+                        else:
+                            text = "Світло з'явилося" if evt == "up" else "Світло зникло"
+                            pre_text = "не було" if evt == "up" else "було"
                         
-                        dur_str = format_duration(dur_sec) if dur_sec else ""
+                        dur_str = format_duration(dur_sec, lang=lang) if dur_sec else ""
                         
                         recent_events.append({
                             "time": dt_str,
@@ -242,27 +253,41 @@ async def get_power_events_data(limit=5):
                     evt = last_match['event']
                     
                     # --- NEW TEXT LOGIC ---
-                    dev_msg = get_deviation_info(ts, evt == "up")
+                    dev_msg = get_deviation_info(ts, evt == "up", lang=lang)
                     dev_line = ""
                     if dev_msg:
-                        # Expected: "На 10 хв пізніше графіка"
-                        # get_deviation_info format: "• Увімкнули пізніше на 10 хв"
-                        m = re.search(r"(?:Увімкнули|Вимкнули)\s+(раніше|пізніше)\s+на\s+(.+)$", dev_msg)
-                        
-                        if status == "up":
-                            if m:
-                                timing = m.group(1)
-                                value = m.group(2)
-                                dev_line = f"• З'явилося на {value} {timing}"
-                            elif "точно за графіком" in dev_msg:
-                                dev_line = "• З'явилося Точно за графіком"
+                        if lang == 'en':
+                            m = re.search(r"(?:Powered ON|Powered OFF)\s+(later|earlier)\s+by\s+(.+)$", dev_msg)
+                            if status == "up":
+                                if m:
+                                    timing = m.group(1)
+                                    value = m.group(2)
+                                    dev_line = f"• Restored {value} {timing}"
+                                elif "strictly on schedule" in dev_msg:
+                                    dev_line = "• Restored strictly on schedule"
+                            else:
+                                if m:
+                                    timing = m.group(1)
+                                    value = m.group(2)
+                                    dev_line = f"• {value} {timing}"
+                                elif "strictly on schedule" in dev_msg:
+                                    dev_line = "• Strictly on schedule"
                         else:
-                            if m:
-                                timing = m.group(1)
-                                value = m.group(2)
-                                dev_line = f"• на {value} {timing}"
-                            elif "точно за графіком" in dev_msg:
-                                dev_line = "• Точно за графіком"
+                            m = re.search(r"(?:Увімкнули|Вимкнули)\s+(раніше|пізніше)\s+на\s+(.+)$", dev_msg)
+                            if status == "up":
+                                if m:
+                                    timing = m.group(1)
+                                    value = m.group(2)
+                                    dev_line = f"• З'явилося на {value} {timing}"
+                                elif "точно за графіком" in dev_msg:
+                                    dev_line = "• З'явилося Точно за графіком"
+                            else:
+                                if m:
+                                    timing = m.group(1)
+                                    value = m.group(2)
+                                    dev_line = f"• на {value} {timing}"
+                                elif "точно за графіком" in dev_msg:
+                                    dev_line = "• Точно за графіком"
                     
                     # Next event prediction
                     current_ts = time.time()
@@ -272,12 +297,12 @@ async def get_power_events_data(limit=5):
                     if next_info:
                         if status == "up":
                             next_time = next_info["interval"].split('-')[0]
-                            wait_line = f"• Вимкнення о {next_time}"
+                            wait_line = f"• Outage at {next_time}" if lang == 'en' else f"• Вимкнення о {next_time}"
                         else:
-                            wait_line = f"• Очікуємо о {next_info['interval']}"
+                            wait_line = f"• Expected at {next_info['interval']}" if lang == 'en' else f"• Очікуємо о {next_info['interval']}"
                     
                     if is_emergency:
-                        latest_event_text = "• можливі аварійні відключення ⚠️"
+                        latest_event_text = "• possible emergency outages ⚠️" if lang == 'en' else "• можливі аварійні відключення ⚠️"
                     elif dev_line and wait_line:
                         latest_event_text = f"{dev_line}<br>{wait_line}"
                     elif dev_line:
@@ -288,11 +313,14 @@ async def get_power_events_data(limit=5):
                         "не плануються" in next_range.lower() or 
                         "невідомий час" in next_range.lower() or 
                         "час невідомий" in next_range.lower() or 
-                        "час очікується" in next_range.lower()
+                        "час очікується" in next_range.lower() or
+                        "no outages" in next_range.lower() or
+                        "unknown" in next_range.lower()
                     ):
-                        latest_event_text = "• Відключення не плануються 🔆"
+                        latest_event_text = "• No outages scheduled 🔆" if lang == 'en' else "• Відключення не плануються 🔆"
                     else:
-                        latest_event_text = f"• Наступне планове: {next_range}"
+                        prefix = "• Next scheduled: " if lang == 'en' else "• Наступне планове: "
+                        latest_event_text = f"{prefix}{next_range}"
                     
     except Exception as e:
         logger.error("error_reading_events", error=str(e))
@@ -301,8 +329,9 @@ async def get_power_events_data(limit=5):
     return latest_event_text, recent_events
 
 DAYS_UA = {0: "Понеділок", 1: "Вівторок", 2: "Середа", 3: "Четвер", 4: "П'ятниця", 5: "Субота", 6: "Неділя"}
+DAYS_EN = {0: "Monday", 1: "Tuesday", 2: "Wednesday", 3: "Thursday", 4: "Friday", 5: "Saturday", 6: "Sunday"}
 
-def render_day_schedule_html(slots, date_obj):
+def render_day_schedule_html(slots, date_obj, lang='ua'):
     if not slots: return ""
     
     intervals_on = []
@@ -332,39 +361,49 @@ def render_day_schedule_html(slots, date_obj):
     total_off = 24.0 - total_on
 
     MONTHS_UA = {1: "Січня", 2: "Лютого", 3: "Березня", 4: "Квітня", 5: "Травня", 6: "Червня", 7: "Липня", 8: "Серпня", 9: "Вересня", 10: "Жовтня", 11: "Листопада", 12: "Грудня"}
-    day_title = f"{date_obj.day} {MONTHS_UA[date_obj.month]} ({DAYS_UA[date_obj.weekday()]})"
+    MONTHS_EN = {1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June", 7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"}
+    
+    if lang == 'en':
+        day_title = f"{date_obj.day} {MONTHS_EN[date_obj.month]} ({DAYS_EN[date_obj.weekday()]})"
+    else:
+        day_title = f"{date_obj.day} {MONTHS_UA[date_obj.month]} ({DAYS_UA[date_obj.weekday()]})"
     
     def fmt_dur(hours):
-        return f"{hours:g}".replace('.', ',')
+        val_str = f"{hours:g}"
+        if lang == 'ua':
+            return val_str.replace('.', ',')
+        return val_str
 
     res = []
     res.append(f"<div class='schedule-date'>{day_title}</div>")
     res.append("<div class='schedule-columns'>")
     
     # Column ON
+    on_header = "Power ON 🔆 " if lang == 'en' else "Увімкнення 🔆 "
     res.append("<div class='schedule-col'>")
-    res.append(f"<div class='col-header on'>Увімкнення 🔆 {fmt_dur(total_on)}</div>")
+    res.append(f"<div class='col-header on'>{on_header}{fmt_dur(total_on)}</div>")
     for inv in intervals_on:
         res.append(f"<div class='schedule-line on'><span class='schedule-time'>{inv['start']}</span><span class='time-sep'>-</span><span class='schedule-time'>{inv['end']}</span><span class='schedule-duration'>({fmt_dur(inv['duration'])})</span></div>")
     res.append("</div>")
 
     # Column OFF
+    off_header = "Power OFF ✖️ " if lang == 'en' else "Вимкнення ✖️ "
     res.append("<div class='schedule-col'>")
-    res.append(f"<div class='col-header off'>Вимкнення ✖️ {fmt_dur(total_off)}</div>")
+    res.append(f"<div class='col-header off'>{off_header}{fmt_dur(total_off)}</div>")
     for inv in intervals_off:
         res.append(f"<div class='schedule-line off'><span class='schedule-time'>{inv['start']}</span><span class='time-sep'>-</span><span class='schedule-time'>{inv['end']}</span><span class='schedule-duration'>({fmt_dur(inv['duration'])})</span></div>")
     res.append("</div>")
     res.append("</div>")
     return "".join(res)
 
-def get_today_schedule_text():
+def get_today_schedule_text(lang='ua'):
     try:
         config_path = os.path.join(DATA_DIR, "config.json")
         if not os.path.exists(config_path):
             config_path = "config.json"
         schedule_file = os.path.join(DATA_DIR, "last_schedules.json")
         if not os.path.exists(schedule_file):
-            return "Графік відсутній"
+            return "No schedule" if lang == 'en' else "Графік відсутній"
 
         with open(schedule_file, 'r') as f:
             data = json.load(f)
@@ -401,7 +440,7 @@ def get_today_schedule_text():
                     tomorrow_slots = list(tm_data['slots'])
                 
                 if day_data.get('status') == 'emergency':
-                    name = "YASNO" if s_name == 'yasno' else "ДТЕК"
+                    name = "YASNO" if s_name == 'yasno' else ("DTEK" if lang == 'en' else "ДТЕК")
                     emergency_sources.append(name)
                 
                 found_source = s_name
@@ -415,30 +454,35 @@ def get_today_schedule_text():
                 grp = list(src.keys())[0]
                 day_data = src[grp].get(today_str)
                 if day_data and day_data.get('status') == 'emergency':
-                    name = "YASNO" if s_name == 'yasno' else "ДТЕК"
+                    name = "YASNO" if s_name == 'yasno' else ("DTEK" if lang == 'en' else "ДТЕК")
                     if name not in emergency_sources: emergency_sources.append(name)
 
         if today_slots is None and not emergency_sources: 
+            if lang == 'en':
+                return "🟢 <b>No schedule</b><br><br>No outages scheduled (or data is not updated yet)."
             return "🟢 <b>Графік відсутній</b><br><br>Відключень не передбачається (або дані ще не оновлено)."
 
         output = []
 
         if emergency_sources:
             output.append("<div class='emergency-banner'>")
-            output.append("<div class='emergency-title'>⚠️ Екстрені відключення!</div>")
-            output.append("<div class='emergency-desc'>Графіки наразі не діють. Час увімкнення невідомий.</div>")
-            output.append(f"<div class='source-label'>Джерело: {', '.join(emergency_sources)}</div>")
+            title = "⚠️ Emergency outages!" if lang == 'en' else "⚠️ Екстрені відключення!"
+            desc = "Schedules are currently inactive. Restoration time is unknown." if lang == 'en' else "Графіки наразі не діють. Час увімкнення невідомий."
+            src_lbl = "Source: " if lang == 'en' else "Джерело: "
+            output.append(f"<div class='emergency-title'>{title}</div>")
+            output.append(f"<div class='emergency-desc'>{desc}</div>")
+            output.append(f"<div class='source-label'>{src_lbl}{', '.join(emergency_sources)}</div>")
             output.append("</div>")
 
         # Render Today
         if today_slots:
-            output.append(render_day_schedule_html(today_slots, now))
+            output.append(render_day_schedule_html(today_slots, now, lang=lang))
 
         # Render Tomorrow
         if tomorrow_slots:
             if any(s is not None for s in tomorrow_slots):
                 output.append("<div class='schedule-divider'></div>")
-                output.append(render_day_schedule_html(tomorrow_slots, now + timedelta(days=1)))
+                output.append(render_day_schedule_html(tomorrow_slots, now + timedelta(days=1), lang=lang))
 
         file_mtime = os.path.getmtime(schedule_file)
         dt_mtime = datetime.fromtimestamp(file_mtime, KYIV_TZ)
@@ -447,19 +491,20 @@ def get_today_schedule_text():
         active_sources = []
         if found_source:
             if found_source == 'yasno': active_sources.append("YASNO")
-            elif found_source == 'github': active_sources.append("ДТЕК")
-            elif found_source == 'custom': active_sources.append("Свій URL")
+            elif found_source == 'github': active_sources.append("DTEK" if lang == 'en' else "ДТЕК")
+            elif found_source == 'custom': active_sources.append("Custom URL" if lang == 'en' else "Свій URL")
 
         sources_str = f" [{', '.join(active_sources)}]" if active_sources else ""
 
-        output.append(f"<div class='updated-time'>Оновлено: {dt_mtime.strftime('%H:%M')}{sources_str}</div>")
+        prefix_upd = "Updated: " if lang == 'en' else "Оновлено: "
+        output.append(f"<div class='updated-time'>{prefix_upd}{dt_mtime.strftime('%H:%M')}{sources_str}</div>")
 
         return "".join(output)
     except Exception as e:
         logger.error("error_building_schedule_text", error=str(e))
-        return "Помилка завантаження графіка"
+        return "Error loading schedule" if lang == 'en' else "Помилка завантаження графіка"
 
-async def get_air_quality():
+async def get_air_quality(lang='ua'):
     try:
         config_path = os.path.join(DATA_DIR, "config.json")
         if not os.path.exists(config_path):
@@ -596,16 +641,20 @@ async def get_air_quality():
                 logger.error("aq_history_error", error=str(e))
 
             status = "ok"
-            status_text = "Низький"
+            status_text = "Good" if lang == 'en' else "Низький"
             if aqi > 50: 
                 status = "warning"
-                status_text = "Помірне"
+                status_text = "Moderate" if lang == 'en' else "Помірне"
             if aqi > 100: 
                 status = "danger"
-                status_text = "Високе"
+                status_text = "Unhealthy" if lang == 'en' else "Високе"
 
             temp = seb_temp if seb_temp is not None else (w_data.get('current', {}).get('temperature_2m') if w_data else None)
             hum = seb_hum if seb_hum is not None else (w_data.get('current', {}).get('relative_humidity_2m') if w_data else None)
+
+            loc_name = aq_cfg.get("location_name", "Київ")
+            if lang == 'en' and loc_name == "Київ":
+                loc_name = "Kyiv"
 
             return {
                 "aqi": aqi,
@@ -621,18 +670,22 @@ async def get_air_quality():
                 "temp": temp,
                 "hum": hum,
                 "wind_speed": w_data.get('current', {}).get('wind_speed_10m') if w_data else None,
-                "wind_dir": get_wind_label(w_data.get('current', {}).get('wind_direction_10m')) if w_data else "-",
-                "location": aq_cfg.get("location_name", "Київ")
+                "wind_dir": get_wind_label(w_data.get('current', {}).get('wind_direction_10m'), lang=lang) if w_data else "-",
+                "location": loc_name
             }
 
-        return await cached_fetch("air_quality", fetch_all)
+        return await cached_fetch(f"air_quality_{lang}", fetch_all)
     except Exception as e:
         logger.error("aq_error", error=str(e))
-        return {"status": "error", "text": "Дані відсутні"}
+        err_msg = "Data unavailable" if lang == 'en' else "Дані відсутні"
+        return {"status": "error", "text": err_msg}
 
-def get_wind_label(deg):
+def get_wind_label(deg, lang='ua'):
     if deg is None: return "-"
-    labels = ["Пн", "ПнСх", "Сх", "ПдСх", "Пд", "ПдЗх", "Зх", "ПнЗх"]
+    if lang == 'en':
+        labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    else:
+        labels = ["Пн", "ПнСх", "Сх", "ПдСх", "Пд", "ПдЗх", "Зх", "ПнЗх"]
     return labels[int((deg + 22.5) % 360 / 45)]
 
 @app.get('/')
@@ -665,14 +718,14 @@ def admin_panel(request: Request, t: str = Query(None), x_admin_token: str = Hea
     return PlainTextResponse("Access Denied", status_code=403)
 
 @app.get('/api/status')
-async def api_status():
+async def api_status(lang: str = "ua"):
     await load_state()
     current_status = state.get("status", "unknown")
     # Ensure we return strictly "on" or "off" for UI icons
     ui_light_state = "on" if current_status == "up" else "off"
     
-    latest_event_text, recent_events = await get_power_events_data()
-    schedule_text = get_today_schedule_text()
+    latest_event_text, recent_events = await get_power_events_data(lang=lang)
+    schedule_text = get_today_schedule_text(lang=lang)
     
     # Dashboard toggles
     show_aq = get_advanced_setting("dashboard", "show_aq", True)
@@ -680,7 +733,7 @@ async def api_status():
     show_graphs = get_advanced_setting("dashboard", "show_temp_graph", True)
     show_charts = get_advanced_setting("dashboard", "show_charts", True)
     
-    aq_data = await get_air_quality() if show_aq else None
+    aq_data = await get_air_quality(lang=lang) if show_aq else None
     rad_data = get_radiation() if show_rad else None
     alert_data = get_air_raid_alert()
     
@@ -1262,14 +1315,14 @@ async def admin_regen_token(request: Request):
 
 
 @app.get('/api/status/stream')
-async def status_stream(request: Request):
+async def status_stream(request: Request, lang: str = "ua"):
     
     async def event_generator():
         q = asyncio.Queue(maxsize=100)
-        await manager.connect(q)
+        await manager.connect(q, lang)
         try:
             # Initial burst
-            initial_data = await api_status()
+            initial_data = await api_status(lang=lang)
             yield {
                 "event": "update",
                 "data": json.dumps({"type": "update", "data": initial_data})
