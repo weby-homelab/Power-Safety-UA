@@ -1259,7 +1259,7 @@ async def admin_service_restart(request: Request, background_tasks: BackgroundTa
     try:
         def restart():
             time.sleep(1)
-            subprocess.run(["systemctl", "restart", "flash-monitor.service", "flash-background.service"])
+            subprocess.run(["systemctl", "restart", "power-safety-ua.service", "power-safety-ua-worker.service"])
 
         threading.Thread(target=restart).start()
         return {"status": "ok", "msg": "Services restarting..."}

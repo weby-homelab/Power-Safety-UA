@@ -66,7 +66,7 @@ For secure access and HTTPS without opening ports:
 
 1.  Install `cloudflared` on your server.
 2.  Log in: `cloudflared tunnel login`.
-3.  Create a tunnel: `cloudflared tunnel create flash-monitor`.
+3.  Create a tunnel: `cloudflared tunnel create power-safety-ua`.
 4.  Configure `config.yml`:
     ```yaml
     tunnel: <tunnel_id>
@@ -76,7 +76,7 @@ For secure access and HTTPS without opening ports:
         service: http://localhost:5050
       - service: http_status:404
     ```
-5.  Run the tunnel: `cloudflared tunnel run flash-monitor`.
+5.  Run the tunnel: `cloudflared tunnel run power-safety-ua`.
 
 ---
 
@@ -126,7 +126,7 @@ The system uses Cache-Busting. If you see an old image, make sure your browser s
 ### Bot is not sending messages?
 1.  Check if `TELEGRAM_BOT_TOKEN` is correct.
 2.  Ensure the bot is an admin in the channel.
-3.  Check the logs: `docker logs flash-monitor-worker` or `journalctl -u flash-background`.
+3.  Check the logs: `docker logs power-safety-ua-worker` or `journalctl -u power-safety-ua-worker`.
 
 ---
 
@@ -134,7 +134,7 @@ The system uses Cache-Busting. If you see an old image, make sure your browser s
 
 | Action | Command (Docker) | Command (Bare-Metal) |
 | :--- | :--- | :--- |
-| Restart | `docker compose restart` | `systemctl restart flash-*` |
+| Restart | `docker compose restart` | `systemctl restart power-safety-ua*` |
 | View Logs | `docker compose logs -f` | `tail -f background.log` |
 | Update | `docker compose pull && docker compose up -d` | `git pull && pip install -r requirements.txt` |
 

@@ -74,7 +74,7 @@ docker-compose up -d
 After the first run, the system automatically generates an access token. You need to extract it from inside the container:
 
 ```bash
-docker exec -it flash-monitor cat data/power_monitor_state.json | grep admin_token
+docker exec -it power-safety-ua cat data/power_monitor_state.json | grep admin_token
 ```
 
 Now open your browser:
@@ -93,7 +93,7 @@ Database files on the host system (if using bind mounts) are typically located i
 ## 🆘 Troubleshooting
 
 1. **Container not starting:** Check if port 5050 is occupied by another service (`netstat -tulpn | grep 5050`).
-2. **Errors in logs:** Run `docker-compose logs flash-monitor-worker` to see parsing or Telegram connection errors.
+2. **Errors in logs:** Run `docker compose logs power-safety-ua-worker` to see parsing or Telegram connection errors.
 3. **Image Version:** Ensure you are using the `latest` tag or a specific version (e.g., `v3.4.0`).
 
 ---

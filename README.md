@@ -99,10 +99,10 @@ flowchart BT
     end
 
     %% ====================== ЦЕНТР: CORE PIPELINE ======================
-    subgraph Core ["⚙️ Flash Monitor Core<br>light_service.py + FastAPI"]
+    subgraph Core ["⚙️ Power Safety Core<br>light_service.py + FastAPI"]
         direction TB
 
-        Worker["🔄 Worker<br>flash-background.service"]:::core
+        Worker["🔄 Worker<br>power-safety-ua-worker.service"]:::core
 
         subgraph Processing ["Обробка та логіка"]
             direction LR
@@ -111,7 +111,7 @@ flowchart BT
             Storage["💾 Storage<br>JSON Flat-DB<br>config • state • logs • schedules"]:::db
         end
 
-        API["🔌 FastAPI<br>flash-monitor.service<br>app.py"]:::core
+        API["🔌 FastAPI<br>power-safety-ua.service<br>app.py"]:::core
         TgClient["🤖 Telegram Client"]:::core
     end
 
