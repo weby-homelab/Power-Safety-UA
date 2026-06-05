@@ -66,7 +66,7 @@ void loop() {
 
 1.  Встановіть `cloudflared` на ваш сервер.
 2.  Авторизуйтесь: `cloudflared tunnel login`.
-3.  Створіть тунель: `cloudflared tunnel create flash-monitor`.
+3.  Створіть тунель: `cloudflared tunnel create power-safety-ua`.
 4.  Налаштуйте `config.yml`:
     ```yaml
     tunnel: <id_тунелю>
@@ -76,7 +76,7 @@ void loop() {
         service: http://localhost:5050
       - service: http_status:404
     ```
-5.  Запустіть тунель: `cloudflared tunnel run flash-monitor`.
+5.  Запустіть тунель: `cloudflared tunnel run power-safety-ua`.
 
 ---
 
@@ -126,7 +126,7 @@ void loop() {
 ### Бот не надсилає повідомлення?
 1.  Перевірте правильність `TELEGRAM_BOT_TOKEN`.
 2.  Переконайтеся, що бот є адміном у каналі.
-3.  Перевірте логи: `docker logs flash-monitor-worker` або `journalctl -u flash-background`.
+3.  Перевірте логи: `docker logs power-safety-ua-worker` або `journalctl -u power-safety-ua-worker`.
 
 ---
 
@@ -134,7 +134,7 @@ void loop() {
 
 | Дія | Команда (Docker) | Команда (Bare-Metal) |
 | :--- | :--- | :--- |
-| Перезапуск | `docker compose restart` | `systemctl restart flash-*` |
+| Перезапуск | `docker compose restart` | `systemctl restart power-safety-ua*` |
 | Перегляд логів | `docker compose logs -f` | `tail -f background.log` |
 | Оновлення | `docker compose pull && docker compose up -d` | `git pull && pip install -r requirements.txt` |
 

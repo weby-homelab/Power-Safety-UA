@@ -26,8 +26,8 @@ flowchart TB
 
         subgraph Services ["⚙️ System Services"]
             direction LR
-            API["⚡ flash-monitor.service<br/>(FastAPI / app.py)"]:::server
-            Worker["🔍 flash-background.service<br/>(light_service.py)"]:::server
+            API["⚡ power-safety-ua.service<br/>(FastAPI / app.py)"]:::server
+            Worker["🔍 power-safety-ua-worker.service<br/>(light_service.py)"]:::server
         end
 
         subgraph Modules ["🛠 Internal Modules & Logic"]

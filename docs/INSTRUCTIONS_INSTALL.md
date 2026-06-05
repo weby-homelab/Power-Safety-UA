@@ -74,7 +74,7 @@ docker-compose up -d
 Після першого запуску система автоматично генерує токен доступу. Його потрібно витягти зсередини контейнера:
 
 ```bash
-docker exec -it flash-monitor cat data/power_monitor_state.json | grep admin_token
+docker exec -it power-safety-ua cat data/power_monitor_state.json | grep admin_token
 ```
 
 Тепер відкрийте браузер:
@@ -93,7 +93,7 @@ docker exec -it flash-monitor cat data/power_monitor_state.json | grep admin_tok
 ## 🆘 Пошук несправностей
 
 1. **Контейнер не стартує:** Перевірте, чи не зайнятий порт 5050 іншим сервісом (`netstat -tulpn | grep 5050`).
-2. **Помилки в логах:** Виконайте `docker-compose logs flash-monitor-worker`, щоб побачити помилки парсингу або підключення до Telegram.
+2. **Помилки в логах:** Виконайте `docker compose logs power-safety-ua-worker`, щоб побачити помилки парсингу або підключення до Telegram.
 3. **Версія образу:** Переконайтеся, що ви використовуєте тег `latest` або конкретну версію (напр. `v3.4.0`).
 
 ---

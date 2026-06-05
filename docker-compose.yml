@@ -1,7 +1,7 @@
 services:
-  flash-monitor:
+  power-safety-ua:
     image: webyhomelab/power-safety-ua:latest
-    container_name: flash-monitor
+    container_name: power-safety-ua
     restart: unless-stopped
     ports:
       - "${PORT_BINDING:-127.0.0.1}:5050:5050"
@@ -17,7 +17,7 @@ services:
 
   background-worker:
     image: webyhomelab/power-safety-ua:latest
-    container_name: flash-monitor-worker
+    container_name: power-safety-ua-worker
     restart: unless-stopped
     command: python app/run_background.py
     volumes:
