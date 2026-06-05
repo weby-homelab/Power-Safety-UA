@@ -33,7 +33,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: webyhomelab/flash-monitor-kyiv
+          images: webyhomelab/power-safety-ua
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}}
