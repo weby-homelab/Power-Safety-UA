@@ -27,6 +27,7 @@ data/
 !static/icon-512.png
 !static/favicon.png
 !Admin-control-panel-*.png
+!docs/assets/*.png
 
 *.jpg
 !dashboard_preview.jpg

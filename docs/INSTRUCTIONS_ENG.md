@@ -9,7 +9,7 @@
 
 <br>
 
-# 🛠 Project Setup Guide: FLASH MONITOR KYIV [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/flash-monitor-kyiv)](https://github.com/weby-homelab/flash-monitor-kyiv/releases/latest)
+# 🛠 Project Setup Guide: POWER-SAFETY-UA [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/Power-Safety-UA)](https://github.com/weby-homelab/Power-Safety-UA/releases/latest)
 
 This guide will help you deploy your own monitoring system from scratch. Follow the steps for the best results.
 

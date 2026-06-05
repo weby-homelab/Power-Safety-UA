@@ -292,7 +292,7 @@
         
         <footer>
             <span id="footer-updated-label">Оновлено:</span> <span id="last-update">--:--:--</span><br>
-            © 2026 <a href="https://github.com/weby-homelab/flash-monitor-kyiv" target="_blank">Weby Homelab</a><span id="footer-version"></span>
+            © 2026 <a href="https://github.com/weby-homelab/Power-Safety-UA" target="_blank">Weby Homelab</a><span id="footer-version"></span>
         </footer>
     </div>
     <div id="modal" onclick="this.style.display='none'"><img id="modal-img" src=""></div>
@@ -601,8 +601,8 @@
                         if (aqiLoc && data.aqi.location) aqiLoc.innerText = (currentLang === 'ua' ? 'Повітря: ' : 'Air: ') + data.aqi.location;
                         
                         // Update fields
-                        document.getElementById('temp').innerText = data.aqi.temp || '--';
-                        document.getElementById('hum').innerText = data.aqi.hum || '--';
+                        document.getElementById('temp').innerText = (data.aqi.temp !== undefined && data.aqi.temp !== null) ? Math.round(parseFloat(data.aqi.temp)) : '--';
+                        document.getElementById('hum').innerText = (data.aqi.hum !== undefined && data.aqi.hum !== null) ? Math.round(parseFloat(data.aqi.hum)) : '--';
 
                         const tempGraph = document.getElementById('temp-graph');
                         const humGraph = document.getElementById('hum-graph');
@@ -728,8 +728,8 @@
                 }
 
                 if (data.aqi) {
-                    if (document.getElementById('temp')) document.getElementById('temp').innerText = (data.aqi.temp !== undefined ? data.aqi.temp : '--') + '°C';
-                    if (document.getElementById('hum')) document.getElementById('hum').innerText = (data.aqi.hum !== undefined ? data.aqi.hum : '--') + '%';
+                    if (document.getElementById('temp')) document.getElementById('temp').innerText = (data.aqi.temp !== undefined && data.aqi.temp !== null ? Math.round(parseFloat(data.aqi.temp)) : '--') + '°C';
+                    if (document.getElementById('hum')) document.getElementById('hum').innerText = (data.aqi.hum !== undefined && data.aqi.hum !== null ? Math.round(parseFloat(data.aqi.hum)) : '--') + '%';
 
                     function renderMiniGraph(containerId, historyData, color, formatUnit) {
                         const container = document.getElementById(containerId);
