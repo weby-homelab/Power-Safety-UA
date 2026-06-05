@@ -713,7 +713,7 @@ def index(request: Request):
 
 @app.get('/robots.txt')
 def robots_txt():
-    content = "User-agent: *\nDisallow: /admin\nDisallow: /api/\nAllow: /\n\nSitemap: https://flash.srvrs.top/sitemap.xml"
+    content = "User-agent: *\nDisallow: /admin\nDisallow: /api/\nAllow: /\n\nSitemap: https://power.srvrs.top/sitemap.xml"
     return PlainTextResponse(content)
 
 @app.get('/sitemap.xml')
@@ -721,7 +721,7 @@ def sitemap_xml():
     content = '''<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://flash.srvrs.top/</loc>
+    <loc>https://power.srvrs.top/</loc>
     <changefreq>hourly</changefreq>
     <priority>1.0</priority>
   </url>
