@@ -235,7 +235,7 @@ def get_weekly_stats(start_date, end_date, events):
         'daily_data': days_stats
     }
 
-def generate_weekly_chart(end_date, daily_data, theme='dark'):
+def generate_weekly_chart(end_date, daily_data, theme='dark', lang='ua'):
     # Vibrant colors for Fact, Muted for Plan
     if theme == 'dark':
         bg_color = '#0f172a'
@@ -312,7 +312,10 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
             
             y_pos = 11 - i * 1.8
             
-            day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
+            if lang == 'en':
+                day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            else:
+                day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
             label = f"{day_names[day_date.weekday()]} {day_date.strftime('%d.%m')}"
             y_labels.append(label)
             y_ticks.append(y_pos + 0.18) # Center of the day stack
@@ -466,19 +469,44 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
         ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
         ax.xaxis.set_minor_locator(mdates.HourLocator(interval=1))
         
-        ax.set_title(f"Енергетичний тиждень ({daily_data[0]['date'].strftime('%d.%m')} - {daily_data[-1]['date'].strftime('%d.%m')})", fontsize=14, color=text_color)
+        if lang == 'en':
+            title_text = f"Electricity Week ({daily_data[0]['date'].strftime('%d.%m')} - {daily_data[-1]['date'].strftime('%d.%m')})"
+        else:
+            title_text = f"Енергетичний тиждень ({daily_data[0]['date'].strftime('%d.%m')} - {daily_data[-1]['date'].strftime('%d.%m')})"
+        ax.set_title(title_text, fontsize=14, color=text_color)
         
         import matplotlib.patches as mpatches
-        green_patch = mpatches.Patch(color=fact_on_color, label='Світло є')
-        red_patch = mpatches.Patch(color=fact_off_color, label='Світла немає')
-        yellow_patch = mpatches.Patch(color=plan_on_color, label='Графік: Є')
-        gray_patch = mpatches.Patch(color=plan_off_color, label='Графік: Немає')
-        alert_patch = mpatches.Patch(color='#FFFDE7', label='Тривога')
-        alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label='Немає тривог')
+        if lang == 'en':
+            label_fact_on = 'Power ON'
+            label_fact_off = 'Power OFF'
+            label_plan_on = 'Schedule: ON'
+            label_plan_off = 'Schedule: OFF'
+            label_alert = 'Air Raid Alert'
+            label_alert_off = 'No Alerts'
+            label_aqi_good = 'AQI: Good'
+            label_aqi_mod = 'AQI: Moderate'
+            label_aqi_unhealthy = 'AQI: Unhealthy'
+        else:
+            label_fact_on = 'Світло є'
+            label_fact_off = 'Світла немає'
+            label_plan_on = 'Графік: Є'
+            label_plan_off = 'Графік: Немає'
+            label_alert = 'Тривога'
+            label_alert_off = 'Немає тривог'
+            label_aqi_good = 'AQI: Добре'
+            label_aqi_mod = 'AQI: Помірне'
+            label_aqi_unhealthy = 'AQI: Шкідливе'
+
+        green_patch = mpatches.Patch(color=fact_on_color, label=label_fact_on)
+        red_patch = mpatches.Patch(color=fact_off_color, label=label_fact_off)
+        yellow_patch = mpatches.Patch(color=plan_on_color, label=label_plan_on)
+        gray_patch = mpatches.Patch(color=plan_off_color, label=label_plan_off)
+        alert_patch = mpatches.Patch(color='#FFFDE7', label=label_alert)
+        alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label=label_alert_off)
         
-        aqi_green = mpatches.Patch(color='#22c55e', label='AQI: Добре')
-        aqi_yellow = mpatches.Patch(color='#eab308', label='AQI: Помірне')
-        aqi_red = mpatches.Patch(color='#ef4444', label='AQI: Шкідливе')
+        aqi_green = mpatches.Patch(color='#22c55e', label=label_aqi_good)
+        aqi_yellow = mpatches.Patch(color='#eab308', label=label_aqi_mod)
+        aqi_red = mpatches.Patch(color='#ef4444', label=label_aqi_unhealthy)
 
         legend = plt.legend(handles=[green_patch, red_patch, yellow_patch, gray_patch, alert_patch, alert_off_patch, aqi_green, aqi_yellow, aqi_red],
                    loc='upper center', bbox_to_anchor=(0.5, -0.1),
@@ -488,7 +516,11 @@ def generate_weekly_chart(end_date, daily_data, theme='dark'):
         plt.tight_layout()
         plt.subplots_adjust(bottom=0.22)
         
-        suffix = "_light" if theme == 'light' else ""
+        suffix = ""
+        if theme == 'light':
+            suffix += "_light"
+        if lang == 'en':
+            suffix += "_en"
         filename = os.path.join(DATA_DIR, f"weekly_report_{end_date.strftime('%Y-%m-%d')}{suffix}.png")
         plt.savefig(filename, dpi=100, facecolor=fig.get_facecolor())
         plt.close()
@@ -534,8 +566,10 @@ if __name__ == "__main__":
     
     # If output is specified, use that filename
     if args.output:
-        temp_filename = generate_weekly_chart(sunday, stats['daily_data'], theme='dark')
-        temp_light = generate_weekly_chart(sunday, stats['daily_data'], theme='light')
+        temp_filename = generate_weekly_chart(sunday, stats['daily_data'], theme='dark', lang='ua')
+        temp_light = generate_weekly_chart(sunday, stats['daily_data'], theme='light', lang='ua')
+        temp_filename_en = generate_weekly_chart(sunday, stats['daily_data'], theme='dark', lang='en')
+        temp_light_en = generate_weekly_chart(sunday, stats['daily_data'], theme='light', lang='en')
         
         if os.path.exists(temp_filename):
             if os.path.exists(args.output):
@@ -552,17 +586,35 @@ if __name__ == "__main__":
             shutil.move(temp_light, light_output)
             print(f"Light chart saved to {light_output}")
             
+        en_output = f"{base}_en{ext}"
+        if os.path.exists(temp_filename_en):
+            if os.path.exists(en_output):
+                os.remove(en_output)
+            shutil.move(temp_filename_en, en_output)
+            print(f"EN chart saved to {en_output}")
+            
+        light_en_output = f"{base}_light_en{ext}"
+        if os.path.exists(temp_light_en):
+            if os.path.exists(light_en_output):
+                os.remove(light_en_output)
+            shutil.move(temp_light_en, light_en_output)
+            print(f"EN Light chart saved to {light_en_output}")
+            
         sys.exit(0)
 
     # Standard Telegram Flow
-    filename = generate_weekly_chart(sunday, stats['daily_data'], theme='dark')
-    filename_light = generate_weekly_chart(sunday, stats['daily_data'], theme='light')
+    filename = generate_weekly_chart(sunday, stats['daily_data'], theme='dark', lang='ua')
+    filename_light = generate_weekly_chart(sunday, stats['daily_data'], theme='light', lang='ua')
+    filename_en = generate_weekly_chart(sunday, stats['daily_data'], theme='dark', lang='en')
+    filename_light_en = generate_weekly_chart(sunday, stats['daily_data'], theme='light', lang='en')
     
     # Save copy for Web Dashboard
     web_dir = os.path.join(DATA_DIR, "static")
     if not os.path.exists(web_dir): os.makedirs(web_dir)
     shutil.copy(filename, os.path.join(web_dir, "weekly.png"))
     shutil.copy(filename_light, os.path.join(web_dir, "weekly_light.png"))
+    shutil.copy(filename_en, os.path.join(web_dir, "weekly_en.png"))
+    shutil.copy(filename_light_en, os.path.join(web_dir, "weekly_light_en.png"))
     
     up_h = stats['total_up'] / 3600
     down_h = stats['total_down'] / 3600
@@ -654,3 +706,7 @@ if __name__ == "__main__":
         os.remove(filename)
     if os.path.exists(filename_light):
         os.remove(filename_light)
+    if os.path.exists(filename_en):
+        os.remove(filename_en)
+    if os.path.exists(filename_light_en):
+        os.remove(filename_light_en)

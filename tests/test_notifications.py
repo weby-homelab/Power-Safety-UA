@@ -30,3 +30,94 @@ def test_short_duration_formatting():
     # Current behavior of format_duration for < 60s is "0 хв"
     assert format_duration(30) == "0 хв"
     assert format_duration(60) == "1 хв"
+
+def test_format_duration_localization():
+    from app.light_service import format_duration
+    # English
+    assert format_duration(30, lang='en') == "0m"
+    assert format_duration(60, lang='en') == "1m"
+    assert format_duration(3600, lang='en') == "1h"
+    assert format_duration(3660, lang='en') == "1h 1m"
+    assert format_duration(86400, lang='en') == "1d"
+    assert format_duration(90000, lang='en') == "1d 1h"
+    assert format_duration(95400, lang='en') == "1d 2h 30m"
+    
+    # Ukrainian (Default/UA)
+    assert format_duration(30, lang='ua') == "0 хв"
+    assert format_duration(60, lang='ua') == "1 хв"
+    assert format_duration(3600, lang='ua') == "1 г"
+    assert format_duration(3660, lang='ua') == "1 г 1 хв"
+    assert format_duration(86400, lang='ua') == "1д"
+    assert format_duration(90000, lang='ua') == "1д 1 год"
+    assert format_duration(95400, lang='ua') == "1д 2 год 30 хв"
+
+def test_get_schedule_context_localization():
+    from app.light_service import get_schedule_context
+    import json
+    from unittest.mock import patch, mock_open
+
+    # Test when schedule file does not exist (triggers exception and returns 'Помилка' / 'Error')
+    with patch("os.path.exists", return_value=False):
+        assert get_schedule_context(lang='ua') == (None, None, "Помилка", None, False)
+        assert get_schedule_context(lang='en') == (None, None, "Error", None, False)
+
+    # Test when schedule file exists but is empty (returns 'Невідомо' / 'Unknown')
+    with patch("os.path.exists", return_value=True):
+        with patch("builtins.open", mock_open(read_data="{}")):
+            assert get_schedule_context(lang='ua') == (None, None, "Невідомо", None, False)
+            assert get_schedule_context(lang='en') == (None, None, "Unknown", None, False)
+
+    # Test with emergency schedule when no slots
+    schedule_emergency = {
+        "yasno": {
+            "G1": {
+                "2026-03-18": {
+                    "status": "emergency"
+                }
+            }
+        }
+    }
+    
+    mock_now_dt = datetime.datetime(2026, 3, 18, 12, 0, 0, tzinfo=KYIV_TZ)
+    with patch("app.light_service.datetime") as mock_datetime:
+        mock_datetime.datetime.now.return_value = mock_now_dt
+        mock_datetime.timedelta = datetime.timedelta
+        with patch("os.path.exists", return_value=True):
+            with patch("builtins.open", mock_open(read_data=json.dumps(schedule_emergency))):
+                assert get_schedule_context(lang='ua') == (None, None, "⚠️ Екстрені відключення", None, True)
+                assert get_schedule_context(lang='en') == (None, None, "⚠️ Emergency outages", None, True)
+
+def test_get_deviation_info_localization():
+    from app.light_service import get_deviation_info
+    import json
+    from unittest.mock import patch, mock_open
+    
+    # 48 slots: True represents light, False represents outage.
+    # At index 24 (12:00:00), we transition from True to False (outage starts)
+    slots = [True] * 24 + [False] * 24
+    schedule = {
+        "yasno": {
+            "G1": {
+                "2026-03-18": {
+                    "slots": slots,
+                    "status": "normal"
+                }
+            }
+        }
+    }
+    
+    event_time_exact = datetime.datetime(2026, 3, 18, 12, 0, 0, tzinfo=KYIV_TZ).timestamp()
+    event_time_late = datetime.datetime(2026, 3, 18, 12, 15, 0, tzinfo=KYIV_TZ).timestamp()
+    event_time_early = datetime.datetime(2026, 3, 18, 11, 45, 0, tzinfo=KYIV_TZ).timestamp()
+    
+    with patch("os.path.exists", return_value=True):
+        with patch("builtins.open", mock_open(read_data=json.dumps(schedule))):
+            # UA tests
+            assert get_deviation_info(event_time_exact, is_up=False, lang='ua') == "• Вимкнули точно за графіком"
+            assert get_deviation_info(event_time_late, is_up=False, lang='ua') == "• Вимкнули пізніше на 15 хв"
+            assert get_deviation_info(event_time_early, is_up=False, lang='ua') == "• Вимкнули раніше на 15 хв"
+            
+            # EN tests
+            assert get_deviation_info(event_time_exact, is_up=False, lang='en') == "• Powered OFF strictly on schedule"
+            assert get_deviation_info(event_time_late, is_up=False, lang='en') == "• Powered OFF later by 15m"
+            assert get_deviation_info(event_time_early, is_up=False, lang='en') == "• Powered OFF earlier by 15m"

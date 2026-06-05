@@ -285,7 +285,7 @@ def format_duration(seconds):
     if m > 0: parts.append(f"{m} хв")
     return " ".join(parts) if parts else "0 хв"
 
-def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, theme='dark'):
+def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, theme='dark', lang='ua'):
     # Vibrant colors for Fact, Muted for Plan
     if theme == 'dark':
         bg_color = '#0f172a'
@@ -472,21 +472,44 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         ax.tick_params(axis='y', colors=text_color)
         
         ax.set_yticks([aqi_y + aqi_h/2, alert_y + alert_h/2, sched_y + sched_h/2, act_y + act_h/2])
-        ax.set_yticklabels(['Повітря', 'Тривоги', 'Графік', 'Факт'], color=text_color)
+        yticklabels = ['Air', 'Alerts', 'Schedule', 'Actual'] if lang == 'en' else ['Повітря', 'Тривоги', 'Графік', 'Факт']
+        ax.set_yticklabels(yticklabels, color=text_color)
         
-        ax.set_title(f"Статистика світла за {target_date.strftime('%d.%m.%Y')}", fontsize=12, color=text_color)
+        title_text = f"Electricity Stats for {target_date.strftime('%d.%m.%Y')}" if lang == 'en' else f"Статистика світла за {target_date.strftime('%d.%m.%Y')}"
+        ax.set_title(title_text, fontsize=12, color=text_color)
         
         import matplotlib.patches as mpatches
-        green_patch = mpatches.Patch(color=fact_on_color, label=f'Світло є')
-        red_patch = mpatches.Patch(color=fact_off_color, label=f'Світла немає')
-        yellow_patch = mpatches.Patch(color=plan_on_color, label='Графік: Є')
-        gray_patch = mpatches.Patch(color=plan_off_color, label='Графік: Немає')
-        alert_patch = mpatches.Patch(color='#FFFDE7', label='Тривога')
-        alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label='Немає тривог')
+        if lang == 'en':
+            green_label = 'Power ON'
+            red_label = 'Power OFF'
+            yellow_label = 'Schedule: ON'
+            gray_label = 'Schedule: OFF'
+            alert_label = 'Air Raid Alert'
+            alert_off_label = 'No Alerts'
+            aqi_green_label = 'AQI: Good'
+            aqi_yellow_label = 'AQI: Moderate'
+            aqi_red_label = 'AQI: Unhealthy'
+        else:
+            green_label = 'Світло є'
+            red_label = 'Світла немає'
+            yellow_label = 'Графік: Є'
+            gray_label = 'Графік: Немає'
+            alert_label = 'Тривога'
+            alert_off_label = 'Немає тривог'
+            aqi_green_label = 'AQI: Добре'
+            aqi_yellow_label = 'AQI: Помірне'
+            aqi_red_label = 'AQI: Шкідливе'
+
+        green_patch = mpatches.Patch(color=fact_on_color, label=green_label)
+        red_patch = mpatches.Patch(color=fact_off_color, label=red_label)
+        yellow_patch = mpatches.Patch(color=plan_on_color, label=yellow_label)
+        gray_patch = mpatches.Patch(color=plan_off_color, label=gray_label)
+        alert_patch = mpatches.Patch(color='#FFFDE7', label=alert_label)
+        alert_off_patch = mpatches.Patch(color=('#334155' if theme == 'dark' else '#cbd5e1'), label=alert_off_label)
         
-        aqi_green = mpatches.Patch(color='#22c55e', label='AQI: Добре')
-        aqi_yellow = mpatches.Patch(color='#eab308', label='AQI: Помірне')
-        aqi_red = mpatches.Patch(color='#ef4444', label='AQI: Шкідливе')
+        aqi_green = mpatches.Patch(color='#22c55e', label=aqi_green_label)
+        aqi_yellow = mpatches.Patch(color='#eab308', label=aqi_yellow_label)
+        aqi_red = mpatches.Patch(color='#ef4444', label=aqi_red_label)
 
         legend = plt.legend(handles=[green_patch, red_patch, yellow_patch, gray_patch, alert_patch, alert_off_patch, aqi_green, aqi_yellow, aqi_red],
                    loc='upper center', bbox_to_anchor=(0.5, -0.22),
@@ -497,6 +520,8 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         plt.subplots_adjust(bottom=0.28)
         
         suffix = "_light" if theme == 'light' else ""
+        if lang == 'en':
+            suffix += "_en"
         filename = os.path.join(DATA_DIR, f"report_{target_date.strftime('%Y-%m-%d')}{suffix}.png")
         plt.savefig(filename, dpi=100, facecolor=fig.get_facecolor())
         plt.close()
@@ -680,14 +705,18 @@ if __name__ == "__main__":
         calc_end = now if target_date == now.date() else day_start + datetime.timedelta(hours=24)
         intervals = [(day_start, calc_end, "unknown")]
     # 3. Generate Charts
-    filename, t_up, t_down = generate_chart(target_date, intervals, sched_intervals, alert_intervals, theme='dark')
-    filename_light, _, _ = generate_chart(target_date, intervals, sched_intervals, alert_intervals, theme='light')
+    filename, t_up, t_down = generate_chart(target_date, intervals, sched_intervals, alert_intervals, theme='dark', lang='ua')
+    filename_light, _, _ = generate_chart(target_date, intervals, sched_intervals, alert_intervals, theme='light', lang='ua')
+    filename_en, _, _ = generate_chart(target_date, intervals, sched_intervals, alert_intervals, theme='dark', lang='en')
+    filename_light_en, _, _ = generate_chart(target_date, intervals, sched_intervals, alert_intervals, theme='light', lang='en')
 
     # Save copy for Web Dashboard
     web_dir = os.path.join(DATA_DIR, "static")
     if not os.path.exists(web_dir): os.makedirs(web_dir)
     shutil.copy(filename, os.path.join(web_dir, "chart.png"))
     shutil.copy(filename_light, os.path.join(web_dir, "chart_light.png"))
+    shutil.copy(filename_en, os.path.join(web_dir, "chart_en.png"))
+    shutil.copy(filename_light_en, os.path.join(web_dir, "chart_light_en.png"))
     
     caption, plan_up_sec_formatted, diff_hours, compliance_pct = build_report_caption(target_date, t_up, t_down, slots, now)
 
@@ -746,6 +775,8 @@ if __name__ == "__main__":
         
         if os.path.exists(filename): os.remove(filename)
         if os.path.exists(filename_light): os.remove(filename_light)
+        if os.path.exists(filename_en): os.remove(filename_en)
+        if os.path.exists(filename_light_en): os.remove(filename_light_en)
         sys.exit(0)
 
     if is_all_on_day and quiet_status != "quiet" and "--no-send" not in sys.argv:
@@ -754,6 +785,8 @@ if __name__ == "__main__":
             print("Active mode but all-light day: Skipping new graphic report to avoid spam in Telegram.")
             if os.path.exists(filename): os.remove(filename)
             if os.path.exists(filename_light): os.remove(filename_light)
+            if os.path.exists(filename_en): os.remove(filename_en)
+            if os.path.exists(filename_light_en): os.remove(filename_light_en)
             sys.exit(0)
         else:
             # If last_id exists, we update it normally (don't delete it). We just let it fall through to the normal logic!
@@ -784,3 +817,7 @@ if __name__ == "__main__":
         os.remove(filename)
     if os.path.exists(filename_light):
         os.remove(filename_light)
+    if os.path.exists(filename_en):
+        os.remove(filename_en)
+    if os.path.exists(filename_light_en):
+        os.remove(filename_light_en)

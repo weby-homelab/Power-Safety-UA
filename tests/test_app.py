@@ -52,3 +52,23 @@ def test_metrics_endpoint():
     response = client.get("/metrics")
     assert response.status_code == 200
     assert "flash_active_sse_connections" in response.text
+
+import datetime
+
+def test_get_wind_label_localization():
+    assert app.main.get_wind_label(0, lang='ua') == "Пн"
+    assert app.main.get_wind_label(0, lang='en') == "N"
+    assert app.main.get_wind_label(45, lang='ua') == "ПнСх"
+    assert app.main.get_wind_label(45, lang='en') == "NE"
+
+def test_render_day_schedule_html_localization():
+    slots = [True] * 48
+    date_obj = datetime.date(2026, 6, 5)
+    
+    html_ua = app.main.render_day_schedule_html(slots, date_obj, lang='ua')
+    html_en = app.main.render_day_schedule_html(slots, date_obj, lang='en')
+    
+    assert "Червня" in html_ua
+    assert "June" in html_en
+    assert "Power ON" in html_en
+    assert "Увімкнення" in html_ua

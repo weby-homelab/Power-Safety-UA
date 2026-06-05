@@ -125,6 +125,23 @@ def test_generate_chart(mock_savefig):
     assert t_down == 2 * 3600
     mock_savefig.assert_called_once()
 
+@patch("matplotlib.pyplot.savefig")
+def test_generate_chart_en(mock_savefig):
+    date = datetime.date(2026, 4, 6)
+    
+    day_start = datetime.datetime.combine(date, datetime.time.min).replace(tzinfo=KYIV_TZ)
+    intervals = [
+        (day_start, day_start + datetime.timedelta(hours=10), "up"),
+    ]
+    
+    schedule_intervals = [
+        (day_start, 24.0, True)
+    ]
+    
+    filename, t_up, t_down = generate_chart(date, intervals, schedule_intervals, [], theme='dark', lang='en')
+    assert "report_2026-04-06_en.png" in filename
+    mock_savefig.assert_called_once()
+
 @patch("requests.get")
 @patch("matplotlib.pyplot.savefig")
 def test_generate_chart_filters_future_aqi(mock_savefig, mock_get):
