@@ -399,18 +399,27 @@ def get_current_time():
     # Returns local time timestamp
     return time.time()
 
-def format_duration(seconds):
+def format_duration(seconds, lang='ua'):
     d = int(seconds // 86400)
     h = int((seconds % 86400) // 3600)
     m = int((seconds % 3600) // 60)
     parts = []
-    if d > 0:
-        parts.append(f"{d}д")
-        if h > 0: parts.append(f"{h} год")
+    if lang == 'en':
+        if d > 0:
+            parts.append(f"{d}d")
+            if h > 0: parts.append(f"{h}h")
+        else:
+            if h > 0: parts.append(f"{h}h")
+        if m > 0: parts.append(f"{m}m")
+        return " ".join(parts) if parts else "0m"
     else:
-        if h > 0: parts.append(f"{h} г")
-    if m > 0: parts.append(f"{m} хв")
-    return " ".join(parts) if parts else "0 хв"
+        if d > 0:
+            parts.append(f"{d}д")
+            if h > 0: parts.append(f"{h} год")
+        else:
+            if h > 0: parts.append(f"{h} г")
+        if m > 0: parts.append(f"{m} хв")
+        return " ".join(parts) if parts else "0 хв"
 
 def get_best_source_internal(data, date_str):
     """Internal helper to find source with slots or fallback to emergency."""
@@ -599,7 +608,7 @@ def format_event_message(is_up, event_time, prev_event_time):
     
     return msg.strip()
 
-def get_schedule_context():
+def get_schedule_context(lang='ua'):
     try:
         with open(SCHEDULE_FILE, 'r') as f:
             data = json.load(f)
@@ -609,15 +618,16 @@ def get_schedule_context():
         tomorrow_str = (now + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
         
         source, is_emergency = get_best_source_internal(data, today_str)
-        if not source: return (None, None, "Невідомо", None, False)
+        if not source:
+            return (None, None, "Unknown" if lang == 'en' else "Невідомо", None, False)
         
         group_key = list(source.keys())[0]
         schedule_data = source[group_key]
         
         if today_str not in schedule_data or not schedule_data[today_str].get('slots'):
             if is_emergency:
-                return (None, None, "⚠️ Екстрені відключення", None, True)
-            return (None, None, "Графік відсутній", None, False)
+                return (None, None, "⚠️ Emergency outages" if lang == 'en' else "⚠️ Екстрені відключення", None, True)
+            return (None, None, "No schedule" if lang == 'en' else "Графік відсутній", None, False)
             
         slots = list(schedule_data[today_str]['slots'])
         has_tomorrow = False
@@ -638,7 +648,10 @@ def get_schedule_context():
         
         def format_idx_to_time(idx):
             if idx >= 96:
-                return "відключення не плануються 🔆" if has_tomorrow else "невідомий час 🤷‍♂️"
+                if lang == 'en':
+                    return "no outages scheduled 🔆" if has_tomorrow else "unknown time 🤷‍♂️"
+                else:
+                    return "відключення не плануються 🔆" if has_tomorrow else "невідомий час 🤷‍♂️"
             day_offset = idx // 48
             rem_idx = idx % 48
             h = rem_idx // 2
@@ -646,8 +659,11 @@ def get_schedule_context():
             if day_offset == 0: return f"{h:02d}:{m:02d}"
             elif day_offset == 1:
                 if h == 0 and m == 0: return "24:00"
-                return f"завтра о {h:02d}:{m:02d}"
-            return "післязавтра"
+                if lang == 'en':
+                    return f"tomorrow at {h:02d}:{m:02d}"
+                else:
+                    return f"завтра о {h:02d}:{m:02d}"
+            return "day after tomorrow" if lang == 'en' else "післязавтра"
 
         t_end = format_idx_to_time(end_idx)
         next_start_idx = end_idx
@@ -655,7 +671,7 @@ def get_schedule_context():
         
         if next_start_idx < len(slots):
             if next_start_idx >= 48 and not has_tomorrow:
-                next_range = "невідомий час 🤷‍♂️"
+                next_range = "unknown time 🤷‍♂️" if lang == 'en' else "невідомий час 🤷‍♂️"
             else:
                 next_end_idx = len(slots)
                 for i in range(next_start_idx + 1, len(slots)):
@@ -666,19 +682,27 @@ def get_schedule_context():
                 ne_t = format_idx_to_time(next_end_idx)
                 
                 if next_start_idx >= 96 or (next_start_idx >= 48 and next_end_idx >= 96 and is_light_now):
-                     next_range = "відключення не плануються 🔆" if has_tomorrow else "невідомий час 🤷‍♂️"
+                    if lang == 'en':
+                        next_range = "no outages scheduled 🔆" if has_tomorrow else "unknown time 🤷‍♂️"
+                    else:
+                        next_range = "відключення не плануються 🔆" if has_tomorrow else "невідомий час 🤷‍♂️"
                 else:
-                     next_range = f"{ns_t} - {ne_t}"
+                    next_range = f"{ns_t} - {ne_t}"
                      
                 dur_h = (next_end_idx - next_start_idx) * 0.5
-                next_duration = f"{dur_h:g}".replace('.', ',')
+                next_duration = f"{dur_h:g}"
+                if lang == 'ua':
+                    next_duration = next_duration.replace('.', ',')
         else:
-            next_range = "відключення не плануються 🔆" if has_tomorrow else "невідомий час 🤷‍♂️"
+            if lang == 'en':
+                next_range = "no outages scheduled 🔆" if has_tomorrow else "unknown time 🤷‍♂️"
+            else:
+                next_range = "відключення не плануються 🔆" if has_tomorrow else "невідомий час 🤷‍♂️"
             
         return (is_light_now, t_end, next_range, next_duration, is_emergency)
     except Exception as e:
         print(f"Schedule error: {e}")
-        return (None, None, "Помилка", None, False)
+        return (None, None, "Error" if lang == 'en' else "Помилка", None, False)
 
 def send_telegram(message):
     token = get_telegram_token()
@@ -738,7 +762,7 @@ def send_safety_net_admin(timestamp):
     except Exception as e:
         print(f"Failed to send safety net admin: {e}")
 
-def get_deviation_info(event_time, is_up):
+def get_deviation_info(event_time, is_up, lang='ua'):
     try:
         if not os.path.exists(SCHEDULE_FILE): return ""
         with open(SCHEDULE_FILE, 'r') as f: data = json.load(f)
@@ -767,13 +791,22 @@ def get_deviation_info(event_time, is_up):
         abs_diff = abs(best_diff)
         h, m = abs_diff // 60, abs_diff % 60
         dur_parts = []
-        if h > 0: dur_parts.append(f"{h} год")
-        if m > 0: dur_parts.append(f"{m} хв")
-        dur_str = " ".join(dur_parts) if dur_parts else "0 хв"
-        action = "Увімкнули" if is_up else "Вимкнули"
-        timing = "пізніше" if best_diff > 0 else "раніше"
-        if best_diff == 0: return f"• {action} точно за графіком"
-        return f"• {action} {timing} на {dur_str}"
+        if lang == 'en':
+            if h > 0: dur_parts.append(f"{h}h")
+            if m > 0: dur_parts.append(f"{m}m")
+            dur_str = " ".join(dur_parts) if dur_parts else "0m"
+            action = "Powered ON" if is_up else "Powered OFF"
+            timing = "later" if best_diff > 0 else "earlier"
+            if best_diff == 0: return f"• {action} strictly on schedule"
+            return f"• {action} {timing} by {dur_str}"
+        else:
+            if h > 0: dur_parts.append(f"{h} год")
+            if m > 0: dur_parts.append(f"{m} хв")
+            dur_str = " ".join(dur_parts) if dur_parts else "0 хв"
+            action = "Увімкнули" if is_up else "Вимкнули"
+            timing = "пізніше" if best_diff > 0 else "раніше"
+            if best_diff == 0: return f"• {action} точно за графіком"
+            return f"• {action} {timing} на {dur_str}"
     except Exception as e:
         print(f"Error in deviation calc: {e}")
         return ""
