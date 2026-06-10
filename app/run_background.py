@@ -5,7 +5,7 @@ import sys
 from scripts import bootstrap
 bootstrap.perform_cold_start_if_needed()
 
-from app.light_service import monitor_loop, schedule_loop, alerts_loop, load_state
+from app.light_service import monitor_loop, schedule_loop, alerts_loop, load_state, metrics_collector_loop
 
 async def main():
     print("Starting Flash Monitor Background Services (Async)...", flush=True)
@@ -19,7 +19,8 @@ async def main():
     await asyncio.gather(
         monitor_loop(),
         alerts_loop(),
-        schedule_loop()
+        schedule_loop(),
+        metrics_collector_loop()
     )
 
 if __name__ == "__main__":
