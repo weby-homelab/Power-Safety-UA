@@ -403,24 +403,29 @@ def generate_weekly_chart(end_date, daily_data, theme='dark', lang='ua'):
 
             # --- 4. Draw AQI Data (Fourth Strip) ---
             d_str = day_date.strftime("%Y-%m-%d")
-            hourly_pm = aqi_by_date.get(d_str, [])
-            if not hourly_pm:
-                if day_date <= now_kyiv.date():
-                    limit_h = now_kyiv.hour + 1 if day_date == now_kyiv.date() else 24
-                    hourly_pm = [(h, None) for h in range(limit_h)]
-                else:
-                    hourly_pm = []
-                
-            for hour, val in hourly_pm:
-                # Filter out future AQI hours
-                s_date = datetime.datetime.combine(day_date, datetime.time(hour, 0)).replace(tzinfo=KYIV_TZ)
-                if s_date > now_kyiv:
-                    continue
+            aqi_intervals = []
+            
+            history_file = os.path.join(DATA_DIR, "metrics_history.json")
+            history_data = []
+            if os.path.exists(history_file):
+                try:
+                    with open(history_file, 'r') as f:
+                        history_data = json.load(f)
+                except: pass
+
+            target_day_metrics = []
+            for item in history_data:
+                dt_metric = datetime.datetime.fromtimestamp(item.get("timestamp", 0), KYIV_TZ)
+                if dt_metric.date() == day_date:
+                    target_day_metrics.append(item)
+
+            target_day_metrics.sort(key=lambda x: x.get("timestamp", 0))
+
+            if target_day_metrics:
+                for idx, item in enumerate(target_day_metrics):
+                    ts = item.get("timestamp", 0)
+                    aqi_val = item.get("aqi", 0)
                     
-                if val is None:
-                    color = "#64748b" # Gray fallback for no data
-                else:
-                    aqi_val = int(val)
                     if aqi_val <= 50:
                         color = "#22c55e" # Green
                     elif aqi_val <= 100:
@@ -428,18 +433,63 @@ def generate_weekly_chart(end_date, daily_data, theme='dark', lang='ua'):
                     else:
                         color = "#ef4444" # Red
                     
-                dummy_s_date = datetime.datetime.combine(dummy_date, datetime.time(hour, 0))
-                start_n = mdates.date2num(dummy_s_date)
-                
-                # Check if it needs clipping (only for today's current hour)
-                if day_date == now_kyiv.date() and s_date + datetime.timedelta(hours=1) > now_kyiv:
-                    clipped_duration = (now_kyiv - s_date).total_seconds() / (24.0 * 3600.0)
-                    duration_n = max(0.0, clipped_duration)
-                else:
-                    duration_n = 1.0 / 24.0
+                    start_t = datetime.datetime.fromtimestamp(ts, KYIV_TZ)
+                    if start_t > now_kyiv:
+                        continue
                     
-                if duration_n > 0:
-                    ax.broken_barh([(start_n, duration_n)], (y_pos - 0.54, 0.36), facecolors=color, edgecolor='none')
+                    if idx < len(target_day_metrics) - 1:
+                        next_ts = target_day_metrics[idx + 1].get("timestamp", 0)
+                        end_t = datetime.datetime.fromtimestamp(min(next_ts, ts + 600), KYIV_TZ)
+                    else:
+                        end_t = start_t + datetime.timedelta(minutes=10)
+                    
+                    if end_t > now_kyiv:
+                        end_t = now_kyiv
+                    
+                    if end_t > start_t:
+                        aqi_intervals.append((start_t, end_t, color))
+            else:
+                # Fallback to Open-Meteo API hourly data if local history is empty
+                hourly_pm = aqi_by_date.get(d_str, [])
+                if not hourly_pm:
+                    if day_date <= now_kyiv.date():
+                        limit_h = now_kyiv.hour + 1 if day_date == now_kyiv.date() else 24
+                        hourly_pm = [(h, None) for h in range(limit_h)]
+                    else:
+                        hourly_pm = []
+                
+                for hour, val in hourly_pm:
+                    s_date = datetime.datetime.combine(day_date, datetime.time(hour, 0)).replace(tzinfo=KYIV_TZ)
+                    if s_date > now_kyiv:
+                        continue
+                        
+                    if val is None:
+                        color = "#64748b" # Gray fallback
+                    else:
+                        aqi_val = int(val)
+                        if aqi_val <= 50: color = "#22c55e"
+                        elif aqi_val <= 100: color = "#eab308"
+                        else: color = "#ef4444"
+                        
+                    end_t = s_date + datetime.timedelta(hours=1)
+                    if end_t > now_kyiv:
+                        end_t = now_kyiv
+                    aqi_intervals.append((s_date, end_t, color))
+
+            # Render AQI intervals translated to dummy_date
+            for start, end, color in aqi_intervals:
+                d_start = datetime.datetime.combine(dummy_date, start.time())
+                d_end = datetime.datetime.combine(dummy_date, end.time())
+                
+                if end.time() == datetime.time.min and end != start:
+                    d_end += datetime.timedelta(days=1)
+                elif d_end < d_start:
+                    d_end += datetime.timedelta(days=1)
+                    
+                start_num = mdates.date2num(d_start)
+                duration_num = mdates.date2num(d_end) - start_num
+                if duration_num > 0:
+                    ax.broken_barh([(start_num, duration_num)], (y_pos - 0.54, 0.36), facecolors=color, edgecolor='none')
 
 
             # --- Separator Lines ---

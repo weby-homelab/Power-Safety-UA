@@ -1203,3 +1203,131 @@ async def schedule_loop():
             print(f"Critical error in schedule_loop: {e}")
             
         await asyncio.sleep(60)
+
+async def collect_metrics_job():
+    try:
+        config_path = os.path.join(DATA_DIR, "config.json")
+        if not os.path.exists(config_path):
+            config_path = "config.json"
+        if not os.path.exists(config_path):
+            return
+            
+        with open(config_path, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+            
+        aq_cfg = cfg.get("sources", {}).get("air_quality", {})
+        if not aq_cfg:
+            return
+            
+        lat = aq_cfg.get("lat", "50.45")
+        lon = aq_cfg.get("lon", "30.52")
+        seb_id = aq_cfg.get("seb_station", "17095")
+        
+        seb_url = f"https://www.saveecobot.com/station/{seb_id}.json"
+        om_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&current=pm10,pm2_5,us_aqi&timezone=Europe%2FKyiv"
+        w_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&timezone=Europe%2FKyiv"
+        
+        def fetch():
+            seb_data = {}
+            try:
+                r = requests.get(seb_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+                if r.status_code == 200: seb_data = r.json()
+            except: pass
+            
+            om_data = {}
+            try:
+                r = requests.get(om_url, timeout=10)
+                if r.status_code == 200: om_data = r.json()
+            except: pass
+            
+            w_data = {}
+            try:
+                r = requests.get(w_url, timeout=10)
+                if r.status_code == 200: w_data = r.json()
+            except: pass
+            
+            return seb_data, om_data, w_data
+            
+        seb_data, om_data, w_data = await asyncio.to_thread(fetch)
+        
+        pm25 = None
+        pm10 = None
+        seb_temp = None
+        seb_hum = None
+        
+        if seb_data and "last_data" in seb_data:
+            for item in seb_data["last_data"]:
+                phen = item.get("phenomenon")
+                val = item.get("value")
+                if phen == "pm25": pm25 = val
+                elif phen == "pm10": pm10 = val
+                elif phen == "temperature": seb_temp = val
+                elif phen == "humidity": seb_hum = val
+
+        if pm25 is None and om_data:
+            pm25 = om_data.get('current', {}).get('pm2_5')
+        if pm10 is None and om_data:
+            pm10 = om_data.get('current', {}).get('pm10')
+            
+        aqi = seb_data.get("aqi")
+        if aqi is None:
+            if om_data and om_data.get('current', {}).get('us_aqi') is not None:
+                aqi = int(om_data['current']['us_aqi'])
+            elif pm25 is not None:
+                aqi = int(pm25 * 3)
+            else:
+                aqi = 0
+        else:
+            aqi = int(aqi)
+            
+        temp = seb_temp if seb_temp is not None else (w_data.get('current', {}).get('temperature_2m') if w_data else None)
+        hum = seb_hum if seb_hum is not None else (w_data.get('current', {}).get('relative_humidity_2m') if w_data else None)
+        
+        if temp is not None: temp = float(temp)
+        if hum is not None: hum = float(hum)
+        
+        wind_speed = w_data.get('current', {}).get('wind_speed_10m') if w_data else None
+        wind_direction = w_data.get('current', {}).get('wind_direction_10m') if w_data else None
+        
+        entry = {
+            "timestamp": int(time.time()),
+            "aqi": aqi,
+            "temp": temp,
+            "hum": hum,
+            "pm25": pm25,
+            "pm10": pm10,
+            "wind_speed": wind_speed,
+            "wind_direction": wind_direction
+        }
+        
+        history_file = os.path.join(DATA_DIR, "metrics_history.json")
+        history = []
+        if os.path.exists(history_file):
+            try:
+                with open(history_file, 'r') as f:
+                    history = json.load(f)
+            except: pass
+            
+        history.append(entry)
+        
+        cutoff = int(time.time()) - 864000
+        history = [h for h in history if h.get("timestamp", 0) > cutoff]
+        
+        with open(history_file, 'w') as f:
+            json.dump(history, f, indent=2)
+            
+        print(f"Metrics collected at {datetime.datetime.now().strftime('%H:%M:%S')}: AQI={aqi}, Temp={temp}, Hum={hum}")
+    except Exception as e:
+        print(f"Error in collect_metrics_job: {e}")
+
+async def metrics_collector_loop():
+    print("Metrics collector loop started...")
+    await collect_metrics_job()
+    while True:
+        try:
+            await asyncio.sleep(300)
+            await collect_metrics_job()
+        except Exception as e:
+            print(f"Error in metrics_collector_loop: {e}")
+            await asyncio.sleep(10)
+

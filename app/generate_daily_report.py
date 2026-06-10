@@ -341,18 +341,26 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         
         aqi_intervals = []
         try:
-            date_str = target_date.strftime("%Y-%m-%d")
-            aq_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&start_date={date_str}&end_date={date_str}&hourly=us_aqi&timezone=Europe%2FKyiv"
-            r_aq = requests.get(aq_url, timeout=15)
-            if r_aq.status_code == 200:
-                aq_data = r_aq.json()
-                us_aqi_hourly = aq_data.get("hourly", {}).get("us_aqi", [])
-                
-                for i in range(min(len(us_aqi_hourly), 24)):
-                    val = us_aqi_hourly[i]
-                    if val is None:
-                        continue
-                    aqi_val = int(val)
+            history_file = os.path.join(DATA_DIR, "metrics_history.json")
+            history_data = []
+            if os.path.exists(history_file):
+                try:
+                    with open(history_file, 'r') as f:
+                        history_data = json.load(f)
+                except: pass
+
+            target_day_metrics = []
+            for item in history_data:
+                dt_metric = datetime.datetime.fromtimestamp(item.get("timestamp", 0), KYIV_TZ)
+                if dt_metric.date() == target_date:
+                    target_day_metrics.append(item)
+
+            target_day_metrics.sort(key=lambda x: x.get("timestamp", 0))
+
+            if target_day_metrics:
+                for idx, item in enumerate(target_day_metrics):
+                    ts = item.get("timestamp", 0)
+                    aqi_val = item.get("aqi", 0)
                     
                     if aqi_val <= 50:
                         color = "#22c55e" # Green
@@ -361,13 +369,50 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
                     else:
                         color = "#ef4444" # Red
                     
-                    start_t = datetime.datetime.combine(target_date, datetime.time(i, 0)).replace(tzinfo=KYIV_TZ)
+                    start_t = datetime.datetime.fromtimestamp(ts, KYIV_TZ)
                     if start_t > now:
                         continue
-                    end_t = start_t + datetime.timedelta(hours=1)
+                    
+                    if idx < len(target_day_metrics) - 1:
+                        next_ts = target_day_metrics[idx + 1].get("timestamp", 0)
+                        end_t = datetime.datetime.fromtimestamp(min(next_ts, ts + 600), KYIV_TZ)
+                    else:
+                        end_t = start_t + datetime.timedelta(minutes=10)
+                    
                     if end_t > now:
                         end_t = now
-                    aqi_intervals.append((start_t, end_t, color))
+                    
+                    if end_t > start_t:
+                        aqi_intervals.append((start_t, end_t, color))
+            else:
+                # Fallback to Open-Meteo API if local history is empty
+                date_str = target_date.strftime("%Y-%m-%d")
+                aq_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&start_date={date_str}&end_date={date_str}&hourly=us_aqi&timezone=Europe%2FKyiv"
+                r_aq = requests.get(aq_url, timeout=15)
+                if r_aq.status_code == 200:
+                    aq_data = r_aq.json()
+                    us_aqi_hourly = aq_data.get("hourly", {}).get("us_aqi", [])
+                    
+                    for i in range(min(len(us_aqi_hourly), 24)):
+                        val = us_aqi_hourly[i]
+                        if val is None:
+                            continue
+                        aqi_val = int(val)
+                        
+                        if aqi_val <= 50:
+                            color = "#22c55e" # Green
+                        elif aqi_val <= 100:
+                            color = "#eab308" # Yellow
+                        else:
+                            color = "#ef4444" # Red
+                        
+                        start_t = datetime.datetime.combine(target_date, datetime.time(i, 0)).replace(tzinfo=KYIV_TZ)
+                        if start_t > now:
+                            continue
+                        end_t = start_t + datetime.timedelta(hours=1)
+                        if end_t > now:
+                            end_t = now
+                        aqi_intervals.append((start_t, end_t, color))
         except Exception as e:
             print(f"Error fetching daily AQI for chart: {e}")
 
