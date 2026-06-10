@@ -533,16 +533,23 @@ async def get_air_quality(lang='ua'):
             now_ts = time.time()
             now_dt = datetime.fromtimestamp(now_ts, KYIV_TZ)
             
-            hours_dt = []
+            # 24 hours for AQI
+            hours_24_dt = []
+            for i in range(23, -1, -1):
+                hours_24_dt.append(now_dt - timedelta(hours=i))
+                
+            # 12 hours for Temp/Hum
+            hours_12_dt = []
             for i in range(11, -1, -1):
-                hours_dt.append(now_dt - timedelta(hours=i))
+                hours_12_dt.append(now_dt - timedelta(hours=i))
 
             history_hourly = []
             history_times = []
             temp_history = []
             hum_history = []
             
-            for h_dt in hours_dt:
+            # Fill AQI (24 bars)
+            for h_dt in hours_24_dt:
                 hour_metrics = []
                 for item in history_data:
                     dt_m = datetime.fromtimestamp(item.get("timestamp", 0), KYIV_TZ)
@@ -553,14 +560,27 @@ async def get_air_quality(lang='ua'):
                     hour_metrics.sort(key=lambda x: x.get("timestamp", 0))
                     latest_m = hour_metrics[-1]
                     history_hourly.append(latest_m.get("aqi", 0))
+                else:
+                    history_hourly.append(0)
+                
+                history_times.append(h_dt.strftime("%H:00"))
+
+            # Fill Temp/Hum (12 bars)
+            for h_dt in hours_12_dt:
+                hour_metrics = []
+                for item in history_data:
+                    dt_m = datetime.fromtimestamp(item.get("timestamp", 0), KYIV_TZ)
+                    if dt_m.date() == h_dt.date() and dt_m.hour == h_dt.hour:
+                        hour_metrics.append(item)
+                
+                if hour_metrics:
+                    hour_metrics.sort(key=lambda x: x.get("timestamp", 0))
+                    latest_m = hour_metrics[-1]
                     temp_history.append(int(round(latest_m.get("temp") or 0)) if latest_m.get("temp") is not None else 0)
                     hum_history.append(int(round(latest_m.get("hum") or 0)) if latest_m.get("hum") is not None else 0)
                 else:
-                    history_hourly.append(0)
                     temp_history.append(0)
                     hum_history.append(0)
-                
-                history_times.append(h_dt.strftime("%H:00"))
 
             if history_data:
                 latest = history_data[-1]
@@ -636,9 +656,9 @@ async def get_air_quality(lang='ua'):
                         try: idx = time_hourly.index(now_iso)
                         except ValueError: idx = len(time_hourly) - 1
 
-                        if idx >= 11:
-                            recent = aqi_hourly[idx-11:idx+1]
-                            recent_times = time_hourly[idx-11:idx+1]
+                        if idx >= 23:
+                            recent = aqi_hourly[idx-23:idx+1]
+                            recent_times = time_hourly[idx-23:idx+1]
                         else:
                             recent = aqi_hourly[:idx+1]
                             recent_times = time_hourly[:idx+1]
