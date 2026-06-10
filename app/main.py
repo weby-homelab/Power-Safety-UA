@@ -815,6 +815,28 @@ async def api_status(lang: str = "ua"):
         "version": version
     }
 
+# --- Web Push API ---
+@app.get('/api/push/vapid-key')
+def get_vapid_key():
+    return {"publicKey": VAPID_PUBLIC_KEY}
+
+@app.post('/api/push/subscribe')
+async def push_subscribe(data: dict = Body(...)):
+    subscription = data.get('subscription')
+    if not subscription or not subscription.get('endpoint'):
+        raise HTTPException(status_code=400, detail="Invalid subscription")
+    save_subscription(subscription)
+    return {"status": "ok"}
+
+@app.post('/api/push/unsubscribe')
+async def push_unsubscribe(data: dict = Body(...)):
+    endpoint = data.get('endpoint', '')
+    if not endpoint:
+        raise HTTPException(status_code=400, detail="Missing endpoint")
+    remove_subscription(endpoint)
+    return {"status": "ok"}
+
+
 @app.get('/api/push/{key}')
 async def push_api(key: str, background_tasks: BackgroundTasks, x_secret_key: str = Header(None, alias="X-Secret-Key")):
     secret_key = x_secret_key or key
@@ -1337,26 +1359,7 @@ async def admin_regen_token(request: Request):
     return {"status": "ok", "new_token": new_token}
 
 
-# --- Web Push API ---
-@app.get('/api/push/vapid-key')
-def get_vapid_key():
-    return {"publicKey": VAPID_PUBLIC_KEY}
 
-@app.post('/api/push/subscribe')
-async def push_subscribe(data: dict = Body(...)):
-    subscription = data.get('subscription')
-    if not subscription or not subscription.get('endpoint'):
-        raise HTTPException(status_code=400, detail="Invalid subscription")
-    save_subscription(subscription)
-    return {"status": "ok"}
-
-@app.post('/api/push/unsubscribe')
-async def push_unsubscribe(data: dict = Body(...)):
-    endpoint = data.get('endpoint', '')
-    if not endpoint:
-        raise HTTPException(status_code=400, detail="Missing endpoint")
-    remove_subscription(endpoint)
-    return {"status": "ok"}
 
 @app.get('/api/status/stream')
 async def status_stream(request: Request, lang: str = "ua"):
