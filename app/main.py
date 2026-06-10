@@ -524,7 +524,7 @@ async def get_air_quality(lang='ua'):
         # OpenMeteo for PM2.5/PM10
         lat = aq_cfg.get("lat", "50.45")
         lon = aq_cfg.get("lon", "30.52")
-        om_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&current=pm10,pm2_5&hourly=pm2_5&past_days=1"
+        om_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&current=pm10,pm2_5&hourly=us_aqi&past_days=1"
         
         # SaveEcoBot for Station-specific (Station 17095 or user-defined)
         seb_id = aq_cfg.get("seb_station", "17095")
@@ -593,7 +593,7 @@ async def get_air_quality(lang='ua'):
             hum_history = []
             try:
                 if pm_data:
-                    pm25_hourly = pm_data.get('hourly', {}).get('pm2_5', [])
+                    aqi_hourly = pm_data.get('hourly', {}).get('us_aqi', [])
                     time_hourly = pm_data.get('hourly', {}).get('time', [])
                     if time_hourly:
                         now_iso = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:00")
@@ -603,16 +603,16 @@ async def get_air_quality(lang='ua'):
                             idx = len(time_hourly) - 1
 
                         if idx >= 23:
-                            recent = pm25_hourly[idx-23:idx+1]
+                            recent = aqi_hourly[idx-23:idx+1]
                             recent_times = time_hourly[idx-23:idx+1]
                         else:
-                            recent = pm25_hourly[:idx+1]
+                            recent = aqi_hourly[:idx+1]
                             recent_times = time_hourly[:idx+1]
 
                         for i in range(len(recent)):
                             val_h = recent[i] or 0
                             dt = datetime.fromisoformat(recent_times[i]).replace(tzinfo=ZoneInfo("UTC")).astimezone(KYIV_TZ)
-                            history_hourly.append(int(val_h * 3))
+                            history_hourly.append(int(val_h))
                             history_times.append(dt.strftime("%H:%M"))
 
                 if w_data:
