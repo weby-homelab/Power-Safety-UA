@@ -21,14 +21,12 @@ git diff --cached
 **Carefully read every line.** If you see unexpected code deletions or logic changes you didn't plan to make, stop immediately and revert the changes. It is forbidden to blindly accept merge conflicts using `git checkout --theirs` or `git checkout --ours` for Python files or logic files. You are required to open the file and resolve the conflict manually.
 
 ## 2. Branching Strategy
-The project uses two main branches:
-- `main` - for the Docker environment (PRXMX-02-LXC200 test server).
-- `classic` - for the Bare-Metal environment (HTZNR).
+The project uses one main branch:
+- `main` - for the Docker environment (production and testing).
 
-**Never make changes directly to `main` or `classic`.** 
+**Never make changes directly to `main`.** 
 - Use temporary branches (`fix/...`, `feat/...`, `docs/...`).
-- Before merging a temporary branch into `main` or `classic`, always ensure that `main` and `classic` are synchronized with each other. 
-- Never allow a situation where one of the main branches contains updates that are missing in the other (desynchronization of versions or code).
+- Before merging a temporary branch into `main`, always ensure your branch is up to date (`git pull --rebase origin main`).
 
 ## 3. Isolation of Changes
 - If the task is to update documentation (`README.md`), include **only** documentation files in the commit.
@@ -45,7 +43,7 @@ If the tests fail, pushing is forbidden!
 
 ## 5. Pre-Release Checklist
 1. Check tests (`pytest`).
-2. Check the synchronization of `main` and `classic` branches.
+2. Ensure your branch is up to date with `main`.
 3. Update the `VERSION` file.
 4. Update the version in `docker-compose.yml`, `README.md`, and `README_ENG.md`.
 5. Create `git tag vX.Y.Z` and push the code to the server.
