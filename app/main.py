@@ -42,6 +42,8 @@ from app.light_service import (
     KYIV_TZ, STATE_LOCK_FILE, DATA_DIR, EVENT_LOG_FILE
 )
 
+from app.push_service import save_subscription, remove_subscription, send_push_notification, VAPID_PUBLIC_KEY
+
 # Structlog configuration
 structlog.configure(
     processors=[
@@ -845,6 +847,7 @@ async def push_api(key: str, background_tasks: BackgroundTasks, x_secret_key: st
             else:
                 msg = format_event_message(True, current_time, state.get("went_down_at", 0))
                 background_tasks.add_task(send_telegram, msg)
+                background_tasks.add_task(send_push_notification, "⚡ Світло з'явилось!", msg.split('\n')[0] if msg else "Електропостачання відновлено")
             background_tasks.add_task(broadcast_state_update)
         elif previous_status == "unknown":
             logger.info("push_api_status_change", prev=previous_status, new="up", msg="Cold start, no telegram alert")
@@ -880,6 +883,7 @@ async def confirm_outage_api(action: str, key: str, background_tasks: Background
             down_time = state.get('went_down_at', time.time())
             msg = format_event_message(False, down_time, state.get("came_up_at", 0))
             background_tasks.add_task(send_telegram, msg)
+            background_tasks.add_task(send_push_notification, "🔴 Відключення підтверджено", msg.split('\n')[0] if msg else "Електропостачання відсутнє")
             background_tasks.add_task(broadcast_state_update)
         elif action == "ignore":
             state['pending_confirmation'] = False
@@ -911,6 +915,7 @@ async def down_api(key: str, background_tasks: BackgroundTasks, x_secret_key: st
             logger.info("Manual down API called: forcing quiet mode off and sending 'Light Down' message.")
             msg = format_event_message(False, current_time, state.get("came_up_at", 0))
             background_tasks.add_task(send_telegram, msg)
+            background_tasks.add_task(send_push_notification, "🔴 Світло зникло!", msg.split('\n')[0] if msg else "Електропостачання відсутнє")
             background_tasks.add_task(broadcast_state_update)
             
         await save_state()
@@ -1331,6 +1336,27 @@ async def admin_regen_token(request: Request):
     
     return {"status": "ok", "new_token": new_token}
 
+
+# --- Web Push API ---
+@app.get('/api/push/vapid-key')
+def get_vapid_key():
+    return {"publicKey": VAPID_PUBLIC_KEY}
+
+@app.post('/api/push/subscribe')
+async def push_subscribe(data: dict = Body(...)):
+    subscription = data.get('subscription')
+    if not subscription or not subscription.get('endpoint'):
+        raise HTTPException(status_code=400, detail="Invalid subscription")
+    save_subscription(subscription)
+    return {"status": "ok"}
+
+@app.post('/api/push/unsubscribe')
+async def push_unsubscribe(data: dict = Body(...)):
+    endpoint = data.get('endpoint', '')
+    if not endpoint:
+        raise HTTPException(status_code=400, detail="Missing endpoint")
+    remove_subscription(endpoint)
+    return {"status": "ok"}
 
 @app.get('/api/status/stream')
 async def status_stream(request: Request, lang: str = "ua"):

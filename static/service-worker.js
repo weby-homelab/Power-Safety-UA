@@ -1,4 +1,4 @@
-const CACHE_NAME = 'power-safety-v2';
+const CACHE_NAME = 'power-safety-v3';
 const ASSETS = [
     '/',
     '/manifest.json',
@@ -59,5 +59,54 @@ self.addEventListener('fetch', (event) => {
                     }
                 });
             })
+    );
+});
+
+// --- Web Push Notifications ---
+self.addEventListener('push', (event) => {
+    let data = { title: 'СВІТЛО⚡БЕЗПЕКА', body: 'Новий статус', icon: '/static/icon-192.png', url: '/' };
+
+    if (event.data) {
+        try {
+            const payload = event.data.json();
+            data = { ...data, ...payload };
+        } catch (e) {
+            data.body = event.data.text();
+        }
+    }
+
+    event.waitUntil(
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: data.icon || '/static/icon-192.png',
+            badge: data.badge || '/static/favicon.png',
+            vibrate: [200, 100, 200],
+            data: { url: data.url || '/' },
+            actions: [
+                { action: 'open', title: 'Відкрити' },
+                { action: 'dismiss', title: 'Закрити' }
+            ],
+            tag: 'power-status',
+            renotify: true
+        })
+    );
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    if (event.action === 'dismiss') return;
+
+    const urlToOpen = event.notification.data?.url || '/';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+            for (const client of windowClients) {
+                if (client.url.includes(self.location.origin) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            return clients.openWindow(urlToOpen);
+        })
     );
 });
