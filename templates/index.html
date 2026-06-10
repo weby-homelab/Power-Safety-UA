@@ -273,6 +273,9 @@
                     <div style="display: flex; align-items: baseline; gap: 12px;"><span id="aqi-num" style="font-size: 3.5rem; font-weight: 800; line-height: 1;">--</span><div><div id="aqi-text" style="font-size: 1.2rem; font-weight: 700;">---</div><div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">AQI INDEX</div></div></div>
                     <div id="aqi-graph" style="display: flex; align-items: flex-end; gap: 3px; height: 44px; margin-left: auto;"></div>
                 </div>
+                <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-bottom: 16px;">
+                    <div id="aqi-bar" style="height: 100%; border-radius: 3px; transition: width 0.5s ease, background-color 0.5s ease; width: 0%;"></div>
+                </div>
                 <div class="grid">
                     <div class="grid-item" style="display: flex; justify-content: space-between; align-items: center;">
                         <div><div class="grid-val" id="temp">--</div><div class="grid-label" id="label-temp">Температура</div></div>
@@ -477,20 +480,72 @@
             }
         }
 
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
         async function toggleNotifications() {
             triggerHaptic([15, 30, 15]);
             if (!notificationsEnabled) {
-                const permission = await Notification.requestPermission();
-                if (permission === 'granted') {
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        // Subscribe to Web Push
+                        const reg = await navigator.serviceWorker.ready;
+                        const keyResp = await fetch('/api/push/vapid-key');
+                        const keyData = await keyResp.json();
+                        if (keyData.publicKey) {
+                            const sub = await reg.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+                            });
+                            await fetch('/api/push/subscribe', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({subscription: sub.toJSON()})
+                            });
+                            localStorage.setItem('pushEndpoint', sub.endpoint);
+                        }
+                        notificationsEnabled = true;
+                        localStorage.setItem('notifications', 'true');
+                        showToast(translations[currentLang].toastNotificationsOn);
+                    } else {
+                        alert(translations[currentLang].alertNotificationsBrowser);
+                    }
+                } catch (err) {
+                    console.error('Push subscription error:', err);
+                    // Fallback to basic notifications
                     notificationsEnabled = true;
                     localStorage.setItem('notifications', 'true');
                     showToast(translations[currentLang].toastNotificationsOn);
-                } else {
-                    alert(translations[currentLang].alertNotificationsBrowser);
                 }
             } else {
+                // Unsubscribe
+                try {
+                    const reg = await navigator.serviceWorker.ready;
+                    const sub = await reg.pushManager.getSubscription();
+                    if (sub) {
+                        const endpoint = sub.endpoint;
+                        await sub.unsubscribe();
+                        await fetch('/api/push/unsubscribe', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({endpoint})
+                        });
+                    }
+                } catch (err) {
+                    console.error('Push unsubscribe error:', err);
+                }
                 notificationsEnabled = false;
                 localStorage.setItem('notifications', 'false');
+                localStorage.removeItem('pushEndpoint');
             }
             updateBellUI();
         }
@@ -608,7 +663,16 @@
                             aqiNum.style.color = (data.aqi.aqi > 100) ? 'var(--danger)' : (data.aqi.aqi > 50) ? 'var(--warning)' : 'var(--success)';
                         }
                         const aqiText = document.getElementById('aqi-text');
-                        if (aqiText) aqiText.innerText = data.aqi.text;
+                        if (aqiText) {
+                            aqiText.innerText = data.aqi.text;
+                            aqiText.style.color = (data.aqi.aqi > 100) ? 'var(--danger)' : (data.aqi.aqi > 50) ? 'var(--warning)' : 'var(--success)';
+                        }
+                        const aqiBar = document.getElementById('aqi-bar');
+                        if (aqiBar) {
+                            const barWidth = Math.min((data.aqi.aqi / 300) * 100, 100);
+                            aqiBar.style.width = barWidth + '%';
+                            aqiBar.style.backgroundColor = (data.aqi.aqi > 100) ? 'var(--danger)' : (data.aqi.aqi > 50) ? 'var(--warning)' : 'var(--success)';
+                        }
                         
                         const aqiLoc = document.getElementById('aqi-loc');
                         if (aqiLoc && data.aqi.location) aqiLoc.innerText = (currentLang === 'ua' ? 'Повітря: ' : 'Air: ') + data.aqi.location;
@@ -858,8 +922,31 @@
         setInterval(refreshCharts, 60000); // Оновлення графіків кожну хвилину
         update();
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js').then(reg => console.log('SW ok'));
+            window.addEventListener('load', async () => {
+                const reg = await navigator.serviceWorker.register('/service-worker.js');
+                console.log('SW ok');
+                // Check if already subscribed to push
+                if (notificationsEnabled) {
+                    const sub = await reg.pushManager.getSubscription();
+                    if (!sub) {
+                        // Re-subscribe if notifications were enabled but subscription lost
+                        try {
+                            const keyResp = await fetch('/api/push/vapid-key');
+                            const keyData = await keyResp.json();
+                            if (keyData.publicKey && Notification.permission === 'granted') {
+                                const newSub = await reg.pushManager.subscribe({
+                                    userVisibleOnly: true,
+                                    applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+                                });
+                                await fetch('/api/push/subscribe', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({subscription: newSub.toJSON()})
+                                });
+                            }
+                        } catch (e) { console.log('Push re-subscribe skipped:', e); }
+                    }
+                }
             });
         }
     </script>
