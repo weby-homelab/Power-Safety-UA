@@ -342,17 +342,17 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
         aqi_intervals = []
         try:
             date_str = target_date.strftime("%Y-%m-%d")
-            aq_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&start_date={date_str}&end_date={date_str}&hourly=pm2_5&timezone=Europe%2FKyiv"
-            r_aq = requests.get(aq_url, timeout=5)
+            aq_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&start_date={date_str}&end_date={date_str}&hourly=us_aqi&timezone=Europe%2FKyiv"
+            r_aq = requests.get(aq_url, timeout=15)
             if r_aq.status_code == 200:
                 aq_data = r_aq.json()
-                pm25_hourly = aq_data.get("hourly", {}).get("pm2_5", [])
+                us_aqi_hourly = aq_data.get("hourly", {}).get("us_aqi", [])
                 
-                for i in range(min(len(pm25_hourly), 24)):
-                    val = pm25_hourly[i]
+                for i in range(min(len(us_aqi_hourly), 24)):
+                    val = us_aqi_hourly[i]
                     if val is None:
-                        val = 0
-                    aqi_val = int(val * 3)
+                        continue
+                    aqi_val = int(val)
                     
                     if aqi_val <= 50:
                         color = "#22c55e" # Green
@@ -375,7 +375,7 @@ def generate_chart(target_date, intervals, schedule_intervals, alert_intervals, 
             if target_date <= now.date():
                 end_fallback = min(day_end, now)
                 if day_start < end_fallback:
-                    aqi_intervals = [(day_start, end_fallback, '#22c55e')]
+                    aqi_intervals = [(day_start, end_fallback, '#64748b')]
 
         for start, end, color in aqi_intervals:
             start_num = mdates.date2num(start)

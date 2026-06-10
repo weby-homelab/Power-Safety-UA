@@ -291,13 +291,13 @@ def generate_weekly_chart(end_date, daily_data, theme='dark', lang='ua'):
             end_date = daily_data[-1]['date']
             start_str = start_date.strftime("%Y-%m-%d")
             end_str = end_date.strftime("%Y-%m-%d")
-            aq_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&start_date={start_str}&end_date={end_str}&hourly=pm2_5&timezone=Europe%2FKyiv"
-            r_aq = requests.get(aq_url, timeout=10)
+            aq_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&start_date={start_str}&end_date={end_str}&hourly=us_aqi&timezone=Europe%2FKyiv"
+            r_aq = requests.get(aq_url, timeout=15)
             if r_aq.status_code == 200:
                 aq_data = r_aq.json()
-                pm25_hourly = aq_data.get("hourly", {}).get("pm2_5", [])
+                us_aqi_hourly = aq_data.get("hourly", {}).get("us_aqi", [])
                 time_hourly = aq_data.get("hourly", {}).get("time", [])
-                for t_str, val in zip(time_hourly, pm25_hourly):
+                for t_str, val in zip(time_hourly, us_aqi_hourly):
                     dt = datetime.datetime.fromisoformat(t_str)
                     d_str = dt.strftime("%Y-%m-%d")
                     if d_str not in aqi_by_date:
@@ -407,7 +407,7 @@ def generate_weekly_chart(end_date, daily_data, theme='dark', lang='ua'):
             if not hourly_pm:
                 if day_date <= now_kyiv.date():
                     limit_h = now_kyiv.hour + 1 if day_date == now_kyiv.date() else 24
-                    hourly_pm = [(h, 0) for h in range(limit_h)]
+                    hourly_pm = [(h, None) for h in range(limit_h)]
                 else:
                     hourly_pm = []
                 
@@ -418,14 +418,15 @@ def generate_weekly_chart(end_date, daily_data, theme='dark', lang='ua'):
                     continue
                     
                 if val is None:
-                    val = 0
-                aqi_val = int(val * 3)
-                if aqi_val <= 50:
-                    color = "#22c55e" # Green
-                elif aqi_val <= 100:
-                    color = "#eab308" # Yellow
+                    color = "#64748b" # Gray fallback for no data
                 else:
-                    color = "#ef4444" # Red
+                    aqi_val = int(val)
+                    if aqi_val <= 50:
+                        color = "#22c55e" # Green
+                    elif aqi_val <= 100:
+                        color = "#eab308" # Yellow
+                    else:
+                        color = "#ef4444" # Red
                     
                 dummy_s_date = datetime.datetime.combine(dummy_date, datetime.time(hour, 0))
                 start_n = mdates.date2num(dummy_s_date)
