@@ -4,8 +4,15 @@ import sys
 import requests
 from dotenv import load_dotenv
 
-# Load main .env
-load_dotenv("/root/geminicli/.env")
+# Load .env from project root or current directory
+_env_candidates = [
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+    os.path.join(os.getcwd(), ".env"),
+]
+for _env_path in _env_candidates:
+    if os.path.exists(_env_path):
+        load_dotenv(_env_path)
+        break
 
 username = os.getenv("DOCKER_HUB_USERNAME", "webyhomelab")
 password = os.getenv("DOCKER_HUB_PASSWORD")

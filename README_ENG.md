@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/Flash-monitor-dash-ENG.png" alt="Dashboard Preview" width="100%">
+  <img src="docs/assets/power-safety-ua-dash-ENG.png" alt="Dashboard Preview" width="100%">
 </p>
 
 # POWER⚡️ SAFETY (POWER-SAFETY-UA) - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/Power-Safety-UA)](https://github.com/weby-homelab/Power-Safety-UA/releases/latest)
