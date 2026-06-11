@@ -172,7 +172,7 @@ def perform_cold_start_if_needed():
         # 4. Примусово завантажуємо планові графіки на зараз
         if not os.path.exists(sched_file):
             try:
-                from parser_service import update_local_schedules
+                from app.parser_service import update_local_schedules
                 print("⏳ Завантаження планових графіків згідно з config.json...")
                 import asyncio
                 asyncio.run(update_local_schedules(config_file, sched_file))
