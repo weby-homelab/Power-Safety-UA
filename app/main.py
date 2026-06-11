@@ -6,7 +6,6 @@ from zoneinfo import ZoneInfo
 import os
 import time
 import re
-from bs4 import BeautifulSoup
 import threading
 import asyncio
 import cachetools
@@ -71,8 +70,8 @@ templates.env.cache = None  # Disable cache to bypass unhashable key bug
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
-ACTIVE_SSE_CONNECTIONS = Gauge('flash_active_sse_connections', 'Number of active SSE connections')
-PARSING_DURATION = Histogram('flash_parsing_duration_seconds', 'Time spent parsing schedules')
+ACTIVE_SSE_CONNECTIONS = Gauge('power_safety_active_sse_connections', 'Number of active SSE connections')
+PARSING_DURATION = Histogram('power_safety_parsing_duration_seconds', 'Time spent parsing schedules')
 
 # --- SSE Logic ---
 class ConnectionManager:
@@ -835,7 +834,7 @@ async def api_status(lang: str = "ua"):
                 if merged: slots = merged
         except: pass
 
-    version = "v3.3.8"
+    version = "v3.6.1"
     version_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION")
     if os.path.exists(version_path):
         with open(version_path, 'r') as f:
@@ -1164,7 +1163,7 @@ async def admin_data(request: Request):
             logs = json.load(f)
             
     # Get version
-    version = "v3.3.8"
+    version = "v3.6.1"
     version_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION")
     if os.path.exists(version_path):
         with open(version_path, 'r') as f:

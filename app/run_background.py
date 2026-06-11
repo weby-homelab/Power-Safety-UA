@@ -8,7 +8,7 @@ bootstrap.perform_cold_start_if_needed()
 from app.light_service import monitor_loop, schedule_loop, alerts_loop, load_state, metrics_collector_loop
 
 async def main():
-    print("Starting Flash Monitor Background Services (Async)...", flush=True)
+    print("Starting Power-Safety-UA Background Services (Async)...", flush=True)
     await load_state()
     
     # Run all loops concurrently
