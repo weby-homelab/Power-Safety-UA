@@ -117,7 +117,7 @@ async def fetch_custom(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
     if parsed.hostname in ['localhost', '127.0.0.1'] or (parsed.hostname and parsed.hostname.startswith('192.168.')):
         return None
     try:
-        r = await client.get(custom_url, headers={"User-Agent": "Power-Safety-UA/3.6.1"}, timeout=20)
+        r = await client.get(custom_url, headers={"User-Agent": "Power-Safety-UA/3.6.2"}, timeout=20)
         r.raise_for_status()
         return r.json()
     except Exception as e:
