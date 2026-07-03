@@ -4,6 +4,7 @@ from app.config import settings
 
 DB_FILE = os.path.join(settings.data_dir, "power_safety.db")
 
+
 async def init_db():
     os.makedirs(settings.data_dir, exist_ok=True)
     async with aiosqlite.connect(DB_FILE) as db:
@@ -20,17 +21,19 @@ async def init_db():
         """)
         await db.commit()
 
+
 async def log_event_db(event: str, timestamp: float, date_str: str):
     try:
         await init_db()
         async with aiosqlite.connect(DB_FILE) as db:
             await db.execute(
                 "INSERT INTO events (timestamp, event, date_str) VALUES (?, ?, ?)",
-                (timestamp, event, date_str)
+                (timestamp, event, date_str),
             )
             await db.commit()
     except Exception as e:
         print(f"SQLITE Error writing event: {e}")
+
 
 async def get_events_db(limit: int = 1000):
     try:
@@ -39,11 +42,18 @@ async def get_events_db(limit: int = 1000):
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 "SELECT timestamp, event, date_str FROM events ORDER BY timestamp DESC LIMIT ?",
-                (limit,)
+                (limit,),
             ) as cursor:
                 rows = await cursor.fetchall()
                 # Return in chronological order
-                return [{"timestamp": r["timestamp"], "event": r["event"], "date_str": r["date_str"]} for r in rows][::-1]
+                return [
+                    {
+                        "timestamp": r["timestamp"],
+                        "event": r["event"],
+                        "date_str": r["date_str"],
+                    }
+                    for r in rows
+                ][::-1]
     except Exception as e:
         print(f"SQLITE Error reading events: {e}")
         return []

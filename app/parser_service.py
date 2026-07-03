@@ -8,21 +8,25 @@ from zoneinfo import ZoneInfo
 from typing import Optional
 import aiofiles
 
+
 def get_timezone():
     try:
         data_dir = os.environ.get("DATA_DIR", ".")
         config_path = os.path.join(data_dir, "config.json")
         if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
+            with open(config_path, "r") as f:
                 cfg = json.load(f)
                 tz_name = cfg.get("settings", {}).get("timezone", "Europe/Kyiv")
                 return ZoneInfo(tz_name)
-    except: pass
+    except Exception:
+        pass
     return ZoneInfo("Europe/Kyiv")
+
 
 KYIV_TZ = get_timezone()
 GITHUB_URL = "https://raw.githubusercontent.com/Baskerville42/outage-data-ua/main/data/{region}.json"
 YASNO_URL = "https://app.yasno.ua/api/blackout-service/public/shutdowns/regions/{region_id}/dsos/{dso_id}/planned-outages"
+
 
 # --- Circuit Breaker Pattern for Yasno API ---
 class CircuitBreaker:
@@ -30,7 +34,7 @@ class CircuitBreaker:
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
-        self.state = "CLOSED" # CLOSED, OPEN, HALF-OPEN
+        self.state = "CLOSED"  # CLOSED, OPEN, HALF-OPEN
         self.last_failure_time = 0
 
     def can_execute(self):
@@ -42,7 +46,7 @@ class CircuitBreaker:
                 return True
             return False
         if self.state == "HALF-OPEN":
-            return False # Only one request should try when HALF-OPEN
+            return False  # Only one request should try when HALF-OPEN
         return True
 
     def record_success(self):
@@ -57,13 +61,15 @@ class CircuitBreaker:
         else:
             self.state = "CLOSED"
 
+
 yasno_cb = CircuitBreaker()
 
+
 async def fetch_github(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
-    if not cfg.get('sources', {}).get('github', {}).get('enabled', False):
+    if not cfg.get("sources", {}).get("github", {}).get("enabled", False):
         return None
     try:
-        url = GITHUB_URL.format(region=cfg['settings'].get('region', 'kyiv'))
+        url = GITHUB_URL.format(region=cfg["settings"].get("region", "kyiv"))
         r = await client.get(url, timeout=20)
         r.raise_for_status()
         return r.json()
@@ -71,33 +77,35 @@ async def fetch_github(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
         print(f"GitHub fetch error: {e}")
         return None
 
-async def fetch_yasno(client: httpx.AsyncClient, cfg: dict, source_id: str = "yasno") -> Optional[dict]:
-    yasno_cfg = cfg.get('sources', {}).get(source_id, {})
-    if not yasno_cfg.get('enabled', False):
+
+async def fetch_yasno(
+    client: httpx.AsyncClient, cfg: dict, source_id: str = "yasno"
+) -> Optional[dict]:
+    yasno_cfg = cfg.get("sources", {}).get(source_id, {})
+    if not yasno_cfg.get("enabled", False):
         return None
-        
+
     if not yasno_cb.can_execute():
         print(f"Yasno API Circuit Breaker is {yasno_cb.state}. Skipping request.")
         return None
-        
+
     try:
         # Get IDs from config with defaults for Kyiv
-        region_id = str(yasno_cfg.get('region_id', '25'))
-        dso_id = str(yasno_cfg.get('dso_id', '902'))
-        
+        region_id = str(yasno_cfg.get("region_id", "25"))
+        dso_id = str(yasno_cfg.get("dso_id", "902"))
+
         # Security validation: Ensure IDs are numeric to prevent URL manipulation
         if not (region_id.isdigit() and dso_id.isdigit()):
-            print(f"Yasno fetch error: Invalid IDs in config for {source_id} (region={region_id}, dso={dso_id})")
+            print(
+                f"Yasno fetch error: Invalid IDs in config for {source_id} (region={region_id}, dso={dso_id})"
+            )
             return None
 
-        url = YASNO_URL.format(
-            region_id=region_id,
-            dso_id=dso_id
-        )
-            
+        url = YASNO_URL.format(region_id=region_id, dso_id=dso_id)
+
         r = await client.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
         r.raise_for_status()
-        
+
         yasno_cb.record_success()
         return r.json()
     except Exception as e:
@@ -105,56 +113,66 @@ async def fetch_yasno(client: httpx.AsyncClient, cfg: dict, source_id: str = "ya
         yasno_cb.record_failure()
         return None
 
-from urllib.parse import urlparse
+
+from urllib.parse import urlparse  # noqa: E402
+
 
 async def fetch_custom(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
-    custom_url = cfg.get('advanced', {}).get('data_sources', {}).get('custom_url')
+    custom_url = cfg.get("advanced", {}).get("data_sources", {}).get("custom_url")
     if not custom_url:
         return None
     parsed = urlparse(custom_url)
-    if parsed.scheme not in ['http', 'https']:
+    if parsed.scheme not in ["http", "https"]:
         return None
-    if parsed.hostname in ['localhost', '127.0.0.1'] or (parsed.hostname and parsed.hostname.startswith('192.168.')):
+    if parsed.hostname in ["localhost", "127.0.0.1"] or (
+        parsed.hostname and parsed.hostname.startswith("192.168.")
+    ):
         return None
     try:
-        r = await client.get(custom_url, headers={"User-Agent": "Power-Safety-UA/3.6.2"}, timeout=20)
+        r = await client.get(
+            custom_url, headers={"User-Agent": "Power-Safety-UA/3.6.2"}, timeout=20
+        )
         r.raise_for_status()
         return r.json()
     except Exception as e:
         print(f"Custom URL fetch error: {e}")
         return None
 
+
 def parse_github_day(day_data: dict) -> list[bool]:
     slots = []
     for h in range(1, 25):
         s = day_data.get(str(h), "yes")
-        if s == "yes": slots.extend([True, True])
-        elif s == "no": slots.extend([False, False])
-        elif s == "first": slots.extend([False, True])
-        elif s == "second": slots.extend([True, False])
-        else: slots.extend([True, True])
+        if s == "yes":
+            slots.extend([True, True])
+        elif s == "no":
+            slots.extend([False, False])
+        elif s == "first":
+            slots.extend([False, True])
+        elif s == "second":
+            slots.extend([True, False])
+        else:
+            slots.extend([True, True])
     return slots
+
 
 def extract_github(data: dict, cfg: dict) -> dict:
     res = {}
-    if not data: return res
+    if not data:
+        return res
     fact = data.get("fact", {}).get("data", {})
     if isinstance(fact, list):
         fact = {}
     preset = data.get("preset", {}).get("data", {})
-    
+
     now = datetime.now(KYIV_TZ)
-    dates_to_populate = [
-        now,
-        now + timedelta(days=1),
-        now + timedelta(days=2)
-    ]
-    
-    for grp in cfg['settings'].get('groups', []):
+    dates_to_populate = [now, now + timedelta(days=1), now + timedelta(days=2)]
+
+    for grp in cfg["settings"].get("groups", []):
         res[grp] = {}
         for dt in dates_to_populate:
             d_str = dt.strftime("%Y-%m-%d")
-            
+
             # 1. Try to find date in fact overrides
             found_in_fact = False
             for ts, group_data in fact.items():
@@ -164,33 +182,43 @@ def extract_github(data: dict, cfg: dict) -> dict:
                         d = group_data.get(grp)
                         if d:
                             if all(d.get(str(h), "yes") == "yes" for h in range(1, 25)):
-                                res[grp][d_str] = {"slots": [True] * 48, "status": "normal"}
+                                res[grp][d_str] = {
+                                    "slots": [True] * 48,
+                                    "status": "normal",
+                                }
                             else:
-                                res[grp][d_str] = {"slots": parse_github_day(d), "status": "normal"}
+                                res[grp][d_str] = {
+                                    "slots": parse_github_day(d),
+                                    "status": "normal",
+                                }
                             found_in_fact = True
                             break
                 except (ValueError, TypeError):
                     continue
-            
+
             # 2. If not found in fact, fall back to preset
             if not found_in_fact:
-                day_num = str(dt.isoweekday()) # 1=Monday, ..., 7=Sunday
+                day_num = str(dt.isoweekday())  # 1=Monday, ..., 7=Sunday
                 d = preset.get(grp, {}).get(day_num)
                 if d:
                     res[grp][d_str] = {"slots": parse_github_day(d), "status": "normal"}
-                    
+
     return res
+
 
 def extract_yasno(data: dict, cfg: dict) -> dict:
     res = {}
-    if not data: return res
-    for grp in cfg['settings'].get('groups', []):
+    if not data:
+        return res
+    for grp in cfg["settings"].get("groups", []):
         key = grp.replace("GPV", "")
-        if key not in data: continue
+        if key not in data:
+            continue
         res[grp] = {}
         for day in ["today", "tomorrow"]:
             d = data[key].get(day)
-            if not d or "date" not in d: continue
+            if not d or "date" not in d:
+                continue
             dt = datetime.fromisoformat(d["date"])
             d_str = dt.strftime("%Y-%m-%d")
             status = d.get("status", "")
@@ -205,32 +233,35 @@ def extract_yasno(data: dict, cfg: dict) -> dict:
                 slots = [True] * 48
                 for s in d["slots"]:
                     start, end = s.get("start", 0) // 30, s.get("end", 0) // 30
-                    is_on = (s.get("type") == "NotPlanned")
-                    for i in range(start, min(end, 48)): slots[i] = is_on
+                    is_on = s.get("type") == "NotPlanned"
+                    for i in range(start, min(end, 48)):
+                        slots[i] = is_on
                 res[grp][d_str] = {"slots": slots, "status": "normal"}
     return res
+
 
 def has_schedule_changed(old_cache: dict, new_cache: dict) -> bool:
     if not old_cache:
         return False
-        
-    for source in ['yasno', 'github', 'custom']:
+
+    for source in ["yasno", "github", "custom"]:
         if source not in new_cache:
             continue
-            
+
         old_src = old_cache.get(source, {})
         new_src = new_cache[source]
-        
+
         if not old_src:
             continue
-            
+
         for group, new_dates in new_src.items():
             old_dates = old_src.get(group, {})
             for date_str, new_data in new_dates.items():
                 old_data = old_dates.get(date_str)
-                if not old_data or old_data.get('slots') != new_data.get('slots'):
+                if not old_data or old_data.get("slots") != new_data.get("slots"):
                     return True
     return False
+
 
 async def update_local_schedules(config_path: str, output_path: str):
     try:
@@ -242,16 +273,16 @@ async def update_local_schedules(config_path: str, output_path: str):
             gh_task = fetch_github(client, cfg)
             ys_task = fetch_yasno(client, cfg)
             cu_task = fetch_custom(client, cfg)
-            
+
             gh_data, ys_data, cu_data = await asyncio.gather(gh_task, ys_task, cu_task)
 
         github_cache = extract_github(gh_data, cfg)
         yasno_cache = extract_yasno(ys_data, cfg)
-        
+
         # Simple extraction for custom source: assume it's already in {group: {date: {slots, status}}} format
         custom_cache = {}
         if cu_data:
-            for grp in cfg['settings'].get('groups', []):
+            for grp in cfg["settings"].get("groups", []):
                 if grp in cu_data:
                     custom_cache[grp] = cu_data[grp]
 
@@ -271,14 +302,14 @@ async def update_local_schedules(config_path: str, output_path: str):
             new_cache["yasno"] = yasno_cache
         if custom_cache:
             new_cache["custom"] = custom_cache
-            
+
         # Graceful degradation: if all are empty but we have old data, return stale data
         if not new_cache and old_cache:
             print("All schedule sources failed. Degrading gracefully to cached data.")
             return True, False
-            
+
         has_changed = has_schedule_changed(old_cache, new_cache)
-            
+
         new_cache["last_update"] = datetime.now(KYIV_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
         async with aiofiles.open(output_path, "w") as f:
@@ -307,11 +338,17 @@ async def update_local_schedules(config_path: str, output_path: str):
         for date_str in all_dates:
             # Find merged slots for this date across all sources (False wins)
             merged_new_slots = None
-            for cache in [custom_cache, yasno_cache, github_cache]: # Priority: Custom > Yasno > GitHub
-                if not cache: continue
+            for cache in [
+                custom_cache,
+                yasno_cache,
+                github_cache,
+            ]:  # Priority: Custom > Yasno > GitHub
+                if not cache:
+                    continue
                 # We assume all groups in a cache for the same region have similar behavior or we pick the first
                 group_keys = list(cache.keys())
-                if not group_keys: continue
+                if not group_keys:
+                    continue
                 grp = group_keys[0]
                 day_data = cache[grp].get(date_str)
                 if day_data and day_data.get("slots"):
@@ -320,8 +357,9 @@ async def update_local_schedules(config_path: str, output_path: str):
                         merged_new_slots = list(s)
                     else:
                         for i in range(min(len(merged_new_slots), len(s))):
-                            if s[i] is False: merged_new_slots[i] = False
-            
+                            if s[i] is False:
+                                merged_new_slots[i] = False
+
             if merged_new_slots:
                 # Protective Merge: If day exists in history, preserve ALL existing False (outage) slots.
                 # Never allow a Light slot (True) to overwrite an Outage slot (False) in history.
@@ -340,7 +378,9 @@ async def update_local_schedules(config_path: str, output_path: str):
             async with aiofiles.open(history_path, "w") as f:
                 await f.write(json.dumps(history, indent=2))
 
-        print(f"Local schedules updated successfully at {new_cache['last_update']}. Changed: {has_changed}")
+        print(
+            f"Local schedules updated successfully at {new_cache['last_update']}. Changed: {has_changed}"
+        )
         return True, has_changed
     except Exception as e:
         print(f"Failed to update local schedules: {e}")
