@@ -20,9 +20,9 @@ Always use a Pull Request workflow:
 
 ### 3. Signing Commits
 All commits to public repositories MUST be signed using your GPG key:
-- Commit author name: `weby-homelab`
-- Commit email: `contact@weby.guru`
-- GPG Key: `2D49E810C7F2527E`
+- Commit author name: `Your-Login`
+- Commit email: `Your@Comit.email`
+- GPG Key: `YOUR1KEY777OK`
 
 Command to commit with signature:
 ```bash
