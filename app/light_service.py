@@ -1368,7 +1368,7 @@ async def sync_schedules():
         if not os.path.exists(filepath):
             return None
         with open(filepath, "rb") as f:
-            return hashlib.md5(f.read()).hexdigest()
+            return hashlib.md5(f.read(), usedforsecurity=False).hexdigest()
 
     if SCHEDULE_API_URL:
         try:
@@ -1454,7 +1454,8 @@ async def sync_schedules():
                         for s_key in ["github", "yasno"]
                     }
                     current_hash = hashlib.md5(
-                        json.dumps(slots_structure, sort_keys=True).encode()
+                        json.dumps(slots_structure, sort_keys=True).encode(),
+                        usedforsecurity=False,
                     ).hexdigest()
 
                     async with state_mgr:

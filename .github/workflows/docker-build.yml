@@ -35,7 +35,7 @@ jobs:
         run: ruff check app/
 
       - name: Run Bandit SAST Scan
-        run: bandit -r app/ -v
+        run: bandit -r app/ -c .bandit -v
 
       - name: Run Pytest
         env:
