@@ -14,10 +14,16 @@
   <img src="https://img.shields.io/badge/Branch-main_(Docker)-2496ed?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
   <img src="https://img.shields.io/docker/v/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white&label=Docker%20Hub" alt="Docker Hub Version">
   <img src="https://img.shields.io/docker/pulls/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
+  <img src="https://img.shields.io/github/license/weby-homelab/Power-Safety-UA?style=for-the-badge&color=green" alt="GPLv3 License">
 </p>
 
 <p align="center">
-  <img src="docs/assets/power-safety-ua-dash-UA.png" alt="Dashboard Preview" width="100%">
+  <img src="docs/assets/Power-Safety-UA-UKR-1.png" alt="Dashboard Preview 1" width="49%">
+  <img src="docs/assets/Power-Safety-UA-UKR-2.png" alt="Dashboard Preview 2" width="49%">
+</p>
+<p align="center">
+  <img src="docs/assets/Power-Safety-UA-UKR-3.png" alt="Report Preview 1" width="49%">
+  <img src="docs/assets/Power-Safety-UA-UKR-4.png" alt="Report Preview 2" width="49%">
 </p>
 
 # СВІТЛО⚡️ БЕЗПЕКА (POWER-SAFETY-UA) - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/Power-Safety-UA)](https://github.com/weby-homelab/Power-Safety-UA/releases/latest)
@@ -26,7 +32,7 @@
 
 Ця гілка (`main`) містить **Docker Edition** проєкту, призначену для швидкого, портативного та ізольованого розгортання в будь-якому середовищі. Це повністю контейнеризована версія, яка є стандартом для сучасних серверів.
 
-> **Статус проєкту:** Stable v3.6.2 (Оновлено: 06.2026)
+> **Статус проєкту:** Stable v3.7.0 (Оновлено: 07.2026)
 > **Архітектура:** FastAPI + Docker Compose + JSON Flat-DB
 > **Бренд:** Weby Homelab
 
@@ -165,7 +171,13 @@ flowchart BT
 
 ---
 
-📖 **Додаткова документація:**
+## 📄 Ліцензія
+
+Цей проєкт поширюється на умовах ліцензії **GNU General Public License v3.0 (GPLv3)**. Детальніше див. у файлі [LICENSE](LICENSE).
+
+---
+
+## 📖 Додаткова документація:
 * [⚙️ Налаштування Telegram та IoT](docs/INSTRUCTIONS.md)
 * [📝 Історія змін (CHANGELOG.md)](docs/CHANGELOG.md)
 

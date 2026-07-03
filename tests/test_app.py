@@ -51,7 +51,7 @@ def test_root_endpoint(mock_events):
 def test_metrics_endpoint():
     response = client.get("/metrics")
     assert response.status_code == 200
-    assert "flash_active_sse_connections" in response.text
+    assert "power_safety_active_sse_connections" in response.text
 
 import datetime
 
