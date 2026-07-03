@@ -1598,7 +1598,10 @@ async def admin_config_post(request: Request, new_config: dict = Body(None)):
 
         return {"status": "ok"}
     except Exception as e:
-        return JSONResponse({"status": "error", "msg": str(e)}, status_code=500)
+        print(f"Error reloading config: {e}")
+        return JSONResponse(
+            {"status": "error", "msg": "Internal server error"}, status_code=500
+        )
 
 
 @app.post("/api/admin/quiet/mode")
@@ -1705,7 +1708,10 @@ async def admin_logs_add(request: Request, data: dict = Body(None)):
         await log_event(event, float(timestamp))
         return {"status": "ok"}
     except Exception as e:
-        return JSONResponse({"status": "error", "msg": str(e)}, status_code=500)
+        print(f"Error logging event: {e}")
+        return JSONResponse(
+            {"status": "error", "msg": "Internal server error"}, status_code=500
+        )
 
 
 @app.delete("/api/admin/logs/{timestamp}")
@@ -1730,7 +1736,10 @@ async def admin_logs_delete(request: Request, timestamp: float):
 
         return {"status": "ok"}
     except Exception as e:
-        return JSONResponse({"status": "error", "msg": str(e)}, status_code=500)
+        print(f"Error deleting log: {e}")
+        return JSONResponse(
+            {"status": "error", "msg": "Internal server error"}, status_code=500
+        )
 
 
 @app.post("/api/admin/service/restart")
@@ -1758,7 +1767,10 @@ async def admin_service_restart(
         threading.Thread(target=restart).start()
         return {"status": "ok", "msg": "Services restarting..."}
     except Exception as e:
-        return JSONResponse({"status": "error", "msg": str(e)}, status_code=500)
+        print(f"Error restarting services: {e}")
+        return JSONResponse(
+            {"status": "error", "msg": "Internal server error"}, status_code=500
+        )
 
 
 @app.post("/api/admin/schedules/sync")
@@ -1774,7 +1786,10 @@ async def admin_schedules_sync(
         background_tasks.add_task(sync_schedules)
         return {"status": "ok", "msg": "Sync triggered"}
     except Exception as e:
-        return JSONResponse({"status": "error", "msg": str(e)}, status_code=500)
+        print(f"Error syncing schedules: {e}")
+        return JSONResponse(
+            {"status": "error", "msg": "Internal server error"}, status_code=500
+        )
 
 
 @app.get("/api/admin/backups")
