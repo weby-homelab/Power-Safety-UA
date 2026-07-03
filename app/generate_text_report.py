@@ -406,7 +406,7 @@ def main():
     combined_content = "\n\n".join(all_day_contents)
     base_text = f"📈 <b>Графік групи {group_display}</b>\n\n{combined_content}"
 
-    content_hash = hashlib.md5(base_text.encode()).hexdigest()
+    content_hash = hashlib.md5(base_text.encode(), usedforsecurity=False).hexdigest()
 
     updated_text = cfg.get("ui", {}).get("text", {}).get("updated", "Оновлено")
     footer = f"🕐 {updated_text}: {now.strftime('%H:%M')}"

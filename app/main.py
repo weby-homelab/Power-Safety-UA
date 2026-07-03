@@ -1418,6 +1418,7 @@ async def tg_webhook(
                     "callback_query_id": cb["id"],
                     "text": f"🛠 Моніторинг вимкнено на {minutes} хв",
                 },
+                timeout=5,
             )
 
             requests.post(
@@ -1427,6 +1428,7 @@ async def tg_webhook(
                     "message_id": msg_id,
                     "text": f"🛠 Технічний збій. Моніторинг призупинено до {datetime.fromtimestamp(state['muted_until'], KYIV_TZ).strftime('%H:%M')}",
                 },
+                timeout=5,
             )
 
         elif cb_data.startswith("sn_dontknow_"):
