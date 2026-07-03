@@ -62,7 +62,21 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("application_shutdown")
 
+from fastapi.middleware.cors import CORSMiddleware
+from app.config import settings
+
 app = FastAPI(lifespan=lifespan)
+
+# CORS Configuration from env
+allowed_origins = [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 templates = Jinja2Templates(directory="templates")
 templates.env.cache = None  # Disable cache to bypass unhashable key bug
 
@@ -163,8 +177,18 @@ def serve_static(filename: str):
     return FileResponse(file_path, headers=headers)
 
 @app.get('/health')
-def health_check():
+@app.get('/health/live')
+def health_live():
     return {"status": "ok"}
+
+@app.get('/health/ready')
+async def health_ready():
+    # Verify data directory is writable (checks system health/readiness)
+    data_dir = settings.data_dir
+    is_writable = os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False
+    if not is_writable:
+        raise HTTPException(status_code=503, detail="Storage not writable")
+    return {"status": "ready"}
 
 def get_radiation():
     # Return stable background value

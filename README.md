@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/Branch-main_(Docker)-2496ed?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
   <img src="https://img.shields.io/docker/v/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white&label=Docker%20Hub" alt="Docker Hub Version">
   <img src="https://img.shields.io/docker/pulls/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
+  <img src="https://img.shields.io/github/license/weby-homelab/Power-Safety-UA?style=for-the-badge&color=green" alt="GPLv3 License">
 </p>
 
 <p align="center">
@@ -165,7 +166,13 @@ flowchart BT
 
 ---
 
-📖 **Додаткова документація:**
+## 📄 Ліцензія
+
+Цей проєкт поширюється на умовах ліцензії **GNU General Public License v3.0 (GPLv3)**. Детальніше див. у файлі [LICENSE](LICENSE).
+
+---
+
+## 📖 Додаткова документація:
 * [⚙️ Налаштування Telegram та IoT](docs/INSTRUCTIONS.md)
 * [📝 Історія змін (CHANGELOG.md)](docs/CHANGELOG.md)
 

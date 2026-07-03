@@ -5,12 +5,24 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT_BINDING:-127.0.0.1}:5050:5050"
+    read_only: true
+    tmpfs:
+      - /tmp:size=50M
     volumes:
       - ./data:/app/data
     env_file:
       - .env
+    environment:
+      - TZ=Europe/Kyiv
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          memory: 256M
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5050/health', timeout=5)"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5050/health/live', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -20,11 +32,22 @@ services:
     container_name: power-safety-ua-worker
     restart: unless-stopped
     command: python app/run_background.py
+    read_only: true
+    tmpfs:
+      - /tmp:size=50M
     volumes:
       - ./data:/app/data
     env_file:
       - .env
     environment:
       - PYTHONPATH=/app
+      - TZ=Europe/Kyiv
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          memory: 256M
     healthcheck:
       disable: true

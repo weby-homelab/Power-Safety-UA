@@ -339,7 +339,7 @@ def trigger_weekly_report_update():
 
 async def log_event(event_type, timestamp):
     """
-    Logs an event (up/down) to a JSON file for historical analysis.
+    Logs an event (up/down) to a JSON file and SQLite database for historical analysis.
     """
     try:
         entry = {
@@ -347,6 +347,10 @@ async def log_event(event_type, timestamp):
             "event": event_type,
             "date_str": datetime.datetime.fromtimestamp(timestamp, KYIV_TZ).strftime("%Y-%m-%d %H:%M:%S")
         }
+        
+        # Save to SQLite database
+        from app.db import log_event_db
+        await log_event_db(event_type, timestamp, entry["date_str"])
         
         async with state_mgr:
             logs = await StorageUtils.load_json_async(EVENT_LOG_FILE, default=[])
