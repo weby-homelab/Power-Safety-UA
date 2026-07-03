@@ -18,7 +18,12 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/power-safety-ua-dash-UA.png" alt="Dashboard Preview" width="100%">
+  <img src="docs/assets/Power-Safety-UA-UKR-1.png" alt="Dashboard Preview 1" width="49%">
+  <img src="docs/assets/Power-Safety-UA-UKR-2.png" alt="Dashboard Preview 2" width="49%">
+</p>
+<p align="center">
+  <img src="docs/assets/Power-Safety-UA-UKR-3.png" alt="Report Preview 1" width="49%">
+  <img src="docs/assets/Power-Safety-UA-UKR-4.png" alt="Report Preview 2" width="49%">
 </p>
 
 # СВІТЛО⚡️ БЕЗПЕКА (POWER-SAFETY-UA) - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/Power-Safety-UA)](https://github.com/weby-homelab/Power-Safety-UA/releases/latest)
@@ -27,7 +32,7 @@
 
 Ця гілка (`main`) містить **Docker Edition** проєкту, призначену для швидкого, портативного та ізольованого розгортання в будь-якому середовищі. Це повністю контейнеризована версія, яка є стандартом для сучасних серверів.
 
-> **Статус проєкту:** Stable v3.6.2 (Оновлено: 06.2026)
+> **Статус проєкту:** Stable v3.7.0 (Оновлено: 07.2026)
 > **Архітектура:** FastAPI + Docker Compose + JSON Flat-DB
 > **Бренд:** Weby Homelab
 

@@ -14,10 +14,16 @@
   <img src="https://img.shields.io/badge/Branch-main_(Docker)-2496ed?style=for-the-badge&logo=docker&logoColor=white" alt="Branch Main">
   <img src="https://img.shields.io/docker/v/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white&label=Docker%20Hub" alt="Docker Hub Version">
   <img src="https://img.shields.io/docker/pulls/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
+  <img src="https://img.shields.io/github/license/weby-homelab/Power-Safety-UA?style=for-the-badge&color=green" alt="GPLv3 License">
 </p>
 
 <p align="center">
-  <img src="docs/assets/power-safety-ua-dash-ENG.png" alt="Dashboard Preview" width="100%">
+  <img src="docs/assets/Power-Safety-UA-ENG-1.png" alt="Dashboard Preview 1" width="49%">
+  <img src="docs/assets/Power-Safety-UA-ENG-2.png" alt="Dashboard Preview 2" width="49%">
+</p>
+<p align="center">
+  <img src="docs/assets/Power-Safety-UA-ENG-3.png" alt="Report Preview 1" width="49%">
+  <img src="docs/assets/Power-Safety-UA-ENG-4.png" alt="Report Preview 2" width="49%">
 </p>
 
 # POWER⚡️ SAFETY (POWER-SAFETY-UA) - Docker Edition [![Latest Release](https://img.shields.io/github/v/release/weby-homelab/Power-Safety-UA)](https://github.com/weby-homelab/Power-Safety-UA/releases/latest)
@@ -26,7 +32,7 @@
 
 This branch (`main`) contains the **Docker Edition** of the project, designed for fast, portable, and isolated deployment in any environment. It is a fully containerized version, which is the industry standard for modern server deployments.
 
-> **Project Status:** Stable v3.6.2 (Updated: 06.2026)
+> **Project Status:** Stable v3.7.0 (Updated: 07.2026)
 > **Architecture:** FastAPI + Docker Compose + JSON Flat-DB
 > **Brand:** Weby Homelab
 
