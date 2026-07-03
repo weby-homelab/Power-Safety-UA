@@ -1,6 +1,7 @@
 import json
 import requests
 
+
 class TelegramClient:
     def __init__(self, token, chat_id):
         self._real_token = token
@@ -11,15 +12,25 @@ class TelegramClient:
     def _make_request(self, endpoint, payload, files=None, timeout=30):
         url = f"https://api.telegram.org/bot{self._real_token}/{endpoint}"
         try:
-            r = requests.post(url, data=payload, json=payload if not files else None, files=files, timeout=timeout)
+            r = requests.post(
+                url,
+                data=payload,
+                json=payload if not files else None,
+                files=files,
+                timeout=timeout,
+            )
             if r.status_code == 200:
                 res = r.json()
                 result_data = res.get("result", {})
                 if isinstance(result_data, dict):
                     return True, result_data.get("message_id")
                 return True, result_data
-            
-            err_desc = r.json().get("description", "").lower() if r.headers.get("content-type") == "application/json" else r.text.lower()
+
+            err_desc = (
+                r.json().get("description", "").lower()
+                if r.headers.get("content-type") == "application/json"
+                else r.text.lower()
+            )
             return False, err_desc
         except Exception as e:
             return False, str(e)
@@ -30,11 +41,15 @@ class TelegramClient:
             "text": text,
             "parse_mode": parse_mode,
             "disable_notification": silent,
-            "disable_web_page_preview": True
+            "disable_web_page_preview": True,
         }
         if reply_markup:
-            payload["reply_markup"] = json.dumps(reply_markup) if isinstance(reply_markup, dict) else reply_markup
-            
+            payload["reply_markup"] = (
+                json.dumps(reply_markup)
+                if isinstance(reply_markup, dict)
+                else reply_markup
+            )
+
         success, res = self._make_request("sendMessage", payload)
         if not success:
             print(f"Failed to send message: {res}")
@@ -46,22 +61,29 @@ class TelegramClient:
             "message_id": message_id,
             "text": text,
             "parse_mode": parse_mode,
-            "disable_web_page_preview": True
+            "disable_web_page_preview": True,
         }
         if reply_markup:
-            payload["reply_markup"] = json.dumps(reply_markup) if isinstance(reply_markup, dict) else reply_markup
-            
+            payload["reply_markup"] = (
+                json.dumps(reply_markup)
+                if isinstance(reply_markup, dict)
+                else reply_markup
+            )
+
         success, res = self._make_request("editMessageText", payload)
-        if success: return message_id
-        
+        if success:
+            return message_id
+
         if "message to edit not found" in res:
             print("Message deleted manually. Falling back to send_message.")
-            return self.send_message(text, parse_mode, silent=True, reply_markup=reply_markup)
-            
+            return self.send_message(
+                text, parse_mode, silent=True, reply_markup=reply_markup
+            )
+
         if "message is not modified" in res:
             print("Message content identical. No update needed.")
             return message_id
-            
+
         print(f"Failed to edit message: {res}")
         return None
 
@@ -70,11 +92,13 @@ class TelegramClient:
             "chat_id": self.chat_id,
             "caption": caption,
             "parse_mode": parse_mode,
-            "disable_notification": silent
+            "disable_notification": silent,
         }
         try:
-            with open(photo_path, 'rb') as f:
-                success, res = self._make_request("sendPhoto", payload, files={'photo': f})
+            with open(photo_path, "rb") as f:
+                success, res = self._make_request(
+                    "sendPhoto", payload, files={"photo": f}
+                )
                 if not success:
                     print(f"Failed to send photo: {res}")
                 return res if success else None
@@ -83,36 +107,41 @@ class TelegramClient:
             return None
 
     def edit_photo(self, message_id, photo_path, caption="", parse_mode="HTML"):
-        media_json = json.dumps({
-            'type': 'photo',
-            'media': 'attach://chart',
-            'caption': caption,
-            'parse_mode': parse_mode
-        })
+        media_json = json.dumps(
+            {
+                "type": "photo",
+                "media": "attach://chart",
+                "caption": caption,
+                "parse_mode": parse_mode,
+            }
+        )
         payload = {
             "chat_id": self.chat_id,
             "message_id": message_id,
-            "media": media_json
+            "media": media_json,
         }
         try:
-            with open(photo_path, 'rb') as f:
-                success, res = self._make_request("editMessageMedia", payload, files={'chart': f})
-                if success: return message_id
-                
+            with open(photo_path, "rb") as f:
+                success, res = self._make_request(
+                    "editMessageMedia", payload, files={"chart": f}
+                )
+                if success:
+                    return message_id
+
                 if "message to edit not found" in res:
                     print("Photo message deleted manually. Falling back to send_photo.")
                     return self.send_photo(photo_path, caption, parse_mode, silent=True)
-                
+
                 if "message is not modified" in res:
                     print("Photo content identical. No update needed.")
                     return message_id
-                    
+
                 print(f"Failed to edit photo: {res}")
                 return None
         except Exception as e:
             print(f"Error opening photo file for edit: {e}")
             return None
-            
+
     def delete_message(self, message_id):
         payload = {"chat_id": self.chat_id, "message_id": message_id}
         success, res = self._make_request("deleteMessage", payload, timeout=10)
