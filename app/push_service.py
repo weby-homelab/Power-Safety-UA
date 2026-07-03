@@ -9,7 +9,7 @@ logger = structlog.get_logger()
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_CLAIMS = {
-    "sub": "mailto:" + os.environ.get("VAPID_CONTACT_EMAIL", "rekvizitor.ua@gmail.com")
+    "sub": "mailto:" + os.environ.get("VAPID_CONTACT_EMAIL", "contact@weby.guru")
 }
 
 # Storage path

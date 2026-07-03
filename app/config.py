@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     vapid_private_key: str = Field(default="", validation_alias="VAPID_PRIVATE_KEY")
     vapid_public_key: str = Field(default="", validation_alias="VAPID_PUBLIC_KEY")
     vapid_contact_email: str = Field(
-        default="rekvizitor.ua@gmail.com", validation_alias="VAPID_CONTACT_EMAIL"
+        default="contact@weby.guru", validation_alias="VAPID_CONTACT_EMAIL"
     )
     schedule_api_url: str = Field(default="", validation_alias="SCHEDULE_API_URL")
     allowed_origins: str = Field(
