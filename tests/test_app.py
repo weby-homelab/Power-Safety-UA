@@ -104,3 +104,85 @@ def test_rate_limit_admin_endpoint():
         headers={"X-Admin-Token": "invalid"},
     )
     assert response.status_code in [403, 429]
+
+
+@patch("app.main.state")
+@patch("app.main.secrets.compare_digest", return_value=True)
+@patch("app.main.load_state")
+@patch("app.main.save_state")
+@patch("app.main.log_event")
+def test_safety_net_react_down(
+    mock_log, mock_save, mock_load, mock_compare, mock_state
+):
+    """C1: safety_net_react with action=down should be accepted."""
+    mock_state.get.side_effect = lambda k, d=None: (
+        "valid_token" if k == "admin_token" else 0.0
+    )
+    response = client.post(
+        "/api/admin/safety_net/react",
+        json={"action": "down", "value": 30},
+        headers={"X-Admin-Token": "valid_token"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+@patch("app.main.state")
+@patch("app.main.secrets.compare_digest", return_value=True)
+@patch("app.main.load_state")
+@patch("app.main.save_state")
+def test_safety_net_react_tech(mock_save, mock_load, mock_compare, mock_state):
+    """C1: safety_net_react with action=tech should be accepted."""
+    mock_state.get.side_effect = lambda k, d=None: (
+        "valid_token" if k == "admin_token" else 0.0
+    )
+    response = client.post(
+        "/api/admin/safety_net/react",
+        json={"action": "tech", "value": 60},
+        headers={"X-Admin-Token": "valid_token"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+@patch("app.main.state")
+@patch("app.main.secrets.compare_digest", return_value=True)
+@patch("app.main.load_state")
+@patch("app.main.save_state")
+def test_safety_net_react_dontknow(mock_save, mock_load, mock_compare, mock_state):
+    """C1: safety_net_react with action=dontknow should be accepted."""
+    mock_state.get.side_effect = lambda k, d=None: (
+        "valid_token" if k == "admin_token" else 0.0
+    )
+    response = client.post(
+        "/api/admin/safety_net/react",
+        json={"action": "dontknow"},
+        headers={"X-Admin-Token": "valid_token"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_safety_net_react_invalid_action():
+    """C1: invalid action should return 422."""
+    response = client.post(
+        "/api/admin/safety_net/react",
+        json={"action": "invalid"},
+        headers={"X-Admin-Token": "any"},
+    )
+    assert response.status_code == 422
+
+
+@patch("app.main.state")
+@patch("app.main.secrets.compare_digest", return_value=False)
+def test_safety_net_react_invalid_token(mock_compare, mock_state):
+    """Safety net react with invalid token should return 403."""
+    mock_state.get.side_effect = lambda k, d=None: (
+        "real_token" if k == "admin_token" else d
+    )
+    response = client.post(
+        "/api/admin/safety_net/react",
+        json={"action": "down"},
+        headers={"X-Admin-Token": "bad_token"},
+    )
+    assert response.status_code == 403

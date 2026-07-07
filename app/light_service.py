@@ -1259,7 +1259,7 @@ async def alerts_loop():
     print("Alerts loop started...")
     while True:
         try:
-            current_alert = get_air_raid_alert()
+            current_alert = await asyncio.to_thread(get_air_raid_alert)
             new_status = current_alert.get("status")
             if new_status != "unknown":
                 await load_state()
