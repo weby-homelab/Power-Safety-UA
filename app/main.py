@@ -1096,13 +1096,11 @@ def sitemap_xml():
 def admin_panel(
     request: Request,
     x_admin_token: str = Header(None, alias="X-Admin-Token"),
+    t: str = Query(None),
 ):
+    token = x_admin_token or t
     admin_token = state.get("admin_token")
-    if (
-        x_admin_token
-        and admin_token
-        and secrets.compare_digest(x_admin_token, admin_token)
-    ):
+    if token and admin_token and secrets.compare_digest(token, admin_token):
         return templates.TemplateResponse(request=request, name="admin.html")
     return PlainTextResponse("Access Denied", status_code=403)
 
@@ -1567,7 +1565,7 @@ async def tg_webhook(
 
 
 def check_admin_token(request: Request):
-    t = request.headers.get("X-Admin-Token")
+    t = request.headers.get("X-Admin-Token") or request.query_params.get("t")
     admin_token = state.get("admin_token")
     if not t or not admin_token or not secrets.compare_digest(t, admin_token):
         return False

@@ -715,11 +715,13 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const token = params.get('t');
+        if (!token) { document.body.innerHTML = '<h2 style="color:red;text-align:center;margin-top:100px">Access Denied — No Token</h2>'; throw new Error('No token'); }
+        const authHeaders = { 'X-Admin-Token': token, 'Content-Type': 'application/json' };
         let currentConfig = {};
 
         async function fetchData() {
             try {
-                const response = await fetch(`/api/admin/data?t=${token}`);
+                const response = await fetch('/api/admin/data', { headers: authHeaders });
                 if (!response.ok) throw new Error('Помилка завантаження: ' + response.statusText);
                 const data = await response.json();
                 
@@ -805,7 +807,7 @@
 
                 // Telegram & API
                 if (data.env) {
-                    setVal('cfg-tg-token', config.settings.telegram_bot_token || data.env.telegram_bot_token);
+                    setVal('cfg-tg-token', config.settings.telegram_bot_token || data.env.telegram_bot_token_masked);
                     setVal('cfg-tg-chat', config.settings.telegram_channel_id || data.env.telegram_channel_id);
                 }
                 if (data.state && data.state.secret_key) {
@@ -938,9 +940,9 @@
         async function saveQuietMode() {
             const mode = Array.from(document.getElementsByName('quiet_mode')).find(r => r.checked)?.value || 'auto';
             try {
-                const response = await fetch(`/api/admin/quiet/mode?t=${token}`, { 
+                const response = await fetch(`/api/admin/quiet/mode`, { 
                     method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
+                    headers: authHeaders, 
                     body: JSON.stringify({mode}) 
                 });
                 if (response.ok) {
@@ -1046,9 +1048,9 @@
             const config = collectAllConfig();
             if (!config) { alert('Помилка збору налаштувань. Перевірте консоль.'); return; }
             try {
-                const response = await fetch(`/api/admin/config?t=${token}`, { 
+                const response = await fetch(`/api/admin/config`, { 
                     method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
+                    headers: authHeaders, 
                     body: JSON.stringify(config) 
                 });
                 if (response.ok) {
@@ -1070,9 +1072,9 @@
             if (isNaN(timestamp)) { alert('Некоректний формат дати або часу'); return; }
             
             try {
-                const response = await fetch(`/api/admin/logs/add?t=${token}`, {
+                const response = await fetch(`/api/admin/logs/add`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: authHeaders,
                     body: JSON.stringify({event, timestamp})
                 });
                 if (response.ok) fetchData();
@@ -1083,7 +1085,7 @@
         async function deleteLog(timestamp) { 
             if (confirm('Видалити цей запис з логів?')) { 
                 try {
-                    const response = await fetch(`/api/admin/logs/${timestamp}?t=${token}`, { method: 'DELETE' }); 
+                    const response = await fetch(`/api/admin/logs/${timestamp}`, { method: 'DELETE', headers: authHeaders }); 
                     if (response.ok) fetchData();
                     else alert('Помилка: ' + (await response.json()).msg);
                 } catch (err) { alert('Помилка запиту'); }
@@ -1093,7 +1095,7 @@
         async function restartServices() { 
             if (confirm('Перезапустити сервіси? Це короткочасно перерве моніторинг.')) {
                 try {
-                    const response = await fetch(`/api/admin/service/restart?t=${token}`, { method: 'POST' }); 
+                    const response = await fetch(`/api/admin/service/restart`, { method: 'POST', headers: authHeaders }); 
                     if (response.ok) alert('Команду на перезапуск надіслано');
                     else alert('Помилка перезапуску');
                 } catch(err) { alert('Помилка запиту'); }
@@ -1104,9 +1106,9 @@
             let val = action === 'tech' ? prompt('На скільки хвилин пауза?', '30') : null;
             if (action === 'tech' && val === null) return;
             try {
-                const response = await fetch(`/api/admin/safety_net/react?t=${token}`, { 
+                const response = await fetch(`/api/admin/safety_net/react`, { 
                     method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
+                    headers: authHeaders, 
                     body: JSON.stringify({action, value: val}) 
                 });
                 if (response.ok) fetchData();
@@ -1118,9 +1120,9 @@
             // Unify confirm_emergency into confirm for now
             const act = action === 'confirm_emergency' ? 'confirm' : action;
             try {
-                const response = await fetch(`/api/admin/safety_net/react?t=${token}`, { 
+                const response = await fetch(`/api/admin/safety_net/react`, { 
                     method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
+                    headers: authHeaders, 
                     body: JSON.stringify({action: act}) 
                 });
                 if (response.ok) fetchData();
@@ -1130,9 +1132,9 @@
 
         async function unmuteMonitor() {
             try {
-                const response = await fetch(`/api/admin/quiet/mode?t=${token}`, {
+                const response = await fetch(`/api/admin/quiet/mode`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: authHeaders,
                     body: JSON.stringify({mode: 'auto', unmute: true})
                 });
                 if (response.ok) fetchData();
@@ -1142,7 +1144,7 @@
 
         async function forceSyncSchedules() {
             try {
-                const response = await fetch(`/api/admin/schedules/sync?t=${token}`, { method: 'POST' });
+                const response = await fetch(`/api/admin/schedules/sync`, { method: 'POST', headers: authHeaders });
                 if (response.ok) alert('Запит на синхронізацію надіслано. Оновіть сторінку за кілька секунд.');
                 else alert('Помилка запиту на синхронізацію');
             } catch(err) { alert('Помилка запиту'); }
@@ -1150,7 +1152,7 @@
 
         async function renderBackups() {
             try {
-                const response = await fetch(`/api/admin/backups?t=${token}`);
+                const response = await fetch(`/api/admin/backups`, { headers: authHeaders });
                 if (!response.ok) return;
                 const backups = await response.json();
                 const container = document.getElementById('backup-list');
@@ -1177,7 +1179,7 @@
 
         async function createBackup() {
             try {
-                const response = await fetch(`/api/admin/backups/create?t=${token}`, { method: 'POST' });
+                const response = await fetch(`/api/admin/backups/create`, { method: 'POST', headers: authHeaders });
                 if (response.ok) {
                     alert('Ручний бекап успішно створено!');
                     renderBackups();
@@ -1188,9 +1190,9 @@
         async function restoreBackup(filename) {
             if (confirm('Ви впевнені? Поточні налаштування будуть замінені на копію від ' + filename)) {
                 try {
-                    const response = await fetch(`/api/admin/backups/restore?t=${token}`, {
+                    const response = await fetch(`/api/admin/backups/restore`, {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: authHeaders,
                         body: JSON.stringify({filename})
                     });
                     if (response.ok) {
@@ -1204,7 +1206,7 @@
         async function regenPushKey() {
             if (confirm('УВАГА! Це змінить ваш секретний ключ для API. Вам потрібно буде оновити налаштування на всіх пристроях (PRXMX тощо), що надсилають пуш-повідомлення. Продовжити?')) {
                 try {
-                    const response = await fetch(`/api/admin/security/regen_push_key?t=${token}`, { method: 'POST' });
+                    const response = await fetch(`/api/admin/security/regen_push_key`, { method: 'POST', headers: authHeaders });
                     if (response.ok) {
                         const data = await response.json();
                         alert('НОВИЙ API КЛЮЧ: ' + data.new_key + '\n\nЗапишіть його! Сторінка зараз оновиться.');
@@ -1217,7 +1219,7 @@
         async function regenAdminToken() {
             if (confirm('КРИТИЧНО! Ваш токен доступу до цієї адмін-панелі буде змінено. Вас буде негайно розлогінено. Продовжити?')) {
                 try {
-                    const response = await fetch(`/api/admin/security/regen_admin_token?t=${token}`, { method: 'POST' });
+                    const response = await fetch(`/api/admin/security/regen_admin_token`, { method: 'POST', headers: authHeaders });
                     if (response.ok) {
                         const data = await response.json();
                         const newUrl = window.location.origin + window.location.pathname + '?t=' + data.new_token;
