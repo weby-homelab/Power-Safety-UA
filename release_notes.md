@@ -1,3 +1,45 @@
+# Release v3.8.0
+
+**Comprehensive Security, Architecture & PWA Improvements**
+
+## What's New:
+
+### 🔒 Security Fixes (C1-C7)
+- **C1:** Fix SafetyNetReactRequest regex to accept `down`/`tech` actions (safety-net UI was broken)
+- **C2:** Redact `secret_key` and `admin_token` from admin API response (were leaking secrets)
+- **C3:** Add file lock for `event_log.json` writes in concurrent container scenario
+- **C4:** Migrate 6 blocking TelegramClient calls in webhook to async `_async_telegram_post`
+- **C5:** Wrap `get_air_raid_alert()` in `asyncio.to_thread()` in alerts loop
+- **C6:** Make `admin_service_restart` Docker-aware
+- **C7:** Unify version across all sources
+
+### 🏗️ Architecture Refactoring
+- Replace ~97 `print()` calls with structlog across 7 files
+- Add `ThreadPoolExecutor(max_workers=4)` replacing 12 `threading.Thread` spawns
+- Remove stale module-level credential snapshots, add lazy getters
+
+### 🐳 CI/CD Hardening
+- Add Python 3.13 matrix, bump coverage threshold 30→50
+- Add paths-ignore, Trivy image scan, requirements-dev.txt
+- Add anyio thread limiter config (100 threads)
+
+### 🎨 PWA & A11y
+- Remove `user-scalable=no` from viewport (WCAG compliance)
+- Add `<noscript>` fallback, GZipMiddleware
+- Fix manifest.json, add Cache-Control headers
+- Add `/api/version` endpoint, `notificationclose` listener
+
+### 📚 Documentation
+- Add `CHANGELOG.md`, `SECURITY.md`, `CODEOWNERS`
+
+### 📊 Stats
+- Total changes: 5 PRs (#109, #111, #113, #116, #118)
+- Files changed: 19
+- Tests: 90/90 passing (was 85)
+- Ruff: clean, Bandit: 0 issues
+
+---
+
 # Release v3.7.3
 
 **Admin Panel Fix — Query Token Access Restored**
