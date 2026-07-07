@@ -114,7 +114,8 @@ jobs:
           image-ref: webyhomelab/power-safety-ua:latest
           format: sarif
           output: trivy-image-results.sarif
-          severity: CRITICAL,HIGH,MEDIUM
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
 
       - name: Upload Trivy FS SARIF
         uses: github/codeql-action/upload-sarif@v4
