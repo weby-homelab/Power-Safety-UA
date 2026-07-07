@@ -1,3 +1,15 @@
+# Release v3.7.3
+
+**Admin Panel Fix — Query Token Access Restored**
+
+## What's New:
+- Fix: restored `?t=` query-param support in `/admin` and `check_admin_token` (broken in v3.7.1)
+- Migrated admin.html all API calls from `?t=${token}` to `X-Admin-Token` header for security
+- Updated `telegram_bot_token_masked` reference in admin UI
+- Added missing `Query` import
+
+---
+
 # Release v3.7.2
 
 **CI Fixes & Dependency Updates**
