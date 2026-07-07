@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     libpng-dev \
     gcc \
     python3-dev \
-    && pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir --upgrade "pip>=26.1" \
     && pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
