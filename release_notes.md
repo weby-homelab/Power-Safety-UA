@@ -1,3 +1,21 @@
+# Release v3.7.2
+
+**CI Fixes & Dependency Updates**
+
+## What's New:
+- Fix CI: `tzdata==2026a` → `2026.2` (PyPI compatibility)
+- Fix CI: synced `ruff==0.15.20` across local/CI (version mismatch caused format drift)
+- Fix CI: restored `B404/B603/B607` bandit skips (safe subprocess usage)
+- Bump: fastapi 0.135.3→0.139.0
+- Bump: numpy 2.1.3→2.5.1
+- Bump: uvicorn 0.34.0→0.50.2
+- Bump: pydantic 2.13.0→2.13.4
+- Bump: slowapi 0.1.1→0.1.10
+- Bump: GitHub actions (checkout@v7, setup-python@v6, codeql-action@v4)
+- Cleanup: 10 stale Dependabot branches removed
+
+---
+
 # Release v3.7.1
 
 **Security Hardening, Rate Limiting, Supply-Chain Security & Refactoring**
