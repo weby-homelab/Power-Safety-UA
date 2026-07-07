@@ -1,4 +1,6 @@
 .env
+.env.bak
+.venv/
 venv/
 __pycache__/
 .pytest_cache/
@@ -13,3 +15,11 @@ tests/
 !static/icon-192.png
 !static/icon-512.png
 !static/favicon.png
+.bandit
+.coverage
+*.lock
+docs/
+LICENSE
+.idea/
+.vscode/
+*.swp

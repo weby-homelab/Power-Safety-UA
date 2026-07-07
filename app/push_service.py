@@ -13,7 +13,7 @@ VAPID_CLAIMS = {
 }
 
 # Storage path
-from app.light_service import DATA_DIR  # noqa: E402
+from app.paths import DATA_DIR  # noqa: E402
 
 SUBSCRIPTIONS_FILE = os.path.join(DATA_DIR, "push_subscriptions.json")
 

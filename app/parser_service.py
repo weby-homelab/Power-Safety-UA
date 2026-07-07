@@ -3,9 +3,12 @@ import json
 import httpx
 import asyncio
 import time
+import ipaddress
+import socket
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
+from urllib.parse import urlparse
 import aiofiles
 
 
@@ -114,7 +117,40 @@ async def fetch_yasno(
         return None
 
 
-from urllib.parse import urlparse  # noqa: E402
+_PRIVATE_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("0.0.0.0/8"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("fe80::/10"),
+]
+
+
+def _is_private_host(hostname: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(hostname)
+    except ValueError:
+        try:
+            addrs = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        except socket.gaierror:
+            return True
+        ips = {a[4][0] for a in addrs}
+    else:
+        ips = {str(addr)}
+
+    for ip_str in ips:
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return True
+        for net in _PRIVATE_NETWORKS:
+            if ip in net:
+                return True
+    return False
 
 
 async def fetch_custom(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
@@ -124,13 +160,13 @@ async def fetch_custom(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
     parsed = urlparse(custom_url)
     if parsed.scheme not in ["http", "https"]:
         return None
-    if parsed.hostname in ["localhost", "127.0.0.1"] or (
-        parsed.hostname and parsed.hostname.startswith("192.168.")
-    ):
+    if not parsed.hostname or _is_private_host(parsed.hostname):
         return None
     try:
         r = await client.get(
-            custom_url, headers={"User-Agent": "Power-Safety-UA/3.6.2"}, timeout=20
+            custom_url,
+            headers={"User-Agent": "Power-Safety-UA/v3.7.1"},
+            timeout=20,
         )
         r.raise_for_status()
         return r.json()

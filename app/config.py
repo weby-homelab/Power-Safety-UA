@@ -18,6 +18,9 @@ class Settings(BaseSettings):
         default="https://power.srvrs.top", validation_alias="ALLOWED_ORIGINS"
     )
     port_binding: str = Field(default="127.0.0.1", validation_alias="PORT_BINDING")
+    telegram_webhook_secret: str = Field(
+        default="", validation_alias="TELEGRAM_WEBHOOK_SECRET"
+    )
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
