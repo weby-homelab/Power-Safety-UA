@@ -1,3 +1,4 @@
+import structlog
 import os
 import json
 import httpx
@@ -10,6 +11,8 @@ from zoneinfo import ZoneInfo
 from typing import Optional
 from urllib.parse import urlparse
 import aiofiles
+
+logger = structlog.get_logger(__name__)
 
 
 def get_timezone():
@@ -77,7 +80,7 @@ async def fetch_github(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        print(f"GitHub fetch error: {e}")
+        logger.error(f"GitHub fetch error: {e}")
         return None
 
 
@@ -89,7 +92,7 @@ async def fetch_yasno(
         return None
 
     if not yasno_cb.can_execute():
-        print(f"Yasno API Circuit Breaker is {yasno_cb.state}. Skipping request.")
+        logger.info(f"Yasno API Circuit Breaker is {yasno_cb.state}. Skipping request.")
         return None
 
     try:
@@ -99,7 +102,7 @@ async def fetch_yasno(
 
         # Security validation: Ensure IDs are numeric to prevent URL manipulation
         if not (region_id.isdigit() and dso_id.isdigit()):
-            print(
+            logger.info(
                 f"Yasno fetch error: Invalid IDs in config for {source_id} (region={region_id}, dso={dso_id})"
             )
             return None
@@ -112,7 +115,7 @@ async def fetch_yasno(
         yasno_cb.record_success()
         return r.json()
     except Exception as e:
-        print(f"Yasno fetch error ({source_id}): {e}")
+        logger.error(f"Yasno fetch error ({source_id}): {e}")
         yasno_cb.record_failure()
         return None
 
@@ -175,7 +178,7 @@ async def fetch_custom(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        print(f"Custom URL fetch error: {e}")
+        logger.error(f"Custom URL fetch error: {e}")
         return None
 
 
@@ -345,7 +348,9 @@ async def update_local_schedules(config_path: str, output_path: str):
 
         # Graceful degradation: if all are empty but we have old data, return stale data
         if not new_cache and old_cache:
-            print("All schedule sources failed. Degrading gracefully to cached data.")
+            logger.error(
+                "All schedule sources failed. Degrading gracefully to cached data."
+            )
             return True, False
 
         has_changed = has_schedule_changed(old_cache, new_cache)
@@ -418,10 +423,10 @@ async def update_local_schedules(config_path: str, output_path: str):
             async with aiofiles.open(history_path, "w") as f:
                 await f.write(json.dumps(history, indent=2))
 
-        print(
+        logger.info(
             f"Local schedules updated successfully at {new_cache['last_update']}. Changed: {has_changed}"
         )
         return True, has_changed
     except Exception as e:
-        print(f"Failed to update local schedules: {e}")
+        logger.error(f"Failed to update local schedules: {e}")
         return False, False

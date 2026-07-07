@@ -1,3 +1,4 @@
+import structlog
 import json
 import os
 import datetime
@@ -46,6 +47,8 @@ HISTORY_FILE = os.path.join(DATA_DIR, "schedule_history.json")
 
 
 from app.reports.common import get_alert_intervals as _get_alert_intervals_common  # noqa: E402
+
+logger = structlog.get_logger(__name__)
 
 
 def get_alert_intervals(target_date):
@@ -293,7 +296,7 @@ def generate_weekly_chart(end_date, daily_data, theme="dark", lang="ua"):
                         aqi_by_date[d_str] = []
                     aqi_by_date[d_str].append((dt.hour, val))
         except Exception as e:
-            print(f"Error fetching weekly AQI data: {e}")
+            logger.error(f"Error fetching weekly AQI data: {e}")
 
         for i, day_info in enumerate(daily_data):
             day_date = day_info["date"]
@@ -655,11 +658,11 @@ def send_telegram_photo(photo_path, caption):
         try:
             r = requests.post(url, files=files, data=data, timeout=20)
             if r.status_code == 200:
-                print("Weekly report sent successfully.")
+                logger.info("Weekly report sent successfully.")
             else:
-                print(f"Failed to send weekly report: {r.text}")
+                logger.error(f"Failed to send weekly report: {r.text}")
         except Exception as e:
-            print(f"Error sending weekly report: {e}")
+            logger.error(f"Error sending weekly report: {e}")
 
 
 if __name__ == "__main__":
@@ -682,7 +685,7 @@ if __name__ == "__main__":
     monday = target_date - datetime.timedelta(days=target_date.weekday())
     sunday = monday + datetime.timedelta(days=6)
 
-    print(f"Generating weekly report for: {monday} to {sunday}...")
+    logger.info(f"Generating weekly report for: {monday} to {sunday}...")
 
     events = load_events()
     stats = get_weekly_stats(monday, sunday, events)
@@ -706,7 +709,7 @@ if __name__ == "__main__":
             if os.path.exists(args.output):
                 os.remove(args.output)
             shutil.move(temp_filename, args.output)
-            print(f"Chart saved to {args.output}")
+            logger.info(f"Chart saved to {args.output}")
 
         base, ext = os.path.splitext(args.output)
         light_output = f"{base}_light{ext}"
@@ -715,21 +718,21 @@ if __name__ == "__main__":
             if os.path.exists(light_output):
                 os.remove(light_output)
             shutil.move(temp_light, light_output)
-            print(f"Light chart saved to {light_output}")
+            logger.info(f"Light chart saved to {light_output}")
 
         en_output = f"{base}_en{ext}"
         if os.path.exists(temp_filename_en):
             if os.path.exists(en_output):
                 os.remove(en_output)
             shutil.move(temp_filename_en, en_output)
-            print(f"EN chart saved to {en_output}")
+            logger.info(f"EN chart saved to {en_output}")
 
         light_en_output = f"{base}_light_en{ext}"
         if os.path.exists(temp_light_en):
             if os.path.exists(light_en_output):
                 os.remove(light_en_output)
             shutil.move(temp_light_en, light_en_output)
-            print(f"EN Light chart saved to {light_en_output}")
+            logger.info(f"EN Light chart saved to {light_en_output}")
 
         sys.exit(0)
 
@@ -849,7 +852,7 @@ if __name__ == "__main__":
 
     if not args.no_send:
         if get_quiet_status() == "quiet":
-            print("Quiet mode active: Skipping weekly Telegram report.")
+            logger.info("Quiet mode active: Skipping weekly Telegram report.")
         else:
             send_telegram_photo(filename, caption)
 

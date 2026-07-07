@@ -1,6 +1,10 @@
+import structlog
 import os
 import aiosqlite
 from app.config import settings
+
+logger = structlog.get_logger(__name__)
+
 
 DB_FILE = os.path.join(settings.data_dir, "power_safety.db")
 _db_initialized = False
@@ -37,7 +41,7 @@ async def log_event_db(event: str, timestamp: float, date_str: str):
             )
             await db.commit()
     except Exception as e:
-        print(f"SQLITE Error writing event: {e}")
+        logger.error(f"SQLITE Error writing event: {e}")
 
 
 async def get_events_db(limit: int = 1000):
@@ -60,5 +64,5 @@ async def get_events_db(limit: int = 1000):
                     for r in rows
                 ][::-1]
     except Exception as e:
-        print(f"SQLITE Error reading events: {e}")
+        logger.error(f"SQLITE Error reading events: {e}")
         return []
