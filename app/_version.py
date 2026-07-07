@@ -1,6 +1,6 @@
 import os
 
-__version__ = "v3.7.1"
+__version__ = "v3.7.3"
 
 
 def get_version() -> str:

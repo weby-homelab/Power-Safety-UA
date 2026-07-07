@@ -140,7 +140,7 @@ class QuietModeRequest(BaseModel):
 
 class SafetyNetReactRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    action: str = Field(pattern=r"^(confirm|ignore|dontknow)$")
+    action: str = Field(pattern=r"^(confirm|ignore|dontknow|down|tech)$")
     value: Optional[int] = Field(default=30, ge=1, le=1440)
 
 

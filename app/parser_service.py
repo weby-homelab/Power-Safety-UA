@@ -165,9 +165,11 @@ async def fetch_custom(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
     if not parsed.hostname or _is_private_host(parsed.hostname):
         return None
     try:
+        from app._version import get_version
+
         r = await client.get(
             custom_url,
-            headers={"User-Agent": "Power-Safety-UA/v3.7.1"},
+            headers={"User-Agent": f"Power-Safety-UA/{get_version()}"},
             timeout=20,
         )
         r.raise_for_status()
