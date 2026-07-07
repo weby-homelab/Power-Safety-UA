@@ -121,3 +121,26 @@ def test_get_deviation_info_localization():
             assert get_deviation_info(event_time_exact, is_up=False, lang='en') == "• Powered OFF strictly on schedule"
             assert get_deviation_info(event_time_late, is_up=False, lang='en') == "• Powered OFF later by 15m"
             assert get_deviation_info(event_time_early, is_up=False, lang='en') == "• Powered OFF earlier by 15m"
+
+@patch("app.light_service.subprocess.run")
+@patch("app.light_service.os.open")
+@patch("app.light_service.os.fdopen")
+def test_trigger_daily_report_update(mock_fdopen, mock_open, mock_run):
+    from app.light_service import trigger_daily_report_update
+    import time
+    
+    # Mock os.open to succeed
+    mock_open.return_value = 999
+    
+    # Trigger final report
+    trigger_daily_report_update(is_final=True)
+    
+    # Wait for the thread to run
+    time.sleep(0.1)
+    
+    # Assert subprocess.run was called with correct args
+    mock_run.assert_called_once()
+    args = mock_run.call_args[0][0]
+    assert "app.generate_daily_report" in args
+    assert "--final" in args
+

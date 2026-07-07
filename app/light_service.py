@@ -293,6 +293,7 @@ def trigger_daily_report_update(is_final=False):
 
             print(f"Triggering daily report update (is_final={is_final})...")
             # Use absolute paths
+            base_dir = os.path.dirname(os.path.abspath(__file__))
             python_exec = sys.executable
             script_path = "-m"
 
@@ -303,6 +304,12 @@ def trigger_daily_report_update(is_final=False):
 
             args[1] = "-m"
             args.insert(2, "app.generate_daily_report")
+
+            subprocess.run(
+                args,
+                check=True,
+                cwd=os.path.dirname(base_dir),
+            )
 
         except Exception as e:
             print(f"Failed to trigger daily report: {e}")
