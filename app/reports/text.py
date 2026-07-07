@@ -1,3 +1,4 @@
+import structlog
 import json
 import os
 import datetime
@@ -48,6 +49,8 @@ def get_timezone():
 
 from app.reports.daily import KYIV_TZ, get_quiet_status  # noqa: E402
 from app.reports.common import DAYS_UA  # noqa: E402
+
+logger = structlog.get_logger(__name__)
 
 
 def load_config():
@@ -242,7 +245,7 @@ def main():
     current_hour = now.hour
 
     if is_cleanup:
-        print("Cleanup mode: Removing text schedules from Telegram...")
+        logger.info("Cleanup mode: Removing text schedules from Telegram...")
         # Check all possible slots for today and yesterday
         report_state = get_report_state()
         today_str = now.strftime("%Y-%m-%d")
@@ -265,7 +268,7 @@ def main():
         return
 
     if get_quiet_status() == "quiet":
-        print("Quiet mode active: Skipping text report Telegram update.")
+        logger.info("Quiet mode active: Skipping text report Telegram update.")
         return
 
     cfg = load_config()
@@ -396,7 +399,7 @@ def main():
 
     # Suppress holiday report if it is just "all-on" spam (as per user request)
     if holiday_text:
-        print("Holiday report suppressed to avoid noise.")
+        logger.info("Holiday report suppressed to avoid noise.")
         return
 
     combined_content = "\n\n".join(all_day_contents)
@@ -427,9 +430,9 @@ def main():
                 report_state[today_str] = today_state
                 save_report_state(report_state)
             else:
-                print("Failed to edit text report.")
+                logger.error("Failed to edit text report.")
         else:
-            print("Text report hash unchanged. Skipping update.")
+            logger.info("Text report hash unchanged. Skipping update.")
     else:
         new_id = client.send_message(full_text, silent=True)
         if new_id:

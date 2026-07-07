@@ -1,6 +1,7 @@
 import json
 import os
 import datetime
+import structlog
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import requests
@@ -28,12 +29,15 @@ def get_telegram_config():
     ).get("telegram_channel_id")
 
 
-_cfg_token, _cfg_chat = get_telegram_config()
-TOKEN = _cfg_token or os.environ.get("TELEGRAM_BOT_TOKEN")
-CHAT_ID = _cfg_chat or os.environ.get("TELEGRAM_CHANNEL_ID")
+def get_token():
+    return get_telegram_config()[0] or os.environ.get("TELEGRAM_BOT_TOKEN")
 
-if "PYTEST_CURRENT_TEST" in os.environ:
-    CHAT_ID = ""
+
+def get_chat_id():
+    return get_telegram_config()[1] or os.environ.get("TELEGRAM_CHANNEL_ID")
+
+logger = structlog.get_logger(__name__)
+
 EVENT_LOG_FILE = os.path.join(DATA_DIR, "event_log.json")
 SCHEDULE_FILE = os.path.join(DATA_DIR, "last_schedules.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "schedule_history.json")
@@ -694,7 +698,7 @@ from app.telegram_client import TelegramClient  # noqa: E402
 
 
 def get_telegram_client():
-    return TelegramClient(TOKEN, CHAT_ID)
+    return TelegramClient(get_telegram_config()[0] or os.environ.get("TELEGRAM_BOT_TOKEN"), get_telegram_config()[1] or os.environ.get("TELEGRAM_CHANNEL_ID"))
 
 
 def update_telegram_photo(message_id, photo_path, caption):

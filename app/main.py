@@ -1706,7 +1706,7 @@ async def admin_config_post(request: Request, new_config: AdminConfigRequest):
 
         return {"status": "ok"}
     except Exception as e:
-        print(f"Error reloading config: {e}")
+        logger.error(f"Error reloading config: {e}")
         return JSONResponse(
             {"status": "error", "msg": "Internal server error"}, status_code=500
         )
@@ -1813,7 +1813,7 @@ async def admin_logs_add(request: Request, data: LogAddRequest):
         await log_event(event, float(timestamp))
         return {"status": "ok"}
     except Exception as e:
-        print(f"Error logging event: {e}")
+        logger.error(f"Error logging event: {e}")
         return JSONResponse(
             {"status": "error", "msg": "Internal server error"}, status_code=500
         )
@@ -1841,7 +1841,7 @@ async def admin_logs_delete(request: Request, timestamp: float):
 
         return {"status": "ok"}
     except Exception as e:
-        print(f"Error deleting log: {e}")
+        logger.error(f"Error deleting log: {e}")
         return JSONResponse(
             {"status": "error", "msg": "Internal server error"}, status_code=500
         )
@@ -1865,7 +1865,7 @@ async def admin_service_restart(
             "msg": "Running in Docker — restart container manually",
         }
     except Exception as e:
-        print(f"Error restarting services: {e}")
+        logger.error(f"Error restarting services: {e}")
         return JSONResponse(
             {"status": "error", "msg": "Internal server error"}, status_code=500
         )
@@ -1885,7 +1885,7 @@ async def admin_schedules_sync(
         background_tasks.add_task(sync_schedules)
         return {"status": "ok", "msg": "Sync triggered"}
     except Exception as e:
-        print(f"Error syncing schedules: {e}")
+        logger.error(f"Error syncing schedules: {e}")
         return JSONResponse(
             {"status": "error", "msg": "Internal server error"}, status_code=500
         )

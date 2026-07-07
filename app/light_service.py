@@ -1,4 +1,5 @@
-import threading
+import structlog
+from concurrent.futures import ThreadPoolExecutor
 import time
 import json
 import asyncio
@@ -150,7 +151,7 @@ def prune_old_data():
             new_logs = [item for item in logs if item.get("timestamp", 0) > cutoff]
             if len(new_logs) < len(logs):
                 StorageUtils.save_json_sync(EVENT_LOG_FILE, new_logs)
-                print(f"Pruned {len(logs) - len(new_logs)} old events.")
+                logger.info(f"Pruned {len(logs) - len(new_logs)} old events.")
 
         # 2. Prune schedule_history.json
         history = StorageUtils.load_json_sync(HISTORY_FILE, default=None)
@@ -161,9 +162,11 @@ def prune_old_data():
             new_history = {d: v for d, v in history.items() if d >= cutoff_date}
             if len(new_history) < len(history):
                 StorageUtils.save_json_sync(HISTORY_FILE, new_history)
-                print(f"Pruned {len(history) - len(new_history)} old schedule records.")
+                logger.info(
+                    f"Pruned {len(history) - len(new_history)} old schedule records."
+                )
     except Exception as e:
-        print(f"Error during data pruning: {e}")
+        logger.error(f"Error during data pruning: {e}")
 
 
 def get_advanced_setting(section, key, default=None):
@@ -191,19 +194,17 @@ def get_telegram_channel_id_cfg():
     )
 
 
-TOKEN = get_telegram_token()
-CHAT_ID = get_telegram_channel_id_cfg()
-ADMIN_CHAT_ID = get_admin_chat_id()
-
-if "PYTEST_CURRENT_TEST" in os.environ:
-    CHAT_ID = ADMIN_CHAT_ID
 PORT = 8889
+_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="save-safety")
 # SECRET_KEY handled in state
 STATE_FILE = os.path.join(DATA_DIR, "power_monitor_state.json")
 STATE_LOCK_FILE = os.path.join(DATA_DIR, "power_monitor_state.lock")
 SCHEDULE_FILE = os.path.join(DATA_DIR, "last_schedules.json")
 
 from app.storage import SafeStateContextAsync, StorageUtils  # noqa: E402
+
+logger = structlog.get_logger(__name__)
+
 
 state_mgr = SafeStateContextAsync(STATE_LOCK_FILE)
 
@@ -279,7 +280,7 @@ def trigger_daily_report_update(is_final=False):
                 except Exception:
                     pass
 
-            print(f"Triggering daily report update (is_final={is_final})...")
+            logger.info(f"Triggering daily report update (is_final={is_final})...")
             # Use absolute paths
             base_dir = os.path.dirname(os.path.abspath(__file__))
             python_exec = sys.executable
@@ -300,12 +301,12 @@ def trigger_daily_report_update(is_final=False):
             )
 
         except Exception as e:
-            print(f"Failed to trigger daily report: {e}")
+            logger.error(f"Failed to trigger daily report: {e}")
         finally:
             # Note: We don't necessarily delete the lock file to keep it as a cooldown marker
             pass
 
-    threading.Thread(target=run_script).start()
+    _executor.submit(run_script)
 
 
 def trigger_text_report_update():
@@ -330,7 +331,7 @@ def trigger_text_report_update():
                 except Exception:
                     pass
 
-            print("Triggering text report update...")
+            logger.info("Triggering text report update...")
             base_dir = os.path.dirname(os.path.abspath(__file__))
             python_exec = sys.executable
 
@@ -340,9 +341,9 @@ def trigger_text_report_update():
                 cwd=os.path.dirname(base_dir),
             )
         except Exception as e:
-            print(f"Failed to trigger text report: {e}")
+            logger.error(f"Failed to trigger text report: {e}")
 
-    threading.Thread(target=run_script).start()
+    _executor.submit(run_script)
 
 
 def trigger_weekly_report_update():
@@ -367,7 +368,7 @@ def trigger_weekly_report_update():
                 except Exception:
                     pass
 
-            print("Triggering weekly report update...")
+            logger.info("Triggering weekly report update...")
             base_dir = os.path.dirname(os.path.abspath(__file__))
             python_exec = sys.executable
 
@@ -388,9 +389,9 @@ def trigger_weekly_report_update():
                 cwd=os.path.dirname(base_dir),
             )
         except Exception as e:
-            print(f"Failed to trigger weekly report: {e}")
+            logger.error(f"Failed to trigger weekly report: {e}")
 
-    threading.Thread(target=run_script).start()
+    _executor.submit(run_script)
 
 
 async def log_event(event_type, timestamp):
@@ -423,7 +424,7 @@ async def log_event(event_type, timestamp):
             await StorageUtils.save_json_async(EVENT_LOG_FILE, logs)
 
     except Exception as e:
-        print(f"Failed to log event: {e}")
+        logger.error(f"Failed to log event: {e}")
 
     # Immediately trigger report updates to reflect live status
     trigger_daily_report_update()
@@ -435,7 +436,7 @@ async def load_state():
     async with state_mgr:
         saved_state = await StorageUtils.load_json_async(STATE_FILE, default={})
         if not saved_state:
-            print(
+            logger.info(
                 f"Warning: load_state loaded empty state from {STATE_FILE}. Status will be unknown."
             )
 
@@ -446,7 +447,7 @@ async def load_state():
             validated_state = AppState(**state).model_dump(exclude_unset=False)
             state.update(validated_state)
         except Exception as e:
-            print(f"State validation error: {e}")
+            logger.error(f"State validation error: {e}")
 
     if not state.get("secret_key"):
         state["secret_key"] = os.environ.get("SECRET_KEY", secrets.token_urlsafe(16))
@@ -636,7 +637,7 @@ def get_next_scheduled_event(event_time, look_for_light):
 
         return {"time_left_sec": diff_sec, "interval": f"{start_t}-{end_t}"}
     except Exception as e:
-        print(f"Error in get_next_scheduled_event: {e}")
+        logger.error(f"Error in get_next_scheduled_event: {e}")
         return None
 
 
@@ -846,7 +847,7 @@ def get_schedule_context(lang="ua"):
 
         return (is_light_now, t_end, next_range, next_duration, is_emergency)
     except Exception as e:
-        print(f"Schedule error: {e}")
+        logger.error(f"Schedule error: {e}")
         return (None, None, "Error" if lang == "en" else "Помилка", None, False)
 
 
@@ -858,20 +859,20 @@ def send_telegram(message):
         else get_telegram_channel_id_cfg()
     )
     if not token or not chat_id:
-        print("Telegram configuration missing (TOKEN or CHAT_ID)")
+        logger.info("Telegram configuration missing (TOKEN or CHAT_ID)")
         return
     token_masked = token[:5] + "..." + token[-5:]
-    print(f"DEBUG: Sending telegram message to {chat_id} via bot {token_masked}")
+    logger.debug(f"DEBUG: Sending telegram message to {chat_id} via bot {token_masked}")
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
     try:
         r = requests.post(url, json=payload, timeout=5)
         if r.status_code != 200:
             err_msg = r.text.replace(token, "[REDACTED_TOKEN]")
-            print(f"Telegram API Error (Status {r.status_code}): {err_msg}")
+            logger.error(f"Telegram API Error (Status {r.status_code}): {err_msg}")
     except Exception as e:
         err_str = str(e).replace(token, "[REDACTED_TOKEN]")
-        print(f"Failed to send Telegram message: {err_str}")
+        logger.error(f"Failed to send Telegram message: {err_str}")
 
 
 def send_admin_confirmation(timestamp):
@@ -900,7 +901,7 @@ def send_admin_confirmation(timestamp):
     try:
         requests.post(url, json=payload, timeout=5)
     except Exception as e:
-        print(f"Failed to send admin confirmation: {e}")
+        logger.error(f"Failed to send admin confirmation: {e}")
 
 
 def send_safety_net_admin(timestamp):
@@ -930,7 +931,7 @@ def send_safety_net_admin(timestamp):
     try:
         requests.post(url, json=payload, timeout=5)
     except Exception as e:
-        print(f"Failed to send safety net admin: {e}")
+        logger.error(f"Failed to send safety net admin: {e}")
 
 
 def get_deviation_info(event_time, is_up, lang="ua"):
@@ -992,7 +993,7 @@ def get_deviation_info(event_time, is_up, lang="ua"):
                 return f"• {action} точно за графіком"
             return f"• {action} {timing} на {dur_str}"
     except Exception as e:
-        print(f"Error in deviation calc: {e}")
+        logger.error(f"Error in deviation calc: {e}")
         return ""
 
 
@@ -1065,7 +1066,7 @@ def get_air_raid_alert():
                 "location": location,
             }
     except Exception as e:
-        print(f"Error fetching alerts: {e}")
+        logger.error(f"Error fetching alerts: {e}")
     return {"status": "unknown", "location": "Невідомо"}
 
 
@@ -1088,7 +1089,7 @@ async def update_quiet_status():
             if new_status == "quiet":
                 state["stability_start"] = time.time()
                 # CLEANUP: When entering quiet mode, remove active reports from channel
-                print("Entering Quiet Mode. Cleaning up active reports...")
+                logger.info("Entering Quiet Mode. Cleaning up active reports...")
 
                 def run_cleanup():
                     try:
@@ -1115,7 +1116,7 @@ async def update_quiet_status():
                     except Exception:
                         pass
 
-                threading.Thread(target=run_cleanup).start()
+                _executor.submit(run_cleanup)
             else:
 
                 def trigger_report():
@@ -1135,11 +1136,11 @@ async def update_quiet_status():
                             cwd=os.path.dirname(base_dir),
                         )
                     except Exception as e:
-                        print(f"Failed to trigger text report: {e}")
+                        logger.error(f"Failed to trigger text report: {e}")
 
-                threading.Thread(target=trigger_report).start()
+                _executor.submit(trigger_report)
             await save_state()
-            print(f"Quiet mode status updated to: {new_status}")
+            logger.info(f"Quiet mode status updated to: {new_status}")
 
 
 async def _check_safety_net_trigger(current_time, last_seen):
@@ -1154,7 +1155,10 @@ async def _check_safety_net_trigger(current_time, last_seen):
             state["safety_net_sent_at"] = current_time
             state["safety_net_triggered_for"] = last_seen
             await save_state()
-            threading.Thread(target=send_safety_net_admin, args=(current_time,)).start()
+            _executor.submit(
+                send_safety_net_admin,
+                current_time,
+            )
 
 
 async def _check_safety_net_timeout(current_time):
@@ -1174,11 +1178,15 @@ async def _check_outage_detection(current_time, last_seen):
         msg = format_event_message(False, down_time_ts, state.get("came_up_at", 0))
         if state.get("quiet_status") == "quiet":
             state["pending_confirmation"] = True
-            threading.Thread(
-                target=send_admin_confirmation, args=(down_time_ts,)
-            ).start()
+            _executor.submit(
+                send_admin_confirmation,
+                down_time_ts,
+            )
         else:
-            threading.Thread(target=send_telegram, args=(msg,)).start()
+            _executor.submit(
+                send_telegram,
+                msg,
+            )
         await save_state()
 
 
@@ -1194,7 +1202,7 @@ async def _check_auto_confirmation(current_time):
         q_mode = state.get("quiet_mode", "auto")
 
         if q_mode == "forced_on":
-            print(
+            logger.info(
                 "Safety Net timeout: Quiet Mode is FORCED ON. Bypassing public alarm."
             )
             state["pending_confirmation"] = False
@@ -1202,7 +1210,7 @@ async def _check_auto_confirmation(current_time):
             return
 
         if q_mode == "auto" and state.get("quiet_status") == "quiet":
-            print(
+            logger.info(
                 "Safety Net timeout: AUTO Quiet Mode is active. Bypassing public alarm to maintain silence."
             )
             state["pending_confirmation"] = False
@@ -1210,14 +1218,14 @@ async def _check_auto_confirmation(current_time):
             return
 
         if not auto_confirm:
-            print(
+            logger.info(
                 "Safety Net timeout: auto_confirm is Disabled. Bypassing public alarm."
             )
             state["pending_confirmation"] = False
             await save_state()
             return
 
-        print(
+        logger.info(
             "Safety Net timeout: Admin did not respond in 5 mins. Assuming real outage. Sending public alarm."
         )
         state["pending_confirmation"] = False
@@ -1225,13 +1233,16 @@ async def _check_auto_confirmation(current_time):
 
         down_time = state.get("went_down_at", 0)
         msg = format_event_message(False, down_time, state.get("came_up_at", 0))
-        threading.Thread(target=send_telegram, args=(msg,)).start()
+        _executor.submit(
+            send_telegram,
+            msg,
+        )
 
         await save_state()
 
 
 async def monitor_loop():
-    print("Monitor loop started...")
+    logger.info("Monitor loop started...")
     while True:
         try:
             await asyncio.sleep(5)
@@ -1251,12 +1262,12 @@ async def monitor_loop():
                 await _check_auto_confirmation(current_time)
 
         except Exception as e:
-            print(f"Critical error in monitor_loop: {e}")
+            logger.error(f"Critical error in monitor_loop: {e}")
             await asyncio.sleep(5)
 
 
 async def alerts_loop():
-    print("Alerts loop started...")
+    logger.info("Alerts loop started...")
     while True:
         try:
             current_alert = await asyncio.to_thread(get_air_raid_alert)
@@ -1305,9 +1316,10 @@ async def alerts_loop():
 
                             if can_notify:
                                 msg = f"⚠️ <b>{time_str} ПОВІТРЯНА ТРИВОГА! КИЇВ</b>"
-                                threading.Thread(
-                                    target=send_telegram, args=(msg,)
-                                ).start()
+                                _executor.submit(
+                                    send_telegram,
+                                    msg,
+                                )
                         elif old_status == "active" and new_status != "active":
                             try:
                                 log_path = os.path.join(DATA_DIR, "air_raid_log.json")
@@ -1340,13 +1352,14 @@ async def alerts_loop():
                                 msg = (
                                     f"✅ <b>{time_str} ВІДБІЙ ТРИВОГИ</b>{duration_str}"
                                 )
-                                threading.Thread(
-                                    target=send_telegram, args=(msg,)
-                                ).start()
+                                _executor.submit(
+                                    send_telegram,
+                                    msg,
+                                )
                         state["alert_status"] = new_status
                         await save_state()
         except Exception as e:
-            print(f"Error in alerts loop: {e}")
+            logger.error(f"Error in alerts loop: {e}")
         await asyncio.sleep(60)
 
 
@@ -1367,7 +1380,7 @@ async def sync_schedules():
 
     if SCHEDULE_API_URL:
         try:
-            print(f"Syncing schedules from {SCHEDULE_API_URL}...")
+            logger.info(f"Syncing schedules from {SCHEDULE_API_URL}...")
             urls = {
                 SCHEDULE_FILE: f"{SCHEDULE_API_URL}/last_schedules.json",
                 HISTORY_FILE: f"{SCHEDULE_API_URL}/schedule_history.json",
@@ -1384,14 +1397,14 @@ async def sync_schedules():
             new_hashes = {f: get_file_hash(f) for f in urls.keys()}
             if old_hashes[SCHEDULE_FILE] != new_hashes[SCHEDULE_FILE]:
                 has_changed = True
-                print("API Sync: Schedule changed.")
+                logger.info("API Sync: Schedule changed.")
 
             sync_success = True
         except Exception as e:
-            print(f"Failed to sync schedules via API: {e}")
+            logger.error(f"Failed to sync schedules via API: {e}")
 
     if not sync_success:
-        print("Starting local schedule parsing...")
+        logger.info("Starting local schedule parsing...")
         start_time = time.time()
         config_path = os.path.join(DATA_DIR, "config.json")
         result = await update_local_schedules(config_path, SCHEDULE_FILE)
@@ -1407,7 +1420,7 @@ async def sync_schedules():
             result[1] if isinstance(result, tuple) and len(result) == 2 else False
         )
         if has_changed:
-            print("Local Parsing: Schedule changed.")
+            logger.info("Local Parsing: Schedule changed.")
 
     if has_changed:
         # Trigger updates since data changed
@@ -1460,12 +1473,12 @@ async def sync_schedules():
                                 "active"  # Disable quiet mode if schedule appears
                             )
                             await save_state()
-                            print(
+                            logger.info(
                                 "Triggering text report alert due to schedule change..."
                             )
                             trigger_text_report_update()
         except Exception as e:
-            print(f"Error in schedule change alert logic: {e}")
+            logger.error(f"Error in schedule change alert logic: {e}")
 
     return has_changed
 
@@ -1515,7 +1528,7 @@ def check_quiet_mode_eligibility():
 
 
 async def schedule_loop():
-    print("Schedule loop started...")
+    logger.info("Schedule loop started...")
     weekly_sent_date = None
     last_prune_date = None
 
@@ -1541,7 +1554,7 @@ async def schedule_loop():
                 cfg.get("advanced", {}).get("notifications", {}).get("report_times", [])
             )
             if now_str in report_times:
-                print(f"Triggering scheduled report at {now_str}...")
+                logger.info(f"Triggering scheduled report at {now_str}...")
                 trigger_daily_report_update(is_final=False)
                 await asyncio.sleep(65)
                 continue
@@ -1576,7 +1589,7 @@ async def schedule_loop():
                     except Exception:
                         pass
         except Exception as e:
-            print(f"Critical error in schedule_loop: {e}")
+            logger.error(f"Critical error in schedule_loop: {e}")
 
         await asyncio.sleep(60)
 
@@ -1722,20 +1735,20 @@ async def collect_metrics_job():
         with open(history_file, "w") as f:
             json.dump(history, f, indent=2)
 
-        print(
+        logger.info(
             f"Metrics collected at {datetime.datetime.now().strftime('%H:%M:%S')}: AQI={aqi}, Temp={temp}, Hum={hum}"
         )
     except Exception as e:
-        print(f"Error in collect_metrics_job: {e}")
+        logger.error(f"Error in collect_metrics_job: {e}")
 
 
 async def metrics_collector_loop():
-    print("Metrics collector loop started...")
+    logger.info("Metrics collector loop started...")
     await collect_metrics_job()
     while True:
         try:
             await asyncio.sleep(300)
             await collect_metrics_job()
         except Exception as e:
-            print(f"Error in metrics_collector_loop: {e}")
+            logger.error(f"Error in metrics_collector_loop: {e}")
             await asyncio.sleep(10)
