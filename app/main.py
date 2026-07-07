@@ -115,6 +115,7 @@ async def lifespan(app: FastAPI):
 
 
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 from app.config import settings  # noqa: E402
 
 app = FastAPI(lifespan=lifespan)
@@ -143,6 +144,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 templates = Jinja2Templates(directory="templates")
 templates.env.cache = None  # Disable cache to bypass unhashable key bug
@@ -223,12 +226,25 @@ async def cached_fetch(key, func):
 
 @app.get("/manifest.json")
 def manifest():
-    return FileResponse("static/manifest.json")
+    return FileResponse(
+        "static/manifest.json",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/service-worker.js")
 def service_worker():
-    return FileResponse("static/service-worker.js")
+    return FileResponse(
+        "static/service-worker.js",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/version")
+def api_version():
+    from app._version import get_version
+
+    return {"version": get_version()}
 
 
 @app.get("/static/{filename:path}")
