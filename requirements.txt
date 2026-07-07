@@ -17,7 +17,7 @@ pydantic-settings==2.7.0
 prometheus-client==0.21.0
 aiosqlite==0.20.0
 jinja2==3.1.6
-pydantic==2.13.0
+pydantic==2.13.4
 cachetools==5.3.3
 httpx==0.28.1
 sse-starlette==2.1.3
