@@ -25,6 +25,7 @@ from fastapi import (
     BackgroundTasks,
     Header,
     Body,
+    Query,
 )
 from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
