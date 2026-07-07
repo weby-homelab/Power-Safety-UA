@@ -39,9 +39,7 @@ class TestSafetyNetEligibility:
     def test_not_eligible_when_recent_down_event(self):
         """Quiet mode should NOT be eligible when a down event occurred within 24h."""
         now = time.time()
-        recent_logs = [
-            {"timestamp": now - 3600, "event": "down", "date_str": "recent"}
-        ]
+        recent_logs = [{"timestamp": now - 3600, "event": "down", "date_str": "recent"}]
         schedule = {
             "github": {
                 "G1": {

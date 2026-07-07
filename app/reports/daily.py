@@ -8,10 +8,12 @@ import sys
 import shutil
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+from app.reports.common import (
+    KYIV_TZ,
+    get_alert_intervals as _get_alert_intervals_common,
+)
 
-from app.reports.common import KYIV_TZ, get_alert_intervals as _get_alert_intervals_common  # noqa: E402
+load_dotenv()
 
 # --- Configuration ---
 DATA_DIR = os.environ.get("DATA_DIR", "data")

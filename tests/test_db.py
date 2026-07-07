@@ -24,7 +24,7 @@ async def test_db_operations():
 
     # Fetch events
     events = await get_events_db()
-    
+
     assert len(events) == 2
     assert events[0]["event"] == "up"
     assert events[0]["timestamp"] == 1700000000.0

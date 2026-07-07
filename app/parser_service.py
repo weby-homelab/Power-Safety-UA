@@ -135,7 +135,9 @@ def _is_private_host(hostname: str) -> bool:
         addr = ipaddress.ip_address(hostname)
     except ValueError:
         try:
-            addrs = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+            addrs = socket.getaddrinfo(
+                hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM
+            )
         except socket.gaierror:
             return True
         ips = {a[4][0] for a in addrs}

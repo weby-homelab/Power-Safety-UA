@@ -19,7 +19,12 @@ import secrets
 import subprocess
 
 from fastapi import (
-    FastAPI, Request, HTTPException, BackgroundTasks, Header, Body,
+    FastAPI,
+    Request,
+    HTTPException,
+    BackgroundTasks,
+    Header,
+    Body,
 )
 from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -81,6 +86,7 @@ async def _async_telegram_post(url: str, data: dict) -> None:
     except httpx.HTTPError as e:
         logger.warning("telegram_api_error", url=url, error=str(e))
 
+
 # Structlog configuration
 structlog.configure(
     processors=[
@@ -115,12 +121,14 @@ app = FastAPI(lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
 app.state.limiter = limiter
 
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=429,
         content={"status": "error", "msg": "Too many requests", "detail": str(exc)},
     )
+
 
 # CORS Configuration from env
 allowed_origins = [
@@ -1090,7 +1098,11 @@ def admin_panel(
     x_admin_token: str = Header(None, alias="X-Admin-Token"),
 ):
     admin_token = state.get("admin_token")
-    if x_admin_token and admin_token and secrets.compare_digest(x_admin_token, admin_token):
+    if (
+        x_admin_token
+        and admin_token
+        and secrets.compare_digest(x_admin_token, admin_token)
+    ):
         return templates.TemplateResponse(request=request, name="admin.html")
     return PlainTextResponse("Access Denied", status_code=403)
 
@@ -1363,7 +1375,9 @@ async def tg_webhook(
     x_secret: str = Header(None, alias="X-Telegram-Bot-Api-Secret-Token"),
 ):
     webhook_secret = settings.telegram_webhook_secret
-    if webhook_secret and (not x_secret or not secrets.compare_digest(x_secret, webhook_secret)):
+    if webhook_secret and (
+        not x_secret or not secrets.compare_digest(x_secret, webhook_secret)
+    ):
         return PlainTextResponse("Unauthorized", status_code=403)
 
     if not data:
@@ -1453,7 +1467,10 @@ async def tg_webhook(
             background_tasks.add_task(
                 _async_telegram_post,
                 f"https://api.telegram.org/bot{get_telegram_token()}/answerCallbackQuery",
-                {"callback_query_id": cb["id"], "text": f"🛠 Моніторинг вимкнено на {minutes} хв"},
+                {
+                    "callback_query_id": cb["id"],
+                    "text": f"🛠 Моніторинг вимкнено на {minutes} хв",
+                },
             )
 
             background_tasks.add_task(
@@ -1611,9 +1628,7 @@ async def admin_config_post(request: Request, new_config: AdminConfigRequest):
         )
 
     try:
-        validated_config = new_config.model_dump(
-            exclude_unset=False, by_alias=True
-        )
+        validated_config = new_config.model_dump(exclude_unset=False, by_alias=True)
 
         # Create auto-backup before saving
         await asyncio.to_thread(create_backup, "auto_before_save")
