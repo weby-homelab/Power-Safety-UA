@@ -1,5 +1,5 @@
 {
-  "id": "Power-Safety-UA",
+  "id": "/",
   "name": "СВІТЛО⚡БЕЗПЕКА",
   "short_name": "Світло",
   "description": "Моніторинг світла та безпеки Києва в реальному часі",
@@ -9,6 +9,8 @@
   "background_color": "#050505",
   "theme_color": "#050505",
   "orientation": "portrait",
+  "lang": "uk",
+  "categories": ["utilities", "news"],
   "icons": [
     {
       "src": "/static/favicon.png",
@@ -39,13 +41,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/static/dashboard_preview.jpg",
-      "sizes": "1080x1920",
-      "type": "image/jpeg"
     }
   ]
 }
