@@ -4,6 +4,7 @@ on:
   push:
     branches: ["main"]
     tags: ["v*.*.*"]
+    paths-ignore: ["**.md", "docs/**", "LICENSE", ".pre-commit-config.yaml"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -19,8 +20,11 @@ permissions:
 
 jobs:
   test:
-    name: Lint, SAST & Test
+    name: Lint, SAST & Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -28,13 +32,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff==0.15.20 bandit==1.8.0 pytest==8.4.0 responses httpx pytest-cov==7.0.0
+          pip install -r requirements-dev.txt
           pip install -r requirements.txt
 
       - name: Run Ruff Formatter Check
@@ -44,12 +48,12 @@ jobs:
         run: ruff check app/ tests/
 
       - name: Run Bandit SAST Scan
-        run: bandit -r app/ -c .bandit -v
+        run: bandit -r app/ -c .bandit
 
       - name: Run Pytest with Coverage
         env:
           PYTHONPATH: .
-        run: pytest tests/ -v --cov=app --cov-fail-under=30
+        run: pytest tests/ -v --cov=app --cov-fail-under=50
 
   build:
     name: Docker Build & Push
@@ -104,8 +108,18 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
 
+      - name: Run Trivy image scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: webyhomelab/power-safety-ua:latest
+          format: sarif
+          output: trivy-image-results.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+
       - name: Upload Trivy SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: trivy-results.sarif
+          sarif_file: |
+            trivy-results.sarif
+            trivy-image-results.sarif

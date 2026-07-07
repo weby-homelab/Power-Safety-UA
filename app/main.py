@@ -6,6 +6,7 @@ import os
 import time
 import re
 import asyncio
+import anyio
 import cachetools
 import httpx
 import structlog
@@ -103,6 +104,8 @@ http_client: httpx.AsyncClient = None  # type: ignore[assignment]
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global http_client
+    limiter = anyio.to_thread.current_default_thread_limiter()
+    limiter.total_tokens = 100
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(10.0))
     logger.info("application_startup")
     await load_state()
