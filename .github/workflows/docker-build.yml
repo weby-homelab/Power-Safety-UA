@@ -116,10 +116,16 @@ jobs:
           output: trivy-image-results.sarif
           severity: CRITICAL,HIGH,MEDIUM
 
-      - name: Upload Trivy SARIF to GitHub Security
+      - name: Upload Trivy FS SARIF
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: |
-            trivy-results.sarif
-            trivy-image-results.sarif
+          sarif_file: trivy-results.sarif
+          category: trivy-fs
+
+      - name: Upload Trivy Image SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-image
