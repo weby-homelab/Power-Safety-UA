@@ -36,6 +36,7 @@ def get_token():
 def get_chat_id():
     return get_telegram_config()[1] or os.environ.get("TELEGRAM_CHANNEL_ID")
 
+
 logger = structlog.get_logger(__name__)
 
 EVENT_LOG_FILE = os.path.join(DATA_DIR, "event_log.json")
@@ -698,7 +699,10 @@ from app.telegram_client import TelegramClient  # noqa: E402
 
 
 def get_telegram_client():
-    return TelegramClient(get_telegram_config()[0] or os.environ.get("TELEGRAM_BOT_TOKEN"), get_telegram_config()[1] or os.environ.get("TELEGRAM_CHANNEL_ID"))
+    return TelegramClient(
+        get_telegram_config()[0] or os.environ.get("TELEGRAM_BOT_TOKEN"),
+        get_telegram_config()[1] or os.environ.get("TELEGRAM_CHANNEL_ID"),
+    )
 
 
 def update_telegram_photo(message_id, photo_path, caption):
