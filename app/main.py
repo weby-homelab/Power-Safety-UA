@@ -1914,7 +1914,6 @@ async def admin_regen_token(request: Request):
 
 @app.get("/api/status/stream")
 async def status_stream(request: Request, lang: str = "ua"):
-
     async def event_generator():
         q = asyncio.Queue(maxsize=100)
         await manager.connect(q, lang)
