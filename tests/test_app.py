@@ -1,7 +1,5 @@
-import pytest
 from fastapi.testclient import TestClient
-import sys
-import os
+import datetime
 from unittest.mock import patch
 
 # Mock some dependencies before importing app
@@ -53,7 +51,6 @@ def test_metrics_endpoint():
     assert response.status_code == 200
     assert "power_safety_active_sse_connections" in response.text
 
-import datetime
 
 def test_get_wind_label_localization():
     assert app.main.get_wind_label(0, lang='ua') == "Пн"
@@ -72,3 +69,27 @@ def test_render_day_schedule_html_localization():
     assert "June" in html_en
     assert "Power ON" in html_en
     assert "Увімкнення" in html_ua
+
+
+def test_webhook_no_secret_rejected():
+    """Webhook without secret token should be rejected."""
+    with patch("app.main.settings.telegram_webhook_secret", "test_secret"):
+        response = client.post("/api/tg/webhook", json={"test": 1})
+        assert response.status_code == 403
+
+
+def test_webhook_empty_body():
+    """Webhook with empty body should return OK."""
+    with patch("app.main.settings.telegram_webhook_secret", ""):
+        response = client.post("/api/tg/webhook")
+        assert response.status_code == 200
+
+
+def test_rate_limit_admin_endpoint():
+    """Admin endpoints should require valid auth token."""
+    response = client.post(
+        "/api/admin/logs/add",
+        json={"event": "up", "timestamp": 1234567890.0},
+        headers={"X-Admin-Token": "invalid"},
+    )
+    assert response.status_code in [403, 429]

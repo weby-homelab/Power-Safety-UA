@@ -1,14 +1,21 @@
 import pytest
 import os
-from app.db import log_event_db, get_events_db, DB_FILE
+import app.db
+
+
+@pytest.fixture(autouse=True)
+def reset_db_init():
+    app.db._db_initialized = False
+
 
 @pytest.mark.anyio
 async def test_db_operations():
-    # Cleanup DB file if exists before test
+    from app.db import log_event_db, get_events_db, DB_FILE
+
     if os.path.exists(DB_FILE):
         try:
             os.remove(DB_FILE)
-        except:
+        except (FileNotFoundError, OSError):
             pass
 
     # Log mock events
@@ -28,5 +35,5 @@ async def test_db_operations():
     if os.path.exists(DB_FILE):
         try:
             os.remove(DB_FILE)
-        except:
+        except (FileNotFoundError, OSError):
             pass

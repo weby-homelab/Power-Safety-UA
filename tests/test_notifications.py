@@ -1,11 +1,11 @@
-import pytest
 import datetime
+import time
 from zoneinfo import ZoneInfo
 from app.light_service import format_event_message
 
-KYIV_TZ = ZoneInfo("Europe/Kyiv")
-
 from unittest.mock import patch
+
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 def test_format_event_message_very_soon_outage():
     # Light comes on at 19:29:50 (10 seconds before 19:30)
@@ -143,4 +143,147 @@ def test_trigger_daily_report_update(mock_fdopen, mock_open, mock_run):
     args = mock_run.call_args[0][0]
     assert "app.generate_daily_report" in args
     assert "--final" in args
+
+
+class TestSafetyNetNotifications:
+    """Test safety net notification edge cases."""
+
+    def test_send_safety_net_admin_called(self):
+        """send_safety_net_admin should POST to Telegram API."""
+        from app.light_service import send_safety_net_admin
+
+        with patch("app.light_service.get_telegram_token", return_value="test_token"):
+            with patch("app.light_service.get_admin_chat_id", return_value="12345"):
+                with patch("requests.post") as mock_post:
+                    mock_post.return_value.status_code = 200
+                    send_safety_net_admin(1234567890.0)
+                    mock_post.assert_called_once()
+                    call_args = mock_post.call_args
+                    assert "sendMessage" in call_args[0][0]
+                    payload = call_args[1]["json"]
+                    assert "SAFETY NET" in payload["text"]
+                    assert "chat_id" in payload
+
+    def test_send_safety_net_inline_keyboard(self):
+        """Safety net message should have 2 rows of inline keyboard buttons."""
+        from app.light_service import send_safety_net_admin
+
+        with patch("app.light_service.get_telegram_token", return_value="test_token"):
+            with patch("app.light_service.get_admin_chat_id", return_value="12345"):
+                with patch("requests.post") as mock_post:
+                    mock_post.return_value.status_code = 200
+                    send_safety_net_admin(1234567890.0)
+                    payload = mock_post.call_args[1]["json"]
+                    keyboard = payload["reply_markup"]["inline_keyboard"]
+                    assert len(keyboard) == 2
+                    assert len(keyboard[0]) == 2
+                    assert len(keyboard[1]) == 1
+
+    def test_send_admin_confirmation_called(self):
+        """send_admin_confirmation should POST to Telegram API."""
+        from app.light_service import send_admin_confirmation
+
+        with patch("app.light_service.get_telegram_token", return_value="test_token"):
+            with patch("app.light_service.get_admin_chat_id", return_value="12345"):
+                with patch("requests.post") as mock_post:
+                    mock_post.return_value.status_code = 200
+                    send_admin_confirmation(1234567890.0)
+                    mock_post.assert_called_once()
+                    call_args = mock_post.call_args
+                    assert "sendMessage" in call_args[0][0]
+                    payload = call_args[1]["json"]
+                    assert "Інформаційний спокій" in payload["text"]
+
+
+class TestFormatEventMessageEdgeCases:
+    """Test edge cases in event message formatting."""
+
+    def test_format_up_with_no_previous_event(self):
+        """Up event with zero previous event time shows unknown duration."""
+        now = time.time()
+        with patch("app.light_service.get_next_scheduled_event", return_value=None):
+            with patch("app.light_service.get_deviation_info", return_value=""):
+                with patch(
+                    "app.light_service.get_config",
+                    return_value={"ui": {"text": {}}},
+                ):
+                    msg = format_event_message(True, now, 0)
+                    assert "невідомо" in msg
+
+    def test_format_down_with_no_previous_event(self):
+        """Down event with zero previous event time shows unknown duration."""
+        now = time.time()
+        with patch("app.light_service.get_next_scheduled_event", return_value=None):
+            with patch("app.light_service.get_deviation_info", return_value=""):
+                with patch(
+                    "app.light_service.get_config",
+                    return_value={"ui": {"text": {}}},
+                ):
+                    msg = format_event_message(False, now, 0)
+                    assert "невідомо" in msg
+
+    def test_format_up_with_very_soon_interval(self):
+        """Next event in less than 60 seconds shows 'менше хвилини'."""
+        now = time.time()
+        prev = now - 7200
+        mock_next = {"time_left_sec": 30, "interval": "15:00-18:00"}
+        with patch(
+            "app.light_service.get_next_scheduled_event", return_value=mock_next
+        ):
+            with patch("app.light_service.get_deviation_info", return_value=""):
+                with patch(
+                    "app.light_service.get_config",
+                    return_value={"ui": {"text": {}}},
+                ):
+                    msg = format_event_message(True, now, prev)
+                    assert "менше хвилини" in msg
+
+    def test_format_up_with_no_schedule_at_all(self):
+        """Up event from region without scheduled outages."""
+        now = time.time()
+        prev = now - 3600
+        with patch("app.light_service.get_next_scheduled_event", return_value=None):
+            with patch("app.light_service.get_deviation_info", return_value=""):
+                with patch(
+                    "app.light_service.get_config",
+                    return_value={"ui": {"text": {}}},
+                ):
+                    msg = format_event_message(True, now, prev)
+                    assert "не плануються" in msg
+
+    def test_format_down_with_no_schedule_at_all(self):
+        """Down event from region without scheduled outages."""
+        now = time.time()
+        prev = now - 3600
+        with patch("app.light_service.get_next_scheduled_event", return_value=None):
+            with patch("app.light_service.get_deviation_info", return_value=""):
+                with patch(
+                    "app.light_service.get_config",
+                    return_value={"ui": {"text": {}}},
+                ):
+                    msg = format_event_message(False, now, prev)
+                    assert "невідомий час" in msg
+
+    def test_format_down_with_custom_text_overrides(self):
+        """Custom text from config should be used in message."""
+        now = time.time()
+        prev = now - 3600
+        with patch("app.light_service.get_next_scheduled_event", return_value=None):
+            with patch("app.light_service.get_deviation_info", return_value=""):
+                with patch(
+                    "app.light_service.get_config",
+                    return_value={
+                        "ui": {
+                            "text": {
+                                "event_down": "CUSTOM_DOWN_TEXT {time}",
+                                "dur_prefix_down": "CUSTOM_DUR_PREFIX",
+                                "next_prefix_up": "CUSTOM_NEXT",
+                            }
+                        }
+                    },
+                ):
+                    msg = format_event_message(False, now, prev)
+                    assert "CUSTOM_DOWN_TEXT" in msg
+                    assert "CUSTOM_DUR_PREFIX" in msg
+                    assert "CUSTOM_NEXT" in msg
 

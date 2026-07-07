@@ -3,9 +3,13 @@ import aiosqlite
 from app.config import settings
 
 DB_FILE = os.path.join(settings.data_dir, "power_safety.db")
+_db_initialized = False
 
 
 async def init_db():
+    global _db_initialized
+    if _db_initialized:
+        return
     os.makedirs(settings.data_dir, exist_ok=True)
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute("""
@@ -20,6 +24,7 @@ async def init_db():
             CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)
         """)
         await db.commit()
+    _db_initialized = True
 
 
 async def log_event_db(event: str, timestamp: float, date_str: str):

@@ -1,7 +1,5 @@
-import pytest
 import datetime
 from zoneinfo import ZoneInfo
-import os
 import json
 from unittest.mock import patch, mock_open
 
@@ -146,7 +144,6 @@ def test_generate_chart_en(mock_savefig):
 @patch("matplotlib.pyplot.savefig")
 def test_generate_chart_filters_future_aqi(mock_savefig, mock_get):
     date = datetime.date(2026, 4, 6)
-    day_start = datetime.datetime.combine(date, datetime.time.min).replace(tzinfo=KYIV_TZ)
     
     # Mock Open-Meteo API response
     mock_get.return_value.status_code = 200

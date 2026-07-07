@@ -8,14 +8,20 @@ import re
 import threading
 import asyncio
 import cachetools
-from fastapi import BackgroundTasks
-import subprocess
-import secrets
+import httpx
 import structlog
 from contextlib import asynccontextmanager
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-from fastapi import FastAPI, Request, Response, Header, Body, Query, HTTPException
-from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse
+import secrets
+import subprocess
+
+from fastapi import (
+    FastAPI, Request, HTTPException, BackgroundTasks, Header, Body,
+)
+from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 from prometheus_client import make_asgi_app, Gauge, Histogram
 
@@ -25,6 +31,8 @@ from sse_starlette.sse import EventSourceResponse
 from scripts import bootstrap
 
 bootstrap.perform_cold_start_if_needed()
+
+from app.paths import DATA_DIR, EVENT_LOG_FILE  # noqa: E402
 
 from app.light_service import (  # noqa: E402
     load_state,
@@ -49,8 +57,6 @@ from app.light_service import (  # noqa: E402
     get_telegram_token,
     get_telegram_channel_id_cfg,
     KYIV_TZ,
-    DATA_DIR,
-    EVENT_LOG_FILE,
 )
 
 from app.push_service import (  # noqa: E402
@@ -60,6 +66,20 @@ from app.push_service import (  # noqa: E402
     VAPID_PUBLIC_KEY,
 )
 from app.telegram_client import TelegramClient  # noqa: E402
+from app.models import (  # noqa: E402
+    AdminConfigRequest,
+    QuietModeRequest,
+    SafetyNetReactRequest,
+    LogAddRequest,
+    RestoreBackupRequest,
+)
+
+
+async def _async_telegram_post(url: str, data: dict) -> None:
+    try:
+        await http_client.post(url, json=data)
+    except httpx.HTTPError as e:
+        logger.warning("telegram_api_error", url=url, error=str(e))
 
 # Structlog configuration
 structlog.configure(
@@ -71,14 +91,18 @@ structlog.configure(
 )
 logger = structlog.get_logger()
 
+# Shared httpx client for async Telegram API calls
+http_client: httpx.AsyncClient = None  # type: ignore[assignment]
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    global http_client
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(10.0))
     logger.info("application_startup")
     await load_state()
     yield
-    # Shutdown
+    await http_client.aclose()
     logger.info("application_shutdown")
 
 
@@ -86,6 +110,17 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from app.config import settings  # noqa: E402
 
 app = FastAPI(lifespan=lifespan)
+
+# Rate Limiter
+limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"status": "error", "msg": "Too many requests", "detail": str(exc)},
+    )
 
 # CORS Configuration from env
 allowed_origins = [
@@ -233,11 +268,7 @@ async def health_ready():
 
 
 def get_radiation():
-    # Return stable background value
-    import random
-
-    val = round(0.10 + random.uniform(0, 0.02), 2)
-    return {"level": val, "unit": "мкЗв/год", "status": "normal"}
+    return {"status": "unavailable"}
 
 
 async def get_power_events_data(limit=5, lang="ua"):
@@ -1056,11 +1087,10 @@ def sitemap_xml():
 @app.get("/admin")
 def admin_panel(
     request: Request,
-    t: str = Query(None),
     x_admin_token: str = Header(None, alias="X-Admin-Token"),
 ):
-    token = t or x_admin_token
-    if token and token == state.get("admin_token"):
+    admin_token = state.get("admin_token")
+    if x_admin_token and admin_token and secrets.compare_digest(x_admin_token, admin_token):
         return templates.TemplateResponse(request=request, name="admin.html")
     return PlainTextResponse("Access Denied", status_code=403)
 
@@ -1083,7 +1113,7 @@ async def api_status(lang: str = "ua"):
 
     aq_data = await get_air_quality(lang=lang) if show_aq else None
     rad_data = get_radiation() if show_rad else None
-    alert_data = get_air_raid_alert()
+    alert_data = await asyncio.to_thread(get_air_raid_alert)
 
     # Extract group name
     config_path = os.path.join(DATA_DIR, "config.json")
@@ -1125,11 +1155,9 @@ async def api_status(lang: str = "ua"):
         except Exception:
             pass
 
-    version = "v3.6.1"
-    version_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION")
-    if os.path.exists(version_path):
-        with open(version_path, "r") as f:
-            version = f.read().strip()
+    from app._version import get_version
+
+    version = get_version()
 
     return {
         "light": ui_light_state,
@@ -1156,7 +1184,8 @@ def get_vapid_key():
 
 
 @app.post("/api/push/subscribe")
-async def push_subscribe(data: dict = Body(...)):
+@limiter.limit("10/minute")
+async def push_subscribe(request: Request, data: dict = Body(...)):
     subscription = data.get("subscription")
     if not subscription or not subscription.get("endpoint"):
         raise HTTPException(status_code=400, detail="Invalid subscription")
@@ -1165,7 +1194,8 @@ async def push_subscribe(data: dict = Body(...)):
 
 
 @app.post("/api/push/unsubscribe")
-async def push_unsubscribe(data: dict = Body(...)):
+@limiter.limit("10/minute")
+async def push_unsubscribe(request: Request, data: dict = Body(...)):
     endpoint = data.get("endpoint", "")
     if not endpoint:
         raise HTTPException(status_code=400, detail="Missing endpoint")
@@ -1325,9 +1355,17 @@ async def down_api(
 
 
 @app.post("/api/tg/webhook")
+@limiter.limit("60/minute")
 async def tg_webhook(
-    data: dict = Body(None), background_tasks: BackgroundTasks = BackgroundTasks()
+    request: Request,
+    data: dict = Body(None),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    x_secret: str = Header(None, alias="X-Telegram-Bot-Api-Secret-Token"),
 ):
+    webhook_secret = settings.telegram_webhook_secret
+    if webhook_secret and (not x_secret or not secrets.compare_digest(x_secret, webhook_secret)):
+        return PlainTextResponse("Unauthorized", status_code=403)
+
     if not data:
         return PlainTextResponse("OK")
 
@@ -1412,23 +1450,20 @@ async def tg_webhook(
                 state["safety_net_pending"] = False
                 await save_state()
 
-            requests.post(
+            background_tasks.add_task(
+                _async_telegram_post,
                 f"https://api.telegram.org/bot{get_telegram_token()}/answerCallbackQuery",
-                json={
-                    "callback_query_id": cb["id"],
-                    "text": f"🛠 Моніторинг вимкнено на {minutes} хв",
-                },
-                timeout=5,
+                {"callback_query_id": cb["id"], "text": f"🛠 Моніторинг вимкнено на {minutes} хв"},
             )
 
-            requests.post(
+            background_tasks.add_task(
+                _async_telegram_post,
                 f"https://api.telegram.org/bot{get_telegram_token()}/editMessageText",
-                json={
+                {
                     "chat_id": chat_id,
                     "message_id": msg_id,
                     "text": f"🛠 Технічний збій. Моніторинг призупинено до {datetime.fromtimestamp(state['muted_until'], KYIV_TZ).strftime('%H:%M')}",
                 },
-                timeout=5,
             )
 
         elif cb_data.startswith("sn_dontknow_"):
@@ -1515,14 +1550,21 @@ async def tg_webhook(
 
 
 def check_admin_token(request: Request):
-    t = request.query_params.get("t") or request.headers.get("X-Admin-Token")
+    t = request.headers.get("X-Admin-Token")
     admin_token = state.get("admin_token")
     if not t or not admin_token or not secrets.compare_digest(t, admin_token):
         return False
     return True
 
 
+def _mask_token(token: str) -> str:
+    if len(token) <= 8:
+        return "***"
+    return token[:4] + "****" + token[-4:]
+
+
 @app.get("/api/admin/data")
+@limiter.limit("60/minute")
 async def admin_data(request: Request):
     if not check_admin_token(request):
         return JSONResponse(
@@ -1544,12 +1586,9 @@ async def admin_data(request: Request):
         with open(EVENT_LOG_FILE, "r") as f:
             logs = json.load(f)
 
-    # Get version
-    version = "v3.6.1"
-    version_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "VERSION")
-    if os.path.exists(version_path):
-        with open(version_path, "r") as f:
-            version = f.read().strip()
+    from app._version import get_version
+
+    version = get_version()
 
     return {
         "config": config,
@@ -1557,27 +1596,22 @@ async def admin_data(request: Request):
         "logs": logs[-20:][::-1],  # Last 20, newest first
         "version": version,
         "env": {
-            "telegram_bot_token": get_telegram_token(),
+            "telegram_bot_token_masked": _mask_token(get_telegram_token()),
             "telegram_channel_id": get_telegram_channel_id_cfg(),
         },
     }
 
 
 @app.post("/api/admin/config")
-async def admin_config_post(request: Request, new_config: dict = Body(None)):
+@limiter.limit("30/minute")
+async def admin_config_post(request: Request, new_config: AdminConfigRequest):
     if not check_admin_token(request):
         return JSONResponse(
             {"status": "error", "msg": "Access Denied"}, status_code=403
         )
 
-    if not new_config:
-        return JSONResponse({"status": "error", "msg": "Invalid JSON"}, status_code=400)
-
     try:
-        from app.models import AppConfig
-
-        # Validate configuration before saving
-        validated_config = AppConfig(**new_config).model_dump(
+        validated_config = new_config.model_dump(
             exclude_unset=False, by_alias=True
         )
 
@@ -1605,16 +1639,15 @@ async def admin_config_post(request: Request, new_config: dict = Body(None)):
 
 
 @app.post("/api/admin/quiet/mode")
-async def admin_quiet_mode(request: Request, data: dict = Body(None)):
+@limiter.limit("30/minute")
+async def admin_quiet_mode(request: Request, data: QuietModeRequest):
     if not check_admin_token(request):
         return JSONResponse(
             {"status": "error", "msg": "Access Denied"}, status_code=403
         )
 
-    if not data:
-        data = {}
-    mode = data.get("mode")
-    unmute = data.get("unmute", False)
+    mode = data.mode
+    unmute = data.unmute
 
     if mode not in ["auto", "forced_on", "forced_off"]:
         return JSONResponse({"status": "error", "msg": "Invalid mode"}, status_code=400)
@@ -1632,9 +1665,10 @@ async def admin_quiet_mode(request: Request, data: dict = Body(None)):
 
 
 @app.post("/api/admin/safety_net/react")
+@limiter.limit("30/minute")
 async def admin_safety_net_react(
     request: Request,
-    data: dict = Body(None),
+    data: SafetyNetReactRequest,
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     if not check_admin_token(request):
@@ -1642,10 +1676,8 @@ async def admin_safety_net_react(
             {"status": "error", "msg": "Access Denied"}, status_code=403
         )
 
-    if not data:
-        data = {}
-    action = data.get("action")
-    value = data.get("value")  # For tech mute duration
+    action = data.action
+    value = data.value
 
     async with state_mgr:
         await load_state()
@@ -1688,16 +1720,15 @@ async def admin_safety_net_react(
 
 
 @app.post("/api/admin/logs/add")
-async def admin_logs_add(request: Request, data: dict = Body(None)):
+@limiter.limit("30/minute")
+async def admin_logs_add(request: Request, data: LogAddRequest):
     if not check_admin_token(request):
         return JSONResponse(
             {"status": "error", "msg": "Access Denied"}, status_code=403
         )
 
-    if not data:
-        data = {}
-    event = data.get("event")
-    timestamp = data.get("timestamp")
+    event = data.event
+    timestamp = data.timestamp
 
     if not event or not timestamp:
         return JSONResponse(
@@ -1715,6 +1746,7 @@ async def admin_logs_add(request: Request, data: dict = Body(None)):
 
 
 @app.delete("/api/admin/logs/{timestamp}")
+@limiter.limit("30/minute")
 async def admin_logs_delete(request: Request, timestamp: float):
     if not check_admin_token(request):
         return JSONResponse(
@@ -1743,6 +1775,7 @@ async def admin_logs_delete(request: Request, timestamp: float):
 
 
 @app.post("/api/admin/service/restart")
+@limiter.limit("5/minute")
 async def admin_service_restart(
     request: Request, background_tasks: BackgroundTasks = BackgroundTasks()
 ):
@@ -1774,6 +1807,7 @@ async def admin_service_restart(
 
 
 @app.post("/api/admin/schedules/sync")
+@limiter.limit("5/minute")
 async def admin_schedules_sync(
     request: Request, background_tasks: BackgroundTasks = BackgroundTasks()
 ):
@@ -1793,6 +1827,7 @@ async def admin_schedules_sync(
 
 
 @app.get("/api/admin/backups")
+@limiter.limit("60/minute")
 async def admin_backups_list(request: Request):
     if not check_admin_token(request):
         return JSONResponse(
@@ -1802,6 +1837,7 @@ async def admin_backups_list(request: Request):
 
 
 @app.post("/api/admin/backups/create")
+@limiter.limit("10/minute")
 async def admin_backups_create(request: Request):
     if not check_admin_token(request):
         return JSONResponse(
@@ -1812,18 +1848,13 @@ async def admin_backups_create(request: Request):
 
 
 @app.post("/api/admin/backups/restore")
-async def admin_backups_restore(request: Request, data: dict = Body(None)):
+@limiter.limit("10/minute")
+async def admin_backups_restore(request: Request, data: RestoreBackupRequest):
     if not check_admin_token(request):
         return JSONResponse(
             {"status": "error", "msg": "Access Denied"}, status_code=403
         )
-    if not data:
-        data = {}
-    filename = data.get("filename")
-    if not filename:
-        return JSONResponse(
-            {"status": "error", "msg": "Filename required"}, status_code=400
-        )
+    filename = data.filename
 
     success, msg = await asyncio.to_thread(restore_backup, filename)
     if success:
@@ -1833,6 +1864,7 @@ async def admin_backups_restore(request: Request, data: dict = Body(None)):
 
 
 @app.post("/api/admin/security/regen_push_key")
+@limiter.limit("5/minute")
 async def admin_regen_push_key(request: Request):
     if not check_admin_token(request):
         return JSONResponse(
@@ -1849,6 +1881,7 @@ async def admin_regen_push_key(request: Request):
 
 
 @app.post("/api/admin/security/regen_admin_token")
+@limiter.limit("5/minute")
 async def admin_regen_token(request: Request):
     if not check_admin_token(request):
         return JSONResponse(

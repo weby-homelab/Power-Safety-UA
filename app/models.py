@@ -113,3 +113,48 @@ class SchedulesData(BaseModel):
     model_config = ConfigDict(extra="ignore")
     yasno: Optional[Dict[str, Dict[str, ScheduleDay]]] = None
     github: Optional[Dict[str, Dict[str, ScheduleDay]]] = None
+
+
+class SubscribeRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    endpoint: str = Field(..., min_length=5)
+    keys: dict = Field(...)
+
+
+class OutageActionRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    action: str = Field(pattern=r"^(confirm|ignore)$")
+    key: str = Field(pattern=r"^[a-zA-Z0-9_-]{8,64}$")
+
+
+class AdminConfigRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    config: AppConfig
+
+
+class QuietModeRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    mode: str = Field(pattern=r"^(auto|forced_on|forced_off)$")
+    unmute: bool = False
+
+
+class SafetyNetReactRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    action: str = Field(pattern=r"^(confirm|ignore|dontknow)$")
+    value: Optional[int] = Field(default=30, ge=1, le=1440)
+
+
+class LogAddRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    event: str = Field(pattern=r"^(up|down)$")
+    timestamp: Optional[float] = None
+
+
+class RestoreBackupRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    filename: str = Field(pattern=r"^(backup_[\w-]+\.json|pre_restore)$")
+
+
+class ManualDownRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    key: str = Field(pattern=r"^[a-zA-Z0-9_-]{8,64}$")

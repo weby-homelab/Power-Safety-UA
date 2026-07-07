@@ -19,23 +19,23 @@ def perform_cold_start_if_needed():
     if os.path.exists(event_file) and os.path.exists(sched_file):
         return
 
-    # Захист від гонки (race condition) при одночасному старті кількох контейнерів
+    # Атомарний захист від гонки при одночасному старті кількох контейнерів
     lock_file = os.path.join(DATA_DIR, ".bootstrap.lock")
     os.makedirs(DATA_DIR, exist_ok=True)
-    
-    if os.path.exists(lock_file):
+
+    created_lock = False
+    try:
+        fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        os.close(fd)
+        created_lock = True
+    except FileExistsError:
         print("⏳ Ініціалізація вже виконується іншим процесом. Очікуємо...")
         for _ in range(30):
             time.sleep(1)
             if os.path.exists(event_file) and os.path.exists(sched_file):
                 return
         print("⚠️ Тайм-аут очікування ініціалізації. Продовжуємо...")
-
-    created_lock = False
-    try:
-        with open(lock_file, "w") as f:
-            f.write("locked")
-        created_lock = True
+        return
     except Exception as e:
         print(f"⚠️ Не вдалося створити lock-файл: {e}")
 

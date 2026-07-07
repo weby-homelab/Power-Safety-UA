@@ -3,6 +3,12 @@ services:
     image: webyhomelab/power-safety-ua:latest
     container_name: power-safety-ua
     restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    pids_limit: 100
+    user: "1000:1000"
     ports:
       - "${PORT_BINDING:-127.0.0.1}:5050:5050"
     read_only: true
@@ -13,12 +19,14 @@ services:
     env_file:
       - .env
     environment:
+      - PYTHONPATH=/app
       - TZ=Europe/Kyiv
+      - MPLCONFIGDIR=/tmp/matplotlib
     deploy:
       resources:
         limits:
           cpus: '1.0'
-          memory: 512M
+          memory: 768M
         reservations:
           memory: 256M
     healthcheck:
@@ -31,6 +39,12 @@ services:
     image: webyhomelab/power-safety-ua:latest
     container_name: power-safety-ua-worker
     restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    pids_limit: 100
+    user: "1000:1000"
     command: python app/run_background.py
     read_only: true
     tmpfs:
@@ -42,11 +56,12 @@ services:
     environment:
       - PYTHONPATH=/app
       - TZ=Europe/Kyiv
+      - MPLCONFIGDIR=/tmp/matplotlib
     deploy:
       resources:
         limits:
           cpus: '1.0'
-          memory: 512M
+          memory: 768M
         reservations:
           memory: 256M
     healthcheck:

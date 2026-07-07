@@ -2,7 +2,7 @@ import threading
 import time
 import json
 import asyncio
-from app.models import AppConfig, AppState
+from app.models import AppState
 import os
 import secrets
 import datetime
@@ -24,27 +24,12 @@ DATA_DIR = os.environ.get("DATA_DIR", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 
-def get_config():
-    try:
-        config_path = os.path.join(DATA_DIR, "config.json")
-        if not os.path.exists(config_path):
-            config_path = "config.json"
-
-        data = StorageUtils.load_json_sync(config_path, default={})
-        if data:
-            try:
-                return AppConfig(**data).model_dump(exclude_unset=False, by_alias=True)
-            except Exception as e:
-                print(f"Config validation error: {e}")
-                return data
-    except Exception:
-        pass
-    return AppConfig().model_dump()
+from app.config_runtime import get_config  # noqa: E402
 
 
 def get_admin_chat_id():
     cfg = get_config()
-    return str(cfg.get("settings", {}).get("admin_chat_id", "6313526220"))
+    return str(cfg.get("settings", {}).get("admin_chat_id", ""))
 
 
 def get_safety_net_timeout():
@@ -119,7 +104,10 @@ def list_backups():
 
 
 def restore_backup(filename):
-    backup_path = os.path.join(DATA_DIR, "backups", filename)
+    safe_name = os.path.basename(filename)
+    if safe_name != filename or ".." in safe_name or not safe_name:
+        return False, "Invalid backup filename"
+    backup_path = os.path.join(DATA_DIR, "backups", safe_name)
     if not os.path.exists(backup_path):
         return False, "Backup not found"
 

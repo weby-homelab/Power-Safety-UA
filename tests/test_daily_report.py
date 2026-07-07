@@ -1,4 +1,3 @@
-import pytest
 import datetime
 from zoneinfo import ZoneInfo
 from app.generate_daily_report import build_report_caption
