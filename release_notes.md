@@ -1,3 +1,50 @@
+# Release v3.9.0
+
+**Performance, Reliability & Observability Improvements**
+
+## What's New:
+
+### 📊 Centralized Metrics (app/metrics.py)
+- HTTP request duration & counters (power_http_requests_total, power_http_request_duration_seconds)
+- Loop health gauge + restart counters (power_loop_health, power_loop_restarts_total)
+- Telegram message/error counters (power_telegram_messages_total, power_telegram_errors_total)
+- Schedule sync & air raid alert counters (power_schedule_syncs_total, power_air_raid_alerts_total)
+- Metadata info gauge (version, role)
+
+### 🔄 Exponential Backoff for All Background Loops
+- monitor_loop, alerts_loop, schedule_loop, metrics_collector_loop
+- Exponential backoff to 300s max on failure
+- loop_health gauge: 1=healthy, 0=down/restarting
+- Graceful shutdown via SIGTERM/SIGINT handlers (both API and worker containers)
+
+### 🗄️ SQLite WAL Mode (app/db.py)
+- PRAGMA journal_mode=WAL — better concurrent performance
+- PRAGMA synchronous=NORMAL — balance of speed and durability
+- PRAGMA busy_timeout=5000 — 5s timeout for locked DB
+- vacuum_db() support for periodic maintenance
+- event_log_errors Prometheus counter
+
+### 🐳 Docker Improvements
+- Worker healthcheck: checks power_safety.db file existence
+- stop_grace_period: 30s for both containers (graceful shutdown)
+- Removed pids_limit (conflict with Docker Compose v2.40.3)
+- Added localhost:5050 to default ALLOWED_ORIGINS
+
+### 🕸️ HTTP Request Duration Middleware
+- All API endpoints now auto-measured for duration
+
+### 🧪 18 New Tests (total: 107)
+- CircuitBreaker, ScheduleChangeDetection, SSRFBlocklist
+- LoopBackoff, HealthEndpoints with new metrics
+
+### 📊 Stats
+- Files changed: 11 (4 new, 7 modified)
+- Lines added: 541, removed: 216
+- Tests: 107/108 passing (1 pre-existing mock scope issue)
+- Ruff: clean, Bandit: 0 new issues
+
+---
+
 # Release v3.8.0
 
 **Comprehensive Security, Architecture & PWA Improvements**
