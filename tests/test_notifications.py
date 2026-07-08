@@ -64,7 +64,7 @@ def test_get_schedule_context_localization():
     from unittest.mock import patch, mock_open
 
     # Test when schedule file does not exist (triggers exception and returns 'Помилка' / 'Error')
-    with patch("os.path.exists", return_value=False):
+    with patch("builtins.open", side_effect=FileNotFoundError):
         assert get_schedule_context(lang="ua") == (None, None, "Помилка", None, False)
         assert get_schedule_context(lang="en") == (None, None, "Error", None, False)
 
