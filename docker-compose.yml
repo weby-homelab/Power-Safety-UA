@@ -8,7 +8,6 @@ services:
       - "no-new-privileges:true"
     cap_drop:
       - ALL
-    pids_limit: 100
     user: "1000:1000"
     ports:
       - "${PORT_BINDING:-127.0.0.1}:5050:5050"
@@ -45,7 +44,6 @@ services:
       - "no-new-privileges:true"
     cap_drop:
       - ALL
-    pids_limit: 100
     user: "1000:1000"
     command: python app/run_background.py
     read_only: true
