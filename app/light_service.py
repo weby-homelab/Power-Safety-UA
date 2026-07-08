@@ -16,6 +16,14 @@ import hashlib
 from dotenv import load_dotenv
 
 from app.parser_service import update_local_schedules
+from app.metrics import (
+    loop_restarts_total,
+    loop_health,
+    telegram_messages_total,
+    telegram_errors_total,
+    schedule_syncs_total,
+    air_raid_alerts_total,
+)
 
 # Load environment variables
 load_dotenv()
@@ -870,9 +878,13 @@ def send_telegram(message):
         if r.status_code != 200:
             err_msg = r.text.replace(token, "[REDACTED_TOKEN]")
             logger.error(f"Telegram API Error (Status {r.status_code}): {err_msg}")
+            telegram_errors_total.inc()
+        else:
+            telegram_messages_total.labels(type="channel").inc()
     except Exception as e:
         err_str = str(e).replace(token, "[REDACTED_TOKEN]")
         logger.error(f"Failed to send Telegram message: {err_str}")
+        telegram_errors_total.inc()
 
 
 def send_admin_confirmation(timestamp):
@@ -1241,126 +1253,143 @@ async def _check_auto_confirmation(current_time):
         await save_state()
 
 
-async def monitor_loop():
-    logger.info("Monitor loop started...")
-    while True:
+# --- Background Loop Runner with Exponential Backoff ---
+_loop_shutdown_event = asyncio.Event()
+_loop_shutdown_event.set()
+
+
+async def request_shutdown():
+    _loop_shutdown_event.clear()
+    logger.info("loop_shutdown_requested")
+    await asyncio.sleep(0.1)
+
+
+def is_loop_running() -> bool:
+    return _loop_shutdown_event.is_set()
+
+
+async def run_loop_with_backoff(loop_name: str, coro_func, interval: float = 5.0):
+    retry_count = 0
+    max_backoff = 300
+    logger.info("loop_started", loop_name=loop_name)
+
+    while _loop_shutdown_event.is_set():
         try:
-            await asyncio.sleep(5)
-            await load_state()
-            async with state_mgr:
-                current_time = get_current_time()
-                last_seen = state["last_seen"]
-
-                if state.get("muted_until", 0) > current_time:
-                    continue
-
-                if state["status"] == "up":
-                    await _check_safety_net_trigger(current_time, last_seen)
-                    await _check_safety_net_timeout(current_time)
-                    await _check_outage_detection(current_time, last_seen)
-
-                await _check_auto_confirmation(current_time)
-
+            loop_health.labels(loop_name=loop_name).set(1)
+            await coro_func()
+            retry_count = 0
+            await asyncio.sleep(interval)
+        except asyncio.CancelledError:
+            logger.info("loop_cancelled", loop_name=loop_name)
+            break
         except Exception as e:
-            logger.error(f"Critical error in monitor_loop: {e}")
-            await asyncio.sleep(5)
+            retry_count += 1
+            backoff = min(max_backoff, (2**retry_count) * 5)
+            loop_restarts_total.labels(loop_name=loop_name).inc()
+            loop_health.labels(loop_name=loop_name).set(0)
+            logger.error(
+                "loop_error",
+                loop_name=loop_name,
+                error=str(e),
+                retry_count=retry_count,
+                backoff=backoff,
+            )
+            await asyncio.sleep(backoff)
+
+    loop_health.labels(loop_name=loop_name).set(0)
+    logger.info("loop_stopped", loop_name=loop_name)
+
+
+async def _monitor_loop_iteration():
+    await load_state()
+    async with state_mgr:
+        current_time = get_current_time()
+        last_seen = state["last_seen"]
+
+        if state.get("muted_until", 0) > current_time:
+            return
+
+        if state["status"] == "up":
+            await _check_safety_net_trigger(current_time, last_seen)
+            await _check_safety_net_timeout(current_time)
+            await _check_outage_detection(current_time, last_seen)
+
+        await _check_auto_confirmation(current_time)
+
+
+async def monitor_loop():
+    await run_loop_with_backoff("monitor", _monitor_loop_iteration, interval=5.0)
+
+
+async def _alerts_loop_iteration():
+    current_alert = await asyncio.to_thread(get_air_raid_alert)
+    new_status = current_alert.get("status")
+    if new_status == "unknown":
+        return
+
+    await load_state()
+    async with state_mgr:
+        old_status = state.get("alert_status", "clear")
+        if new_status == old_status:
+            return
+
+        now_dt = datetime.datetime.now(KYIV_TZ)
+        time_str = now_dt.strftime("%H:%M")
+
+        cfg = get_config()
+        can_notify = (
+            cfg.get("advanced", {})
+            .get("notifications", {})
+            .get("telegram_air_raid_alerts", True)
+        )
+        if str(can_notify).lower() in ("false", "0", "no"):
+            can_notify = False
+        else:
+            can_notify = bool(can_notify)
+
+        if new_status == "active":
+            state["alert_start_time"] = now_dt.timestamp()
+            try:
+                log_path = os.path.join(DATA_DIR, "air_raid_log.json")
+                l_data = json.load(open(log_path)) if os.path.exists(log_path) else []
+                if not l_data or l_data[-1].get("event") != "active":
+                    l_data.append({"timestamp": now_dt.timestamp(), "event": "active"})
+                    json.dump(l_data, open(log_path, "w"), indent=2)
+            except Exception:
+                pass
+            if can_notify:
+                msg = f"⚠️ <b>{time_str} ПОВІТРЯНА ТРИВОГА! КИЇВ</b>"
+                _executor.submit(send_telegram, msg)
+                air_raid_alerts_total.labels(status="active").inc()
+        elif old_status == "active" and new_status != "active":
+            try:
+                log_path = os.path.join(DATA_DIR, "air_raid_log.json")
+                l_data = json.load(open(log_path)) if os.path.exists(log_path) else []
+                l_data.append({"timestamp": now_dt.timestamp(), "event": "clear"})
+                json.dump(l_data, open(log_path, "w"), indent=2)
+            except Exception:
+                pass
+            start_ts = state.get("alert_start_time")
+            duration_str = ""
+            if start_ts:
+                duration_sec = int(now_dt.timestamp() - start_ts)
+                hours, mins = duration_sec // 3600, (duration_sec % 3600) // 60
+                duration_str = (
+                    f"\nяка тривала {hours} год {mins} хв"
+                    if hours > 0
+                    else f"\nяка тривала {mins} хв"
+                )
+            if can_notify:
+                msg = f"✅ <b>{time_str} ВІДБІЙ ТРИВОГИ</b>{duration_str}"
+                _executor.submit(send_telegram, msg)
+                air_raid_alerts_total.labels(status="clear").inc()
+
+        state["alert_status"] = new_status
+        await save_state()
 
 
 async def alerts_loop():
-    logger.info("Alerts loop started...")
-    while True:
-        try:
-            current_alert = await asyncio.to_thread(get_air_raid_alert)
-            new_status = current_alert.get("status")
-            if new_status != "unknown":
-                await load_state()
-                async with state_mgr:
-                    old_status = state.get("alert_status", "clear")
-                    if new_status != old_status:
-                        now_dt = datetime.datetime.now(KYIV_TZ)
-                        time_str = now_dt.strftime("%H:%M")
-
-                        # Check config for air raid notifications
-                        cfg = get_config()
-                        can_notify = (
-                            cfg.get("advanced", {})
-                            .get("notifications", {})
-                            .get("telegram_air_raid_alerts", True)
-                        )
-                        if str(can_notify).lower() in ("false", "0", "no"):
-                            can_notify = False
-                        else:
-                            can_notify = bool(can_notify)
-
-                        if new_status == "active":
-                            state["alert_start_time"] = now_dt.timestamp()
-
-                            try:
-                                log_path = os.path.join(DATA_DIR, "air_raid_log.json")
-                                l_data = (
-                                    json.load(open(log_path))
-                                    if os.path.exists(log_path)
-                                    else []
-                                )
-                                # Only add if not already active or log is empty
-                                if not l_data or l_data[-1].get("event") != "active":
-                                    l_data.append(
-                                        {
-                                            "timestamp": now_dt.timestamp(),
-                                            "event": "active",
-                                        }
-                                    )
-                                    json.dump(l_data, open(log_path, "w"), indent=2)
-                            except Exception:
-                                pass
-
-                            if can_notify:
-                                msg = f"⚠️ <b>{time_str} ПОВІТРЯНА ТРИВОГА! КИЇВ</b>"
-                                _executor.submit(
-                                    send_telegram,
-                                    msg,
-                                )
-                        elif old_status == "active" and new_status != "active":
-                            try:
-                                log_path = os.path.join(DATA_DIR, "air_raid_log.json")
-                                l_data = (
-                                    json.load(open(log_path))
-                                    if os.path.exists(log_path)
-                                    else []
-                                )
-                                l_data.append(
-                                    {"timestamp": now_dt.timestamp(), "event": "clear"}
-                                )
-                                json.dump(l_data, open(log_path, "w"), indent=2)
-                            except Exception:
-                                pass
-                            start_ts = state.get("alert_start_time")
-                            duration_str = ""
-                            if start_ts:
-                                duration_sec = int(now_dt.timestamp() - start_ts)
-                                hours, mins = (
-                                    duration_sec // 3600,
-                                    (duration_sec % 3600) // 60,
-                                )
-                                duration_str = (
-                                    f"\nяка тривала {hours} год {mins} хв"
-                                    if hours > 0
-                                    else f"\nяка тривала {mins} хв"
-                                )
-
-                            if can_notify:
-                                msg = (
-                                    f"✅ <b>{time_str} ВІДБІЙ ТРИВОГИ</b>{duration_str}"
-                                )
-                                _executor.submit(
-                                    send_telegram,
-                                    msg,
-                                )
-                        state["alert_status"] = new_status
-                        await save_state()
-        except Exception as e:
-            logger.error(f"Error in alerts loop: {e}")
-        await asyncio.sleep(60)
+    await run_loop_with_backoff("alerts", _alerts_loop_iteration, interval=60.0)
 
 
 async def sync_schedules():
@@ -1410,9 +1439,9 @@ async def sync_schedules():
         result = await update_local_schedules(config_path, SCHEDULE_FILE)
 
         try:
-            from app import PARSING_DURATION
+            from app.metrics import schedule_parsing_duration
 
-            PARSING_DURATION.observe(time.time() - start_time)
+            schedule_parsing_duration.observe(time.time() - start_time)
         except ImportError:
             pass
 
@@ -1421,6 +1450,11 @@ async def sync_schedules():
         )
         if has_changed:
             logger.info("Local Parsing: Schedule changed.")
+
+    if sync_success:
+        schedule_syncs_total.labels(status="success").inc()
+    else:
+        schedule_syncs_total.labels(status="failed").inc()
 
     if has_changed:
         # Trigger updates since data changed
@@ -1528,70 +1562,62 @@ def check_quiet_mode_eligibility():
 
 
 async def schedule_loop():
-    logger.info("Schedule loop started...")
     weekly_sent_date = None
     last_prune_date = None
 
-    while True:
-        try:
-            now = datetime.datetime.now(KYIV_TZ)
-            now_str = now.strftime("%H:%M")
-            today_date = now.strftime("%Y-%m-%d")
+    async def _schedule_iteration():
+        nonlocal weekly_sent_date, last_prune_date
 
-            # 1. Daily maintenance (at 00:01)
-            if now.hour == 0 and now.minute == 1:
-                trigger_daily_report_update(is_final=True)
-                if last_prune_date != today_date:
-                    prune_old_data()
-                    create_backup("daily_auto")
-                    last_prune_date = today_date
-                await asyncio.sleep(65)
-                continue
+        now = datetime.datetime.now(KYIV_TZ)
+        now_str = now.strftime("%H:%M")
+        today_date = now.strftime("%Y-%m-%d")
 
-            # 2. Dynamic report times from config
-            cfg = get_config()
-            report_times = (
-                cfg.get("advanced", {}).get("notifications", {}).get("report_times", [])
-            )
-            if now_str in report_times:
-                logger.info(f"Triggering scheduled report at {now_str}...")
-                trigger_daily_report_update(is_final=False)
-                await asyncio.sleep(65)
-                continue
+        if now.hour == 0 and now.minute == 1:
+            trigger_daily_report_update(is_final=True)
+            if last_prune_date != today_date:
+                prune_old_data()
+                create_backup("daily_auto")
+                last_prune_date = today_date
+            await asyncio.sleep(65)
+            return
 
-            # 3. Regular sync and status updates every 10 mins
-            if now.minute % 10 == 0:
-                # sync_schedules checks for plan changes
-                await sync_schedules()
+        cfg = get_config()
+        report_times = (
+            cfg.get("advanced", {}).get("notifications", {}).get("report_times", [])
+        )
+        if now_str in report_times:
+            logger.info(f"Triggering scheduled report at {now_str}...")
+            trigger_daily_report_update(is_final=False)
+            await asyncio.sleep(65)
+            return
 
-                # Always update reports to advance the "now" actual line
-                trigger_daily_report_update()
-                trigger_weekly_report_update()
-                trigger_text_report_update()
-                await update_quiet_status()
-            # 4. Weekly report (Monday morning)
-            if now.weekday() == 0 and now.hour == 0 and 15 <= now.minute < 25:
-                if weekly_sent_date != today_date:
-                    try:
-                        base_dir = os.path.dirname(os.path.abspath(__file__))
-                        subprocess.run(
-                            [
-                                sys.executable,
-                                "-m",
-                                "app.generate_weekly_report",
-                                "--date",
-                                (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
-                            ],
-                            check=True,
-                            cwd=os.path.dirname(base_dir),
-                        )
-                        weekly_sent_date = today_date
-                    except Exception:
-                        pass
-        except Exception as e:
-            logger.error(f"Critical error in schedule_loop: {e}")
+        if now.minute % 10 == 0:
+            await sync_schedules()
+            trigger_daily_report_update()
+            trigger_weekly_report_update()
+            trigger_text_report_update()
+            await update_quiet_status()
 
-        await asyncio.sleep(60)
+        if now.weekday() == 0 and now.hour == 0 and 15 <= now.minute < 25:
+            if weekly_sent_date != today_date:
+                try:
+                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                    subprocess.run(
+                        [
+                            sys.executable,
+                            "-m",
+                            "app.generate_weekly_report",
+                            "--date",
+                            (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+                        ],
+                        check=True,
+                        cwd=os.path.dirname(base_dir),
+                    )
+                    weekly_sent_date = today_date
+                except Exception:
+                    pass
+
+    await run_loop_with_backoff("schedule", _schedule_iteration, interval=60.0)
 
 
 async def collect_metrics_job():
@@ -1743,12 +1769,5 @@ async def collect_metrics_job():
 
 
 async def metrics_collector_loop():
-    logger.info("Metrics collector loop started...")
     await collect_metrics_job()
-    while True:
-        try:
-            await asyncio.sleep(300)
-            await collect_metrics_job()
-        except Exception as e:
-            logger.error(f"Error in metrics_collector_loop: {e}")
-            await asyncio.sleep(10)
+    await run_loop_with_backoff("metrics", collect_metrics_job, interval=300.0)
