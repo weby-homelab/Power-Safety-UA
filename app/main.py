@@ -28,9 +28,14 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
-from prometheus_client import make_asgi_app, Gauge, Histogram
+from prometheus_client import make_asgi_app
 
 from sse_starlette.sse import EventSourceResponse
+from app.metrics import (
+    http_requests_total,
+    http_request_duration,
+    active_sse_connections,
+)
 
 # Запуск ініціалізації для нових користувачів
 from scripts import bootstrap
@@ -108,6 +113,10 @@ async def lifespan(app: FastAPI):
     limiter.total_tokens = 100
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(10.0))
     logger.info("application_startup")
+    from app.metrics import power_safety_info
+    from app._version import get_version
+
+    power_safety_info.info({"version": get_version(), "language": "python"})
     await load_state()
     yield
     await http_client.aclose()
@@ -147,19 +156,30 @@ app.add_middleware(
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+
+@app.middleware("http")
+async def request_duration_middleware(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    http_requests_total.labels(
+        method=request.method,
+        endpoint=request.url.path,
+        status=str(response.status_code),
+    ).inc()
+    http_request_duration.labels(
+        method=request.method,
+        endpoint=request.url.path,
+    ).observe(duration)
+    return response
+
+
 templates = Jinja2Templates(directory="templates")
 templates.env.cache = None  # Disable cache to bypass unhashable key bug
 
 # Prometheus Metrics
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
-
-ACTIVE_SSE_CONNECTIONS = Gauge(
-    "power_safety_active_sse_connections", "Number of active SSE connections"
-)
-PARSING_DURATION = Histogram(
-    "power_safety_parsing_duration_seconds", "Time spent parsing schedules"
-)
 
 
 # --- SSE Logic ---
@@ -169,13 +189,13 @@ class ConnectionManager:
 
     async def connect(self, q: asyncio.Queue, lang: str = "ua"):
         self.active_connections.append((q, lang))
-        ACTIVE_SSE_CONNECTIONS.inc()
+        active_sse_connections.inc()
 
     def disconnect(self, q: asyncio.Queue):
         self.active_connections = [
             item for item in self.active_connections if item[0] != q
         ]
-        ACTIVE_SSE_CONNECTIONS.dec()
+        active_sse_connections.dec()
 
     async def broadcast(self, message_ua: dict, message_en: dict):
         for q, lang in self.active_connections:
@@ -285,12 +305,21 @@ def health_live():
 
 @app.get("/health/ready")
 async def health_ready():
-    # Verify data directory is writable (checks system health/readiness)
     data_dir = settings.data_dir
     is_writable = os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False
     if not is_writable:
         raise HTTPException(status_code=503, detail="Storage not writable")
     return {"status": "ready"}
+
+
+@app.get("/health/worker")
+async def health_worker():
+    from app.light_service import is_loop_running
+
+    running = is_loop_running()
+    if running:
+        return {"status": "ok", "loops_running": True}
+    raise HTTPException(status_code=503, detail="Worker loops are not running")
 
 
 def get_radiation():

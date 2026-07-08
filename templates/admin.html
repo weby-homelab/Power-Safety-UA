@@ -1222,20 +1222,19 @@
                     const response = await fetch(`/api/admin/security/regen_admin_token`, { method: 'POST', headers: authHeaders });
                     if (response.ok) {
                         const data = await response.json();
-                        const newUrl = window.location.origin + window.location.pathname + '?t=' + data.new_token;
+            const msg = `
+                НОВИЙ ТОКЕН АДМІНА: ${data.new_token}
 
-                        const msg = `
-                            НОВИЙ ТОКЕН АДМІНА: ${data.new_token}
+                ВСТАНОВІТЬ НОВИЙ ТОКЕН В ЗАГОЛОВОК X-Admin-Token.
+                АБО ВІДКРИЙТЕ ПОСИЛАННЯ:
+                ${window.location.origin + window.location.pathname + '?t=' + data.new_token}
 
-                            НОВЕ ПОСИЛАННЯ ДЛЯ ВХОДУ:
-                            ${newUrl}
+                СКОПІЮЙТЕ ЦІ ДАНІ ЗАРАЗ! 
+                Після натискання OK ви втратите доступ за поточним посиланням.
+            `;
 
-                            СКОПІЮЙТЕ ЦІ ДАНІ ЗАРАЗ! 
-                            Після натискання OK ви втратите доступ за поточним посиланням.
-                        `;
-
-                        alert(msg);
-                        window.location.href = newUrl;
+            alert(msg);
+            window.location.href = window.location.origin + window.location.pathname + '?t=' + data.new_token;
                     } else alert('Помилка регенерації');
                 } catch (err) { alert('Помилка запиту'); }
             }

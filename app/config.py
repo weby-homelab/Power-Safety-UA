@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     )
     schedule_api_url: str = Field(default="", validation_alias="SCHEDULE_API_URL")
     allowed_origins: str = Field(
-        default="https://power.srvrs.top", validation_alias="ALLOWED_ORIGINS"
+        default="https://power.srvrs.top,http://localhost:5050",
+        validation_alias="ALLOWED_ORIGINS",
     )
     port_binding: str = Field(default="127.0.0.1", validation_alias="PORT_BINDING")
     telegram_webhook_secret: str = Field(

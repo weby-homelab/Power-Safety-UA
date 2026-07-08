@@ -3,6 +3,7 @@ services:
     image: webyhomelab/power-safety-ua:latest
     container_name: power-safety-ua
     restart: unless-stopped
+    stop_grace_period: 30s
     security_opt:
       - "no-new-privileges:true"
     cap_drop:
@@ -39,6 +40,7 @@ services:
     image: webyhomelab/power-safety-ua:latest
     container_name: power-safety-ua-worker
     restart: unless-stopped
+    stop_grace_period: 30s
     security_opt:
       - "no-new-privileges:true"
     cap_drop:
@@ -65,4 +67,8 @@ services:
         reservations:
           memory: 256M
     healthcheck:
-      disable: true
+      test: ["CMD", "python3", "-c", "import os, time; os.path.exists('/app/data/power_safety.db') and exit(0) or exit(1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
