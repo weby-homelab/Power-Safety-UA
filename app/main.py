@@ -1743,9 +1743,7 @@ async def admin_data(request: Request):
 
     version = get_version()
 
-    safe_state = {
-        k: v for k, v in state.items() if k not in ("secret_key", "admin_token")
-    }
+    safe_state = {k: v for k, v in state.items() if k not in ("admin_token",)}
     return {
         "config": config,
         "state": safe_state,
