@@ -5,7 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.8.0] - 2026-07-07
+## [3.9.1] - 2026-07-09
+
+### Security
+- SSRF fix: `follow_redirects=False` in parser_service (C3)
+- Webhook fail-closed: empty `telegram_webhook_secret` returns 503 (H4)
+- Admin token: removed `?t=` query param, header-only auth (M9)
+- Rate-limit `key_func` now checks `X-Forwarded-For` before `get_remote_address` (M1)
+- `load_state()`: `secret_key` init wrapped in `state_mgr` lock (M4)
+
+### Changed
+- BackgroundTasks: 11 sync calls migrated to `_safe_send_telegram` / `_safe_send_push_notification` with `asyncio.to_thread` (C2)
+- Atomic file writes: temp+os.replace with `chmod 0o600` in all save paths (H1, H5)
+- Cache invalidation: `invalidate_config_cache()` called after admin config changes (H3)
+- TTL cache (3s) for `/api/status` endpoint reduces blocking file I/O (M2, M3)
+- Removed Python SQLite layer: `app/db.py`, `tests/test_db.py`, `aiosqlite` dep (H2)
+- Removed unused `pandas`, `numpy` dependencies (M5)
+- Fixed `TelegramClient` double-encode of `reply_markup` (M8)
+- Added `report_generation_errors` Prometheus metric (M10)
+
+### Logging
+- All `print()` calls converted to structlog: 78 occurrences across `app/` and `scripts/` (L1)
+
+### CI/CD
+- Added `pytest.ini` with testpaths configuration (M7)
+- Coverage gate: 30% → 35% (current coverage 39%) (M6)
+
+## [3.9.0] - 2026-07-08
+
+### Added
+- Centralized Prometheus metrics (`app/metrics.py`): HTTP request counters/durations, loop health/restarts, Telegram/push/schedule/air-raid counters
+- Exponential backoff on all 4 background loops (`run_loop_with_backoff`, max 300s)
+- Graceful shutdown on SIGTERM/SIGINT (`request_shutdown`)
+- `/health/worker` endpoint
 
 ### Security
 - Fix `SafetyNetReactRequest` regex to accept `down`/`tech` actions (safety-net UI was broken)
