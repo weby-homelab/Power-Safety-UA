@@ -23,6 +23,7 @@ from app.metrics import (
     telegram_errors_total,
     schedule_syncs_total,
     air_raid_alerts_total,
+    report_generation_errors,
 )
 
 # Load environment variables
@@ -404,7 +405,7 @@ def trigger_weekly_report_update():
 
 async def log_event(event_type, timestamp):
     """
-    Logs an event (up/down) to a JSON file and SQLite database for historical analysis.
+    Logs an event (up/down) to a JSON file for historical analysis.
     """
     try:
         entry = {
@@ -414,11 +415,6 @@ async def log_event(event_type, timestamp):
                 "%Y-%m-%d %H:%M:%S"
             ),
         }
-
-        # Save to SQLite database
-        from app.db import log_event_db
-
-        await log_event_db(event_type, timestamp, entry["date_str"])
 
         async with state_mgr:
             logs = await StorageUtils.load_json_async(EVENT_LOG_FILE, default=[])
@@ -464,6 +460,9 @@ async def load_state():
         async with state_mgr:
             state["admin_token"] = secrets.token_urlsafe(16)
             await save_state()
+
+    if not state.get("push_settings"):
+        state["push_settings"] = {}
 
 
 async def save_state():
@@ -1149,6 +1148,7 @@ async def update_quiet_status():
                         )
                     except Exception as e:
                         logger.error(f"Failed to trigger text report: {e}")
+                        report_generation_errors.labels(report_type="text").inc()
 
                 _executor.submit(trigger_report)
             await save_state()
@@ -1420,8 +1420,10 @@ async def sync_schedules():
             for local_file, url in urls.items():
                 r = requests.get(url, timeout=10)
                 if r.status_code == 200:
-                    with open(local_file, "wb") as f:
+                    temp_path = f"{local_file}.tmp"
+                    with open(temp_path, "wb") as f:
                         f.write(r.content)
+                    os.replace(temp_path, local_file)
 
             new_hashes = {f: get_file_hash(f) for f in urls.keys()}
             if old_hashes[SCHEDULE_FILE] != new_hashes[SCHEDULE_FILE]:
@@ -1753,13 +1755,14 @@ async def collect_metrics_job():
             except Exception:
                 pass
 
+        from app.storage import StorageUtils
+
         history.append(entry)
 
         cutoff = int(time.time()) - 864000
         history = [h for h in history if h.get("timestamp", 0) > cutoff]
 
-        with open(history_file, "w") as f:
-            json.dump(history, f, indent=2)
+        StorageUtils.save_json_sync(history_file, history)
 
         logger.info(
             f"Metrics collected at {datetime.datetime.now().strftime('%H:%M:%S')}: AQI={aqi}, Temp={temp}, Hum={hum}"

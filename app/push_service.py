@@ -1,6 +1,7 @@
 import json
 import os
 import structlog
+import asyncio
 from pywebpush import webpush, WebPushException
 
 logger = structlog.get_logger()
@@ -123,3 +124,7 @@ def send_push_notification(title: str, body: str, url: str = "/"):
         "push_notifications_sent", sent=sent, total=len(subs), expired=len(expired)
     )
     return sent
+
+
+async def send_push_notification_async(title: str, body: str, url: str = "/") -> int:
+    return await asyncio.to_thread(send_push_notification, title, body, url)

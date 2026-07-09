@@ -92,6 +92,14 @@ async def _async_telegram_post(url: str, data: dict) -> None:
         logger.warning("telegram_api_error", url=url, error=str(e))
 
 
+async def _safe_send_telegram(msg: str) -> None:
+    await asyncio.to_thread(send_telegram, msg)
+
+
+async def _safe_send_push_notification(title: str, body: str, url: str = "/") -> None:
+    await asyncio.to_thread(send_push_notification, title, body, url)
+
+
 # Structlog configuration
 structlog.configure(
     processors=[
@@ -129,8 +137,16 @@ from app.config import settings  # noqa: E402
 
 app = FastAPI(lifespan=lifespan)
 
+
 # Rate Limiter
-limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
+def _rate_limit_key(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=_rate_limit_key, default_limits=["120/minute"])
 app.state.limiter = limiter
 
 
@@ -1152,8 +1168,21 @@ def admin_panel(
     return PlainTextResponse("Access Denied", status_code=403)
 
 
+_api_status_cache = None
+_api_status_cache_time = 0.0
+_API_STATUS_CACHE_TTL = 3  # seconds
+
+
 @app.get("/api/status")
 async def api_status(lang: str = "ua"):
+    global _api_status_cache, _api_status_cache_time
+    now = time.time()
+    if (
+        _api_status_cache is not None
+        and (now - _api_status_cache_time) < _API_STATUS_CACHE_TTL
+    ):
+        return _api_status_cache
+
     await load_state()
     current_status = state.get("status", "unknown")
     # Ensure we return strictly "on" or "off" for UI icons
@@ -1216,7 +1245,7 @@ async def api_status(lang: str = "ua"):
 
     version = get_version()
 
-    return {
+    result = {
         "light": ui_light_state,
         "light_event": latest_event_text,
         "recent_events": recent_events,
@@ -1232,6 +1261,9 @@ async def api_status(lang: str = "ua"):
         "timestamp": datetime.now(KYIV_TZ).strftime("%H:%M:%S"),
         "version": version,
     }
+    _api_status_cache = result
+    _api_status_cache_time = time.time()
+    return result
 
 
 # --- Web Push API ---
@@ -1301,9 +1333,9 @@ async def push_api(
                 msg = format_event_message(
                     True, current_time, state.get("went_down_at", 0)
                 )
-                background_tasks.add_task(send_telegram, msg)
+                background_tasks.add_task(_safe_send_telegram, msg)
                 background_tasks.add_task(
-                    send_push_notification,
+                    _safe_send_push_notification,
                     "⚡ Світло з'явилось!",
                     msg.split("\n")[0] if msg else "Електропостачання відновлено",
                 )
@@ -1347,9 +1379,9 @@ async def confirm_outage_api(action: str, key: str, background_tasks: Background
             state["safety_net_pending"] = False
             down_time = state.get("went_down_at", time.time())
             msg = format_event_message(False, down_time, state.get("came_up_at", 0))
-            background_tasks.add_task(send_telegram, msg)
+            background_tasks.add_task(_safe_send_telegram, msg)
             background_tasks.add_task(
-                send_push_notification,
+                _safe_send_push_notification,
                 "🔴 Відключення підтверджено",
                 msg.split("\n")[0] if msg else "Електропостачання відсутнє",
             )
@@ -1394,9 +1426,9 @@ async def down_api(
                 "Manual down API called: forcing quiet mode off and sending 'Light Down' message."
             )
             msg = format_event_message(False, current_time, state.get("came_up_at", 0))
-            background_tasks.add_task(send_telegram, msg)
+            background_tasks.add_task(_safe_send_telegram, msg)
             background_tasks.add_task(
-                send_push_notification,
+                _safe_send_push_notification,
                 "🔴 Світло зникло!",
                 msg.split("\n")[0] if msg else "Електропостачання відсутнє",
             )
@@ -1420,9 +1452,10 @@ async def tg_webhook(
     x_secret: str = Header(None, alias="X-Telegram-Bot-Api-Secret-Token"),
 ):
     webhook_secret = settings.telegram_webhook_secret
-    if webhook_secret and (
-        not x_secret or not secrets.compare_digest(x_secret, webhook_secret)
-    ):
+    if not webhook_secret:
+        logger.warning("telegram_webhook_secret_not_configured")
+        return PlainTextResponse("Webhook secret not configured", status_code=503)
+    if not x_secret or not secrets.compare_digest(x_secret, webhook_secret):
         return PlainTextResponse("Unauthorized", status_code=403)
 
     if not data:
@@ -1448,7 +1481,7 @@ async def tg_webhook(
                     timestamp = time.time()
 
                 msg = format_event_message(False, timestamp, state.get("came_up_at", 0))
-                background_tasks.add_task(send_telegram, msg)
+                background_tasks.add_task(_safe_send_telegram, msg)
                 background_tasks.add_task(broadcast_state_update)
 
                 # Update status
@@ -1606,7 +1639,7 @@ async def tg_webhook(
                 msg = format_event_message(
                     False, down_time_ts, state.get("came_up_at", 0)
                 )
-                background_tasks.add_task(send_telegram, msg)
+                background_tasks.add_task(_safe_send_telegram, msg)
                 background_tasks.add_task(broadcast_state_update)
                 await save_state()
 
@@ -1670,7 +1703,7 @@ async def tg_webhook(
 
 
 def check_admin_token(request: Request):
-    t = request.headers.get("X-Admin-Token") or request.query_params.get("t")
+    t = request.headers.get("X-Admin-Token")
     admin_token = state.get("admin_token")
     if not t or not admin_token or not secrets.compare_digest(t, admin_token):
         return False
@@ -1743,14 +1776,18 @@ async def admin_config_post(request: Request, new_config: AdminConfigRequest):
         config_path = os.path.join(DATA_DIR, "config.json")
 
         def save_config():
-            with open(config_path, "w", encoding="utf-8") as f:
-                json.dump(validated_config, f, indent=2, ensure_ascii=False)
+            StorageUtils.save_json_sync(config_path, validated_config)
 
         await asyncio.to_thread(save_config)
 
         # Clear cache to reflect changes immediately (AQ, etc.)
         async with cache_lock:
             CACHE.clear()
+
+        # Invalidate worker config cache so it picks up changes
+        from app.config_runtime import invalidate_config_cache
+
+        invalidate_config_cache()
 
         return {"status": "ok"}
     except Exception as e:
@@ -1812,7 +1849,7 @@ async def admin_safety_net_react(
             state["went_down_at"] = down_time_ts
             await log_event("down", down_time_ts)
             msg = format_event_message(False, down_time_ts, state.get("came_up_at", 0))
-            background_tasks.add_task(send_telegram, msg)
+            background_tasks.add_task(_safe_send_telegram, msg)
             background_tasks.add_task(broadcast_state_update)
 
         elif action == "tech":
@@ -1829,7 +1866,7 @@ async def admin_safety_net_react(
             state["safety_net_pending"] = False
             down_time = state.get("went_down_at", time.time())
             msg = format_event_message(False, down_time, state.get("came_up_at", 0))
-            background_tasks.add_task(send_telegram, msg)
+            background_tasks.add_task(_safe_send_telegram, msg)
             background_tasks.add_task(broadcast_state_update)
 
         elif action == "ignore":

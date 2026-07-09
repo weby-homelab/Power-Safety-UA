@@ -5,6 +5,10 @@ from datetime import datetime
 import subprocess
 import shutil
 
+import structlog
+
+logger = structlog.get_logger(__name__)
+
 # Отримуємо директорії
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(APP_DIR, "data"))
@@ -29,18 +33,18 @@ def perform_cold_start_if_needed():
         os.close(fd)
         created_lock = True
     except FileExistsError:
-        print("⏳ Ініціалізація вже виконується іншим процесом. Очікуємо...")
+        logger.info("Initialization already in progress by another process. Waiting...")
         for _ in range(30):
             time.sleep(1)
             if os.path.exists(event_file) and os.path.exists(sched_file):
                 return
-        print("⚠️ Тайм-аут очікування ініціалізації. Продовжуємо...")
+        logger.warning("Timeout waiting for initialization. Continuing...")
         return
     except Exception as e:
-        print(f"⚠️ Не вдалося створити lock-файл: {e}")
+        logger.error("Failed to create lock file", error=str(e))
 
     try:
-        print("🚀 Виявлено новий запуск (Cold Start)! Ініціалізація бази даних для поточного регіону...")
+        logger.info("Cold Start detected! Initializing database for current region...")
         
         # Створюємо потрібні папки
         os.makedirs(os.path.join(DATA_DIR, "static"), exist_ok=True)
@@ -61,20 +65,20 @@ def perform_cold_start_if_needed():
             
             if os.path.exists(root_config):
                 shutil.copy2(root_config, config_file)
-                print("✅ Базовий config.json скопійовано з кореня проекту.")
+                logger.info("Base config.json copied from project root.")
             elif os.path.exists(default_config):
                 shutil.copy2(default_config, config_file)
-                print("✅ Базовий config.json скопійовано з папки скриптів.")
+                logger.info("Base config.json copied from scripts folder.")
             else:
-                print("⏳ Базовий config.json не знайдено. Спроба автоматичної генерації...")
+                logger.info("Base config.json not found. Attempting auto-generation...")
                 try:
                     from app.models import AppConfig
                     cfg = AppConfig()
                     with open(config_file, "w", encoding="utf-8") as f:
                         f.write(cfg.model_dump_json(indent=2))
-                    print("✅ Дефолтний config.json автоматично згенеровано через AppConfig.")
+                    logger.info("Default config.json auto-generated via AppConfig.")
                 except Exception as e:
-                    print(f"⚠️ Не вдалося імпортувати AppConfig: {e}. Використовуємо вбудований шаблон...")
+                    logger.error("Failed to import AppConfig, using fallback template", error=str(e))
                     fallback_config = {
                         "settings": {
                             "timezone": "Europe/Kyiv",
@@ -145,7 +149,7 @@ def perform_cold_start_if_needed():
                     }
                     with open(config_file, "w", encoding="utf-8") as f:
                         json.dump(fallback_config, f, indent=2, ensure_ascii=False)
-                    print("✅ Дефолтний config.json успішно записано з шаблону.")
+                    logger.info("Default config.json written from fallback template.")
 
         # 2. Створюємо точку відліку (світло є прямо зараз)
         if not os.path.exists(event_file):
@@ -161,47 +165,47 @@ def perform_cold_start_if_needed():
             }]
             with open(event_file, "w", encoding="utf-8") as f:
                 json.dump(start_event, f, indent=2, ensure_ascii=False)
-            print("✅ event_log.json ініціалізовано.")
+            logger.info("event_log.json initialized.")
 
         # 3. Створюємо порожню історію графіків
         if not os.path.exists(history_file):
             with open(history_file, "w", encoding="utf-8") as f:
                 json.dump({}, f)
-            print("✅ schedule_history.json ініціалізовано.")
+            logger.info("schedule_history.json initialized.")
 
         # 4. Примусово завантажуємо планові графіки на зараз
         if not os.path.exists(sched_file):
             try:
                 from app.parser_service import update_local_schedules
-                print("⏳ Завантаження планових графіків згідно з config.json...")
+                logger.info("Loading schedules according to config.json...")
                 import asyncio
                 asyncio.run(update_local_schedules(config_file, sched_file))
-                print("✅ last_schedules.json успішно згенеровано!")
+                logger.info("last_schedules.json generated successfully!")
             except Exception as e:
-                print(f"❌ Помилка завантаження першого графіку: {e}")
+                logger.error("Error loading initial schedule", error=str(e))
                 # Створюємо пустий файл, щоб не блокувати подальшу роботу
                 with open(sched_file, "w", encoding="utf-8") as f:
                     json.dump({}, f)
 
         # 5. Примусово генеруємо картинки та статистику
-        print("🎨 Генерація перших дашбордів...")
+        logger.info("Generating first dashboards...")
         try:
             subprocess.run(["python3", "app/generate_daily_report.py", "--no-send"], cwd=root_dir, check=True)
             subprocess.run(["python3", "app/generate_weekly_report.py", "--no-send"], cwd=root_dir, check=True)
-            print("✅ Дашборди успішно згенеровано.")
+            logger.info("Dashboards generated successfully.")
         except Exception as e:
-            print(f"❌ Помилка генерації перших дашбордів: {e}")
+            logger.error("Error generating initial dashboards", error=str(e))
 
     finally:
         if created_lock:
             try:
                 if os.path.exists(lock_file):
                     os.remove(lock_file)
-                    print("🔓 Lock-файл успішно видалено.")
+                    logger.info("Lock file removed successfully.")
             except Exception as e:
-                print(f"⚠️ Помилка видалення lock-файлу: {e}")
+                logger.error("Error removing lock file", error=str(e))
 
-    print("🎉 Ініціалізація (Smart Bootstrap) завершена!")
+    logger.info("Bootstrap initialization complete!")
 
 if __name__ == "__main__":
     perform_cold_start_if_needed()

@@ -174,6 +174,7 @@ async def fetch_custom(client: httpx.AsyncClient, cfg: dict) -> Optional[dict]:
             custom_url,
             headers={"User-Agent": f"Power-Safety-UA/{get_version()}"},
             timeout=20,
+            follow_redirects=False,
         )
         r.raise_for_status()
         return r.json()

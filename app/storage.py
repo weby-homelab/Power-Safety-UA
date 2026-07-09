@@ -5,6 +5,10 @@ import aiofiles
 import fcntl
 from typing import Any
 
+import structlog
+
+logger = structlog.get_logger(__name__)
+
 
 class StorageUtils:
     """Helper methods for safe file operations."""
@@ -22,7 +26,7 @@ class StorageUtils:
                     else (default if default is not None else {})
                 )
         except Exception as e:
-            print(f"Error loading {path}: {e}")
+            logger.error("Error loading async", path=path, error=str(e))
             return default if default is not None else {}
 
     @staticmethod
@@ -33,12 +37,13 @@ class StorageUtils:
                 await f.write(json.dumps(data, indent=2, ensure_ascii=False))
 
             def _replace():
+                os.chmod(temp_path, 0o600)
                 os.replace(temp_path, path)
 
             await asyncio.to_thread(_replace)
             return True
         except Exception as e:
-            print(f"Error saving {path}: {e}")
+            logger.error("Error saving async", path=path, error=str(e))
             return False
 
     @staticmethod
@@ -49,7 +54,7 @@ class StorageUtils:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"Error loading {path}: {e}")
+            logger.error("Error loading sync", path=path, error=str(e))
             return default if default is not None else {}
 
     @staticmethod
@@ -63,7 +68,7 @@ class StorageUtils:
             os.replace(temp_path, path)
             return True
         except Exception as e:
-            print(f"Error saving {path}: {e}")
+            logger.error("Error saving sync", path=path, error=str(e))
             return False
 
 
@@ -92,7 +97,7 @@ class SafeStateContextAsync:
 
             await asyncio.to_thread(_acquire)
         except Exception as e:
-            print(f"Error acquiring file lock: {e}")
+            logger.error("Error acquiring file lock", error=str(e))
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

@@ -1,5 +1,8 @@
 import json
 import requests
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class TelegramClient:
@@ -44,15 +47,11 @@ class TelegramClient:
             "disable_web_page_preview": True,
         }
         if reply_markup:
-            payload["reply_markup"] = (
-                json.dumps(reply_markup)
-                if isinstance(reply_markup, dict)
-                else reply_markup
-            )
+            payload["reply_markup"] = reply_markup
 
         success, res = self._make_request("sendMessage", payload)
         if not success:
-            print(f"Failed to send message: {res}")
+            logger.warning("Failed to send message", error=res)
         return res if success else None
 
     def edit_message(self, message_id, text, parse_mode="HTML", reply_markup=None):
@@ -64,27 +63,23 @@ class TelegramClient:
             "disable_web_page_preview": True,
         }
         if reply_markup:
-            payload["reply_markup"] = (
-                json.dumps(reply_markup)
-                if isinstance(reply_markup, dict)
-                else reply_markup
-            )
+            payload["reply_markup"] = reply_markup
 
         success, res = self._make_request("editMessageText", payload)
         if success:
             return message_id
 
         if "message to edit not found" in res:
-            print("Message deleted manually. Falling back to send_message.")
+            logger.info("Message deleted manually. Falling back to send_message.")
             return self.send_message(
                 text, parse_mode, silent=True, reply_markup=reply_markup
             )
 
         if "message is not modified" in res:
-            print("Message content identical. No update needed.")
+            logger.info("Message content identical. No update needed.")
             return message_id
 
-        print(f"Failed to edit message: {res}")
+        logger.warning("Failed to edit message", error=res)
         return None
 
     def send_photo(self, photo_path, caption="", parse_mode="HTML", silent=True):
@@ -100,10 +95,10 @@ class TelegramClient:
                     "sendPhoto", payload, files={"photo": f}
                 )
                 if not success:
-                    print(f"Failed to send photo: {res}")
+                    logger.warning("Failed to send photo", error=res)
                 return res if success else None
         except Exception as e:
-            print(f"Error opening photo file: {e}")
+            logger.error("Error opening photo file", error=str(e))
             return None
 
     def edit_photo(self, message_id, photo_path, caption="", parse_mode="HTML"):
@@ -129,24 +124,26 @@ class TelegramClient:
                     return message_id
 
                 if "message to edit not found" in res:
-                    print("Photo message deleted manually. Falling back to send_photo.")
+                    logger.info(
+                        "Photo message deleted manually. Falling back to send_photo."
+                    )
                     return self.send_photo(photo_path, caption, parse_mode, silent=True)
 
                 if "message is not modified" in res:
-                    print("Photo content identical. No update needed.")
+                    logger.info("Photo content identical. No update needed.")
                     return message_id
 
-                print(f"Failed to edit photo: {res}")
+                logger.warning("Failed to edit photo", error=res)
                 return None
         except Exception as e:
-            print(f"Error opening photo file for edit: {e}")
+            logger.error("Error opening photo file for edit", error=str(e))
             return None
 
     def delete_message(self, message_id):
         payload = {"chat_id": self.chat_id, "message_id": message_id}
         success, res = self._make_request("deleteMessage", payload, timeout=10)
         if not success:
-            print(f"Failed to delete message {message_id}: {res}")
+            logger.warning("Failed to delete message", message_id=message_id, error=res)
         return success
 
     def answer_callback(self, callback_id, text):

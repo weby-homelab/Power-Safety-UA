@@ -136,7 +136,7 @@ def load_schedule_slots(target_date):
             if merged_slots:
                 return merged_slots
         except Exception as e:
-            print(f"Error loading schedule: {e}")
+            logger.error("Error loading schedule", error=str(e))
 
     # 2. Try schedule_history.json (past)
     if os.path.exists(HISTORY_FILE):
@@ -149,7 +149,7 @@ def load_schedule_slots(target_date):
                         return res.get("slots", [True] * 48)
                     return res
         except Exception as e:
-            print(f"Error loading history: {e}")
+            logger.error("Error loading history", error=str(e))
 
     # If no schedule found, assume Light (True) for the whole day
     return [True] * 48
@@ -409,7 +409,7 @@ def generate_chart(
                             end_t = now
                         aqi_intervals.append((start_t, end_t, color))
         except Exception as e:
-            print(f"Error fetching daily AQI for chart: {e}")
+            logger.error("Error fetching daily AQI for chart", error=str(e))
 
         if not aqi_intervals:
             if target_date <= now.date():
@@ -720,9 +720,9 @@ def send_telegram_photo(photo_path, caption, target_date):
     msg_id = client.send_photo(photo_path, caption)
     if msg_id:
         save_report_id(msg_id, target_date)
-        print("Report sent successfully.")
+        logger.info("Report sent successfully.")
     else:
-        print("Failed to send report.")
+        logger.error("Failed to send report.")
 
 
 def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
@@ -824,7 +824,7 @@ if __name__ == "__main__":
         except ValueError:
             pass  # Ignore non-date arguments
 
-    print(f"Generating report for {target_date}...")
+    logger.info("Generating report", target_date=target_date)
 
     events = load_events()
     slots = load_schedule_slots(target_date)
@@ -904,20 +904,20 @@ if __name__ == "__main__":
             with open(os.path.join(web_dir, "stats.json"), "w") as f:
                 json.dump(stats_data, f)
         except Exception as e:
-            print(f"Error saving stats json: {e}")
+            logger.error("Error saving stats json", error=str(e))
 
     is_final = "--final" in sys.argv
     is_cleanup = "--cleanup" in sys.argv
     quiet_status = get_quiet_status()
 
     if is_cleanup:
-        print("Cleanup mode: Removing daily reports from Telegram...")
+        logger.info("Cleanup mode: Removing daily reports from Telegram...")
         # Clean up today and yesterday
         yesterday_date = target_date - datetime.timedelta(days=1)
         for d in [target_date, yesterday_date]:
             last_id = get_last_report_id(d)
             if last_id:
-                print(f"Deleting report for {d} (ID: {last_id})...")
+                logger.info("Deleting report", date=d, message_id=last_id)
                 delete_telegram_message(last_id)
                 save_report_id(None, d)
         sys.exit(0)
@@ -932,23 +932,27 @@ if __name__ == "__main__":
 
     if quiet_status == "quiet" and "--no-send" not in sys.argv:
         if is_final:
-            print("Quiet mode active. Skipping special text summary as per request.")
+            logger.info(
+                "Quiet mode active. Skipping special text summary as per request."
+            )
             # Delete old message if exists (keeping it clean)
             last_id = get_last_report_id(target_date)
             if last_id:
-                print(
-                    f"Deleting yesterday's old report message (ID: {last_id}) during quiet finalization..."
+                logger.info(
+                    "Deleting yesterday's old report message during quiet finalization",
+                    message_id=last_id,
                 )
                 delete_telegram_message(last_id)
         else:
             last_id = get_last_report_id(target_date)
             if last_id:
-                print(
-                    f"Quiet mode active, but updating existing report (ID: {last_id}) to keep it live..."
+                logger.info(
+                    "Quiet mode active, but updating existing report to keep it live",
+                    message_id=last_id,
                 )
                 update_telegram_photo(last_id, filename, caption)
             else:
-                print("Quiet mode active: Skipping Telegram update (not final).")
+                logger.info("Quiet mode active: Skipping Telegram update (not final).")
 
         if os.path.exists(filename):
             os.remove(filename)
@@ -963,8 +967,8 @@ if __name__ == "__main__":
     if is_all_on_day and quiet_status != "quiet" and "--no-send" not in sys.argv:
         last_id = get_last_report_id(target_date)
         if not last_id:
-            print(
-                "Active mode but all-light day: Skipping new graphic report to avoid spam in Telegram."
+            logger.info(
+                "Active mode but all-light day: Skipping new graphic report to avoid spam."
             )
             if os.path.exists(filename):
                 os.remove(filename)
@@ -983,24 +987,26 @@ if __name__ == "__main__":
         # Check if we can update an existing message
         last_id = get_last_report_id(target_date)
         if last_id and not is_final:
-            print(f"Updating existing report (ID: {last_id})...")
+            logger.info("Updating existing report", message_id=last_id)
             sent = update_telegram_photo(last_id, filename, caption)
             if not sent:
-                print(
+                logger.info(
                     "Update failed (likely message deleted). Sending a NEW message instead..."
                 )
                 send_telegram_photo(filename, caption, target_date)
         else:
             if is_final:
-                print(f"Finalizing report for {target_date} as a NEW message...")
+                logger.info("Finalizing report", target_date=target_date)
                 if last_id:
-                    print(f"Deleting yesterday's old report message (ID: {last_id})...")
+                    logger.info(
+                        "Deleting yesterday's old report message", message_id=last_id
+                    )
                     delete_telegram_message(last_id)
             else:
-                print("No report ID for today. Sending new report...")
+                logger.info("No report ID for today. Sending new report...")
             send_telegram_photo(filename, caption, target_date)
     else:
-        print("Telegram sending skipped (--no-send).")
+        logger.info("Telegram sending skipped (--no-send).")
 
     if os.path.exists(filename):
         os.remove(filename)

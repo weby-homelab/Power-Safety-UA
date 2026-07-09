@@ -90,10 +90,10 @@ def test_webhook_no_secret_rejected():
 
 
 def test_webhook_empty_body():
-    """Webhook with empty body should return OK."""
+    """Webhook with empty body should return 503 (fail-closed)."""
     with patch("app.main.settings.telegram_webhook_secret", ""):
         response = client.post("/api/tg/webhook")
-        assert response.status_code == 200
+        assert response.status_code == 503
 
 
 def test_rate_limit_admin_endpoint():

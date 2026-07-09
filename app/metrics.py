@@ -67,7 +67,8 @@ state_save_errors = Counter(
     "power_state_save_errors_total",
     "Total state save errors",
 )
-event_log_errors = Counter(
-    "power_event_log_errors_total",
-    "Total event log errors",
+report_generation_errors = Counter(
+    "power_report_generation_errors_total",
+    "Total report generation failures",
+    ["report_type"],
 )

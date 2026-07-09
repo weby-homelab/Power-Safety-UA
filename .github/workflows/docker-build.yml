@@ -53,7 +53,7 @@ jobs:
       - name: Run Pytest with Coverage
         env:
           PYTHONPATH: .
-        run: pytest tests/ -v --cov=app --cov-fail-under=30
+        run: pytest tests/ -v --cov=app --cov-fail-under=35
 
   build:
     name: Docker Build & Push

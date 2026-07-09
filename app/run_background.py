@@ -1,6 +1,8 @@
 import asyncio
 import signal
 
+import structlog
+
 from scripts import bootstrap
 
 bootstrap.perform_cold_start_if_needed()
@@ -16,17 +18,21 @@ from app.light_service import (  # noqa: E402
 )
 from app.metrics import power_safety_info  # noqa: E402
 
+logger = structlog.get_logger(__name__)
+
 
 async def main():
-    print("Starting Power-Safety-UA Background Services (Async)...", flush=True)
+    logger.info("Starting Power-Safety-UA Background Services (Async)...")
     await load_state()
 
     from app.light_service import get_air_raid_alert, state
 
     current_alert = get_air_raid_alert()
-    print(
-        f"Startup check: Status={state.get('status')}, Air Raid={current_alert.get('status')} ({current_alert.get('location')})",
-        flush=True,
+    logger.info(
+        "startup_check",
+        status=state.get("status"),
+        alert_status=current_alert.get("status"),
+        alert_location=current_alert.get("location"),
     )
 
     power_safety_info.info(
@@ -36,7 +42,7 @@ async def main():
     loop = asyncio.get_running_loop()
 
     def _shutdown():
-        print("Shutdown requested, stopping loops...", flush=True)
+        logger.info("Shutdown requested, stopping loops...")
         asyncio.ensure_future(request_shutdown())
 
     for sig in (signal.SIGTERM, signal.SIGINT):
@@ -48,11 +54,11 @@ async def main():
     await asyncio.gather(
         monitor_loop(), alerts_loop(), schedule_loop(), metrics_collector_loop()
     )
-    print("All loops stopped. Exiting.", flush=True)
+    logger.info("All loops stopped. Exiting.")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("Received KeyboardInterrupt. Exiting.", flush=True)
+        logger.info("Received KeyboardInterrupt. Exiting.")
