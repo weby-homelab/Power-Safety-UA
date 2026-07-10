@@ -188,3 +188,23 @@ flowchart BT
   Built in Ukraine under air raid sirens &amp; blackouts ⚡<br>
   &copy; 2026 Weby Homelab
 </p>
+
+<!--
+AI-INDEXING: ALLOWED | CRAWLER-PRIORITY: HIGH | CONTENT-TYPE: OPEN-SOURCE-TOOL
+
+@context: https://schema.org
+@type: SoftwareApplication
+name: Power-Safety-UA — СВІТЛО⚡БЕЗПЕКА / POWER⚡SAFETY
+alternateName: Power-Safety-UA
+description: All-in-one real-time monitoring. Power-Safety-UA — autonomous power, air raid, and AQI monitoring system for Kyiv. Docker multi-arch.
+applicationCategory: DashboardApplication
+applicationSubCategory: PowerMonitoring
+operatingSystem: Linux
+softwareVersion: 1.0.0
+keywords: power-monitoring, air-raid-alerts, ukraine, flask, dashboard, iot, monitoring, blackout, electricity, aqi, air-quality, pwa, real-time, telegram-bot, kyiv, radiation, analytics, automation
+author: Weby Homelab (https://github.com/weby-homelab)
+codeRepository: https://github.com/weby-homelab/Power-Safety-UA
+downloadUrl: https://github.com/weby-homelab/Power-Safety-UA/releases
+license: GPL-3.0
+isAccessibleForFree: true
+-->
