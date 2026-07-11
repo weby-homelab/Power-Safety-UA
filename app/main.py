@@ -389,9 +389,13 @@ async def get_power_events_data(limit=5, lang="ua"):
     recent_events = []
 
     # Default schedule info (wrapped in to_thread to avoid blocking event loop)
-    sched_light_now, current_end, next_range, next_duration, is_emergency = (
-        await asyncio.to_thread(get_schedule_context, lang=lang)
-    )
+    (
+        sched_light_now,
+        current_end,
+        next_range,
+        next_duration,
+        is_emergency,
+    ) = await asyncio.to_thread(get_schedule_context, lang=lang)
     if is_emergency:
         latest_event_text = (
             "• possible emergency outages ⚠️"
@@ -418,160 +422,154 @@ async def get_power_events_data(limit=5, lang="ua"):
     try:
         logs = await asyncio.to_thread(_read_event_log_raw)
         if logs:
-                    # Calculate durations
-                    for i in range(len(logs)):
-                        if i > 0:
-                            logs[i]["duration_prev"] = (
-                                logs[i]["timestamp"] - logs[i - 1]["timestamp"]
-                            )
-                        else:
-                            logs[i]["duration_prev"] = None
+            # Calculate durations
+            for i in range(len(logs)):
+                if i > 0:
+                    logs[i]["duration_prev"] = (
+                        logs[i]["timestamp"] - logs[i - 1]["timestamp"]
+                    )
+                else:
+                    logs[i]["duration_prev"] = None
 
-                    last_logs = logs[-limit:][::-1]
+            last_logs = logs[-limit:][::-1]
 
-                    for log in last_logs:
-                        ts = log.get("timestamp", 0)
-                        evt = log.get("event", "unknown")
-                        dur_sec = log.get("duration_prev")
+            for log in last_logs:
+                ts = log.get("timestamp", 0)
+                evt = log.get("event", "unknown")
+                dur_sec = log.get("duration_prev")
 
-                        dt_str = datetime.fromtimestamp(ts).strftime("%d.%m %H:%M")
-                        icon = "🟢" if evt == "up" else "🔴"
-                        if lang == "en":
-                            text = "Power restored" if evt == "up" else "Power outage"
-                            pre_text = "offline" if evt == "up" else "online"
-                        else:
-                            text = (
-                                "Світло з'явилося" if evt == "up" else "Світло зникло"
-                            )
-                            pre_text = "не було" if evt == "up" else "було"
+                dt_str = datetime.fromtimestamp(ts).strftime("%d.%m %H:%M")
+                icon = "🟢" if evt == "up" else "🔴"
+                if lang == "en":
+                    text = "Power restored" if evt == "up" else "Power outage"
+                    pre_text = "offline" if evt == "up" else "online"
+                else:
+                    text = "Світло з'явилося" if evt == "up" else "Світло зникло"
+                    pre_text = "не було" if evt == "up" else "було"
 
-                        dur_str = format_duration(dur_sec, lang=lang) if dur_sec else ""
+                dur_str = format_duration(dur_sec, lang=lang) if dur_sec else ""
 
-                        recent_events.append(
-                            {
-                                "time": dt_str,
-                                "icon": icon,
-                                "text": text,
-                                "desc": f"({pre_text} {dur_str})" if dur_str else "",
-                            }
-                        )
+                recent_events.append(
+                    {
+                        "time": dt_str,
+                        "icon": icon,
+                        "text": text,
+                        "desc": f"({pre_text} {dur_str})" if dur_str else "",
+                    }
+                )
 
-                    # Construct current status text
-                    await load_state()
-                    status = state.get("status", "unknown")
+            # Construct current status text
+            await load_state()
+            status = state.get("status", "unknown")
 
-                    target_evt = "up" if status == "up" else "down"
+            target_evt = "up" if status == "up" else "down"
 
-                    # Find the latest log entry that matches current status
-                    last_match = None
-                    for log in reversed(logs):
-                        if log.get("event") == target_evt:
-                            last_match = log
-                            break
+            # Find the latest log entry that matches current status
+            last_match = None
+            for log in reversed(logs):
+                if log.get("event") == target_evt:
+                    last_match = log
+                    break
 
-                    if not last_match:
-                        last_match = logs[-1]
+            if not last_match:
+                last_match = logs[-1]
 
-                    ts = last_match["timestamp"]
-                    evt = last_match["event"]
+            ts = last_match["timestamp"]
+            evt = last_match["event"]
 
-                    # --- NEW TEXT LOGIC ---
-                    dev_msg = get_deviation_info(ts, evt == "up", lang=lang)
-                    dev_line = ""
-                    if dev_msg:
-                        if lang == "en":
-                            m = re.search(
-                                r"(?:Powered ON|Powered OFF)\s+(later|earlier)\s+by\s+(.+)$",
-                                dev_msg,
-                            )
-                            if status == "up":
-                                if m:
-                                    timing = m.group(1)
-                                    value = m.group(2)
-                                    dev_line = f"• Restored {value} {timing}"
-                                elif "strictly on schedule" in dev_msg:
-                                    dev_line = "• Restored strictly on schedule"
-                            else:
-                                if m:
-                                    timing = m.group(1)
-                                    value = m.group(2)
-                                    dev_line = f"• {value} {timing}"
-                                elif "strictly on schedule" in dev_msg:
-                                    dev_line = "• Strictly on schedule"
-                        else:
-                            m = re.search(
-                                r"(?:Увімкнули|Вимкнули)\s+(раніше|пізніше)\s+на\s+(.+)$",
-                                dev_msg,
-                            )
-                            if status == "up":
-                                if m:
-                                    timing = m.group(1)
-                                    value = m.group(2)
-                                    dev_line = f"• З'явилося на {value} {timing}"
-                                elif "точно за графіком" in dev_msg:
-                                    dev_line = "• З'явилося Точно за графіком"
-                            else:
-                                if m:
-                                    timing = m.group(1)
-                                    value = m.group(2)
-                                    dev_line = f"• на {value} {timing}"
-                                elif "точно за графіком" in dev_msg:
-                                    dev_line = "• Точно за графіком"
-
-                    # Next event prediction
-                    current_ts = time.time()
-                    look_for_light = (
-                        status != "up"
-                    )  # If currently UP, look for OFF (False)
-                    next_info = get_next_scheduled_event(current_ts, look_for_light)
-                    wait_line = ""
-                    if next_info:
-                        if status == "up":
-                            next_time = next_info["interval"].split("-")[0]
-                            wait_line = (
-                                f"• Outage at {next_time}"
-                                if lang == "en"
-                                else f"• Вимкнення о {next_time}"
-                            )
-                        else:
-                            wait_line = (
-                                f"• Expected at {next_info['interval']}"
-                                if lang == "en"
-                                else f"• Очікуємо о {next_info['interval']}"
-                            )
-
-                    if is_emergency:
-                        latest_event_text = (
-                            "• possible emergency outages ⚠️"
-                            if lang == "en"
-                            else "• можливі аварійні відключення ⚠️"
-                        )
-                    elif dev_line and wait_line:
-                        latest_event_text = f"{dev_line}<br>{wait_line}"
-                    elif dev_line:
-                        latest_event_text = f"{dev_line}"
-                    elif wait_line:
-                        latest_event_text = f"{wait_line}"
-                    elif (
-                        "не плануються" in next_range.lower()
-                        or "невідомий час" in next_range.lower()
-                        or "час невідомий" in next_range.lower()
-                        or "час очікується" in next_range.lower()
-                        or "no outages" in next_range.lower()
-                        or "unknown" in next_range.lower()
-                    ):
-                        latest_event_text = (
-                            "• No outages scheduled 🔆"
-                            if lang == "en"
-                            else "• Відключення не плануються 🔆"
-                        )
+            # --- NEW TEXT LOGIC ---
+            dev_msg = get_deviation_info(ts, evt == "up", lang=lang)
+            dev_line = ""
+            if dev_msg:
+                if lang == "en":
+                    m = re.search(
+                        r"(?:Powered ON|Powered OFF)\s+(later|earlier)\s+by\s+(.+)$",
+                        dev_msg,
+                    )
+                    if status == "up":
+                        if m:
+                            timing = m.group(1)
+                            value = m.group(2)
+                            dev_line = f"• Restored {value} {timing}"
+                        elif "strictly on schedule" in dev_msg:
+                            dev_line = "• Restored strictly on schedule"
                     else:
-                        prefix = (
-                            "• Next scheduled: "
-                            if lang == "en"
-                            else "• Наступне планове: "
-                        )
-                        latest_event_text = f"{prefix}{next_range}"
+                        if m:
+                            timing = m.group(1)
+                            value = m.group(2)
+                            dev_line = f"• {value} {timing}"
+                        elif "strictly on schedule" in dev_msg:
+                            dev_line = "• Strictly on schedule"
+                else:
+                    m = re.search(
+                        r"(?:Увімкнули|Вимкнули)\s+(раніше|пізніше)\s+на\s+(.+)$",
+                        dev_msg,
+                    )
+                    if status == "up":
+                        if m:
+                            timing = m.group(1)
+                            value = m.group(2)
+                            dev_line = f"• З'явилося на {value} {timing}"
+                        elif "точно за графіком" in dev_msg:
+                            dev_line = "• З'явилося Точно за графіком"
+                    else:
+                        if m:
+                            timing = m.group(1)
+                            value = m.group(2)
+                            dev_line = f"• на {value} {timing}"
+                        elif "точно за графіком" in dev_msg:
+                            dev_line = "• Точно за графіком"
+
+            # Next event prediction
+            current_ts = time.time()
+            look_for_light = status != "up"  # If currently UP, look for OFF (False)
+            next_info = get_next_scheduled_event(current_ts, look_for_light)
+            wait_line = ""
+            if next_info:
+                if status == "up":
+                    next_time = next_info["interval"].split("-")[0]
+                    wait_line = (
+                        f"• Outage at {next_time}"
+                        if lang == "en"
+                        else f"• Вимкнення о {next_time}"
+                    )
+                else:
+                    wait_line = (
+                        f"• Expected at {next_info['interval']}"
+                        if lang == "en"
+                        else f"• Очікуємо о {next_info['interval']}"
+                    )
+
+            if is_emergency:
+                latest_event_text = (
+                    "• possible emergency outages ⚠️"
+                    if lang == "en"
+                    else "• можливі аварійні відключення ⚠️"
+                )
+            elif dev_line and wait_line:
+                latest_event_text = f"{dev_line}<br>{wait_line}"
+            elif dev_line:
+                latest_event_text = f"{dev_line}"
+            elif wait_line:
+                latest_event_text = f"{wait_line}"
+            elif (
+                "не плануються" in next_range.lower()
+                or "невідомий час" in next_range.lower()
+                or "час невідомий" in next_range.lower()
+                or "час очікується" in next_range.lower()
+                or "no outages" in next_range.lower()
+                or "unknown" in next_range.lower()
+            ):
+                latest_event_text = (
+                    "• No outages scheduled 🔆"
+                    if lang == "en"
+                    else "• Відключення не плануються 🔆"
+                )
+            else:
+                prefix = (
+                    "• Next scheduled: " if lang == "en" else "• Наступне планове: "
+                )
+                latest_event_text = f"{prefix}{next_range}"
 
     except Exception as e:
         logger.error("error_reading_events", error=str(e))
