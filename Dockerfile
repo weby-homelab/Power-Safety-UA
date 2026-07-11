@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     libpng-dev \
     gcc \
     python3-dev \
-    && pip install --no-cache-dir --upgrade "pip>=26.1" \
+    && pip install --no-cache-dir --upgrade "pip>=26.1.2" \
     && pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
@@ -35,7 +35,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libpng16-16 \
     && apt-get purge -y --auto-remove libkrb5-3 libgssapi-krb5-2 libkrb5support0 libk5crypto3 \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir --upgrade "pip>=26.1.2"
 
 COPY --from=builder /install /usr/local
 COPY . .
