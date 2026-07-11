@@ -1,5 +1,33 @@
+import os
+
 from pydantic_settings import BaseSettings
 from pydantic import Field
+
+
+SECRETS_DIR = "/run/secrets"
+
+
+def _load_docker_secrets() -> None:
+    """Read Docker secrets from /run/secrets/ and export as env vars.
+
+    If a secret file exists and the corresponding env var is NOT already
+    set, the file content is written to os.environ.  Secret filenames are
+    uppercased to match the standard env var names (e.g.  'telegram_bot_token'
+    -> 'TELEGRAM_BOT_TOKEN').
+    """
+    if not os.path.isdir(SECRETS_DIR):
+        return
+    for name in os.listdir(SECRETS_DIR):
+        path = os.path.join(SECRETS_DIR, name)
+        if not os.path.isfile(path):
+            continue
+        env_key = name.upper()
+        if env_key not in os.environ:
+            with open(path) as f:
+                os.environ[env_key] = f.read().strip()
+
+
+_load_docker_secrets()
 
 
 class Settings(BaseSettings):

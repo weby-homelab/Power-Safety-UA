@@ -454,7 +454,17 @@ async def load_state():
             logger.error(f"State validation error: {e}")
 
     if not state.get("secret_key"):
-        state["secret_key"] = os.environ.get("SECRET_KEY", secrets.token_urlsafe(16))
+        env_key = os.environ.get("SECRET_KEY")
+        if env_key:
+            state["secret_key"] = env_key
+        else:
+            logger.warning(
+                "SECRET_KEY fallback: env SECRET_KEY not set. "
+                "With --workers > 1 each worker will generate a DIFFERENT secret_key, "
+                "causing random 403 errors on push/confirm endpoints. "
+                "Set SECRET_KEY in .env or docker secrets."
+            )
+            state["secret_key"] = secrets.token_urlsafe(16)
 
     if not state.get("admin_token"):
         async with state_mgr:
@@ -725,6 +735,14 @@ def format_event_message(is_up, event_time, prev_event_time):
 
 def get_schedule_context(lang="ua"):
     try:
+        if not os.path.exists(SCHEDULE_FILE):
+            return (
+                None,
+                None,
+                "Unknown" if lang == "en" else "Невідомо",
+                None,
+                False,
+            )
         with open(SCHEDULE_FILE, "r") as f:
             data = json.load(f)
 

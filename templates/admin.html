@@ -6,7 +6,7 @@
     <title>Admin | Power-Safety-UA</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <style>
+    <style nonce="{{ nonce }}">
         :root {
             --bg-color: #0a0a0a;
             --glass-bg: rgba(255, 255, 255, 0.03);
@@ -712,9 +712,31 @@
         <footer id="footer-info" style="margin-top: 30px; text-align: center; font-size: 0.8rem; color: var(--text-secondary); opacity: 0.7;"></footer>
     </div>
 
-    <script>
-        const params = new URLSearchParams(window.location.search);
-        const token = params.get('t');
+    <script nonce="{{ nonce }}">
+        // Strategy: sessionStorage for API calls, ?t= for initial auth + page reload.
+        // Phase 1: On first load, read ?t=, store in sessionStorage, clean URL.
+        // Phase 2: On reload, sessionStorage maintains auth; if ?t= missing, auto-restore via redirect.
+
+        // 1. Read token: sessionStorage first (fast reload), then ?t= (initial load)
+        let token = sessionStorage.getItem('admin_token');
+
+        if (!token) {
+            const params = new URLSearchParams(window.location.search);
+            token = params.get('t');
+            if (token) {
+                sessionStorage.setItem('admin_token', token);
+                // Remove ?t= from URL bar after storing (visual cleanup — page may need reload to re-auth)
+                history.replaceState(null, '', window.location.pathname);
+            }
+        }
+
+        // 2. If no token in ?t= but exists in sessionStorage, redirect to re-authenticate with server
+        if (!token && sessionStorage.getItem('admin_token')) {
+            const savedToken = sessionStorage.getItem('admin_token');
+            window.location.href = window.location.pathname + '?t=' + savedToken;
+            throw new Error('Відновлення авторизації...');
+        }
+
         if (!token) { document.body.innerHTML = '<h2 style="color:red;text-align:center;margin-top:100px">Access Denied — No Token</h2>'; throw new Error('No token'); }
         const authHeaders = { 'X-Admin-Token': token, 'Content-Type': 'application/json' };
         let currentConfig = {};
@@ -1222,15 +1244,15 @@
                     const response = await fetch(`/api/admin/security/regen_admin_token`, { method: 'POST', headers: authHeaders });
                     if (response.ok) {
                         const data = await response.json();
+                        sessionStorage.setItem('admin_token', data.new_token);
             const msg = `
                 НОВИЙ ТОКЕН АДМІНА: ${data.new_token}
 
-                ВСТАНОВІТЬ НОВИЙ ТОКЕН В ЗАГОЛОВОК X-Admin-Token.
-                АБО ВІДКРИЙТЕ ПОСИЛАННЯ:
-                ${window.location.origin + window.location.pathname + '?t=' + data.new_token}
+                ЗБЕРЕЖЕНО В СЕСІЇ БРАУЗЕРА (sessionStorage).
+                Для використання в іншому браузері — скопіюйте токен зараз.
+                Після натискання OK сторінка перезавантажиться з новим токеном.
 
-                СКОПІЮЙТЕ ЦІ ДАНІ ЗАРАЗ! 
-                Після натискання OK ви втратите доступ за поточним посиланням.
+                СКОПІЮЙТЕ ЦІ ДАНІ ЗАРАЗ!
             `;
 
             alert(msg);

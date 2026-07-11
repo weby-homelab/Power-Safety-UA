@@ -24,7 +24,6 @@ from fastapi import (
     BackgroundTasks,
     Header,
     Body,
-    Query,
 )
 from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -125,6 +124,13 @@ async def lifespan(app: FastAPI):
     from app._version import get_version
 
     power_safety_info.info({"version": get_version(), "language": "python"})
+    if not os.environ.get("SECRET_KEY"):
+        logger.warning(
+            "CRITICAL: SECRET_KEY env var is not set. "
+            "CMD uses --workers 2: each worker will generate a DIFFERENT secret_key, "
+            "causing intermittent 403 errors. "
+            "Set SECRET_KEY in .env or docker secrets."
+        )
     await load_state()
     yield
     await http_client.aclose()
@@ -171,6 +177,35 @@ app.add_middleware(
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    nonce = secrets.token_urlsafe(16)
+    request.state.nonce = nonce
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault(
+        "Permissions-Policy", "geolocation=(), microphone=(), camera=()"
+    )
+    csp = (
+        "default-src 'self'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
+        f"style-src 'self' 'nonce-{nonce}' "
+        "https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+        f"script-src 'self' 'nonce-{nonce}'; "
+        "frame-src https://alerts.in.ua; "
+        "connect-src 'self'"
+    )
+    response.headers.setdefault("Content-Security-Policy", csp)
+    if request.url.scheme == "https":
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+        )
+    return response
 
 
 @app.middleware("http")
@@ -342,12 +377,20 @@ def get_radiation():
     return {"status": "unavailable"}
 
 
+def _read_event_log_raw():
+    """Sync: read raw event log from disk (avoids blocking event loop)."""
+    if os.path.exists(EVENT_LOG_FILE):
+        with open(EVENT_LOG_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+
 async def get_power_events_data(limit=5, lang="ua"):
     recent_events = []
 
-    # Default schedule info
+    # Default schedule info (wrapped in to_thread to avoid blocking event loop)
     sched_light_now, current_end, next_range, next_duration, is_emergency = (
-        get_schedule_context(lang=lang)
+        await asyncio.to_thread(get_schedule_context, lang=lang)
     )
     if is_emergency:
         latest_event_text = (
@@ -373,11 +416,8 @@ async def get_power_events_data(limit=5, lang="ua"):
         latest_event_text = f"{prefix}{next_range}"
 
     try:
-        if os.path.exists(EVENT_LOG_FILE):
-            with open(EVENT_LOG_FILE, "r") as f:
-                logs = json.load(f)
-
-                if len(logs) >= 1:
+        logs = await asyncio.to_thread(_read_event_log_raw)
+        if logs:
                     # Calculate durations
                     for i in range(len(logs)):
                         if i > 0:
@@ -1133,7 +1173,11 @@ def get_wind_label(deg, lang="ua"):
 @app.get("/")
 def index(request: Request):
     # Force dark theme preference for the dashboard
-    return templates.TemplateResponse(request=request, name="index.html")
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"nonce": request.state.nonce},
+    )
 
 
 @app.get("/robots.txt")
@@ -1156,16 +1200,12 @@ def sitemap_xml():
 
 
 @app.get("/admin")
-def admin_panel(
-    request: Request,
-    x_admin_token: str = Header(None, alias="X-Admin-Token"),
-    t: str = Query(None),
-):
-    token = x_admin_token or t
-    admin_token = state.get("admin_token")
-    if token and admin_token and secrets.compare_digest(token, admin_token):
-        return templates.TemplateResponse(request=request, name="admin.html")
-    return PlainTextResponse("Access Denied", status_code=403)
+def admin_panel(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="admin.html",
+        context={"nonce": request.state.nonce},
+    )
 
 
 _api_status_cache = None
@@ -1173,47 +1213,22 @@ _api_status_cache_time = 0.0
 _API_STATUS_CACHE_TTL = 3  # seconds
 
 
-@app.get("/api/status")
-async def api_status(lang: str = "ua"):
-    global _api_status_cache, _api_status_cache_time
-    now = time.time()
-    if (
-        _api_status_cache is not None
-        and (now - _api_status_cache_time) < _API_STATUS_CACHE_TTL
-    ):
-        return _api_status_cache
-
-    await load_state()
-    current_status = state.get("status", "unknown")
-    # Ensure we return strictly "on" or "off" for UI icons
-    ui_light_state = "on" if current_status == "up" else "off"
-
-    latest_event_text, recent_events = await get_power_events_data(lang=lang)
-    schedule_text = get_today_schedule_text(lang=lang)
-
-    # Dashboard toggles
-    show_aq = get_advanced_setting("dashboard", "show_aq", True)
-    show_rad = get_advanced_setting("dashboard", "show_radiation", True)
-    show_graphs = get_advanced_setting("dashboard", "show_temp_graph", True)
-    show_charts = get_advanced_setting("dashboard", "show_charts", True)
-
-    aq_data = await get_air_quality(lang=lang) if show_aq else None
-    rad_data = get_radiation() if show_rad else None
-    alert_data = await asyncio.to_thread(get_air_raid_alert)
-
-    # Extract group name
+def _read_group_name() -> str:
+    """Sync: read group name from config.json (avoids blocking event loop)."""
     config_path = os.path.join(DATA_DIR, "config.json")
     if not os.path.exists(config_path):
         config_path = "config.json"
-    group_name = "---"
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             cfg = json.load(f)
             groups = cfg.get("settings", {}).get("groups", [])
             if groups:
-                group_name = groups[0].replace("GPV", "")
+                return groups[0].replace("GPV", "")
+    return "---"
 
-    # Extra: get raw slots for graph bar
+
+def _read_schedule_slots() -> list:
+    """Sync: read current day schedule slots from last_schedules.json."""
     now = datetime.now(KYIV_TZ)
     date_str = now.strftime("%Y-%m-%d")
     slots = [True] * 48
@@ -1240,6 +1255,42 @@ async def api_status(lang: str = "ua"):
                     slots = merged
         except Exception:
             pass
+    return slots
+
+
+@app.get("/api/status")
+async def api_status(lang: str = "ua"):
+    global _api_status_cache, _api_status_cache_time
+    now = time.time()
+    if (
+        _api_status_cache is not None
+        and (now - _api_status_cache_time) < _API_STATUS_CACHE_TTL
+    ):
+        return _api_status_cache
+
+    await load_state()
+    current_status = state.get("status", "unknown")
+    # Ensure we return strictly "on" or "off" for UI icons
+    ui_light_state = "on" if current_status == "up" else "off"
+
+    latest_event_text, recent_events = await get_power_events_data(lang=lang)
+    schedule_text = await asyncio.to_thread(get_today_schedule_text, lang=lang)
+
+    # Dashboard toggles
+    show_aq = get_advanced_setting("dashboard", "show_aq", True)
+    show_rad = get_advanced_setting("dashboard", "show_radiation", True)
+    show_graphs = get_advanced_setting("dashboard", "show_temp_graph", True)
+    show_charts = get_advanced_setting("dashboard", "show_charts", True)
+
+    aq_data = await get_air_quality(lang=lang) if show_aq else None
+    rad_data = get_radiation() if show_rad else None
+    alert_data = await asyncio.to_thread(get_air_raid_alert)
+
+    # Extract group name
+    group_name = await asyncio.to_thread(_read_group_name)
+
+    # Extra: get raw slots for graph bar
+    slots = await asyncio.to_thread(_read_schedule_slots)
 
     from app._version import get_version
 

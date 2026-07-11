@@ -27,7 +27,7 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <style>
+    <style nonce="{{ nonce }}">
         :root {
             --bg-color: #050505;
             --card-bg: rgba(25, 25, 30, 0.6);
@@ -307,7 +307,7 @@
     <div id="modal" onclick="this.style.display='none'"><img id="modal-img" src=""></div>
     <input type="checkbox" id="haptic-trigger" style="display:none" switch>
     
-    <script>
+    <script nonce="{{ nonce }}">
         let lastLightStatus = null;
         let lastAlertStatus = null;
         let notificationsEnabled = localStorage.getItem('notifications') === 'true';
