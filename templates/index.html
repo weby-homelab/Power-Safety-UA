@@ -305,7 +305,6 @@
         </footer>
     </div>
     <div id="modal" onclick="this.style.display='none'"><img id="modal-img" src=""></div>
-    <input type="checkbox" id="haptic-trigger" style="display:none" switch>
     
     <script nonce="{{ nonce }}">
         let lastLightStatus = null;
@@ -395,11 +394,8 @@
             try {
                 if (navigator.vibrate) {
                     navigator.vibrate(pattern);
-                } else {
-                    const iosSwitch = document.getElementById('haptic-trigger');
-                    if (iosSwitch) iosSwitch.click();
                 }
-            } catch (e) { console.log("Haptic failed:", e); }
+            } catch (e) { /* haptic not supported */ }
         }
 
         function applyTranslations() {
