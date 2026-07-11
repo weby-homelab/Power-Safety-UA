@@ -593,7 +593,9 @@
         }
 
         function update() {
+            const cs = document.getElementById('connection-status');
             fetch(`/api/status?lang=${currentLang}`).then(r => r.json()).then(data => {
+                if (cs) cs.style.display = 'none';
                 const lCard = document.getElementById('light-card');
                 const currentLight = data.light;
                 if (lCard) {
@@ -911,6 +913,8 @@
                 
                 const footerVersionEl = document.getElementById('footer-version');
                 if (footerVersionEl && data.version) footerVersionEl.innerText = ' • ' + data.version;
+            }).catch(() => {
+                if (cs) cs.style.display = 'block';
             });
         }
 
