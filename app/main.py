@@ -194,11 +194,14 @@ async def security_headers_middleware(request: Request, call_next):
         "default-src 'self'; "
         "img-src 'self' data: https:; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        f"style-src 'self' 'nonce-{nonce}' "
+        f"style-src 'self' 'unsafe-inline' 'nonce-{nonce}' "
         "https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
-        f"script-src 'self' 'nonce-{nonce}'; "
+        f"script-src 'self' 'unsafe-inline' 'nonce-{nonce}'; "
         "frame-src https://alerts.in.ua; "
-        "connect-src 'self'"
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "form-action 'self'; "
+        "base-uri 'self'"
     )
     response.headers.setdefault("Content-Security-Policy", csp)
     if request.url.scheme == "https":

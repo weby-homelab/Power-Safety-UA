@@ -909,7 +909,8 @@
                 
                 const footerVersionEl = document.getElementById('footer-version');
                 if (footerVersionEl && data.version) footerVersionEl.innerText = ' • ' + data.version;
-            }).catch(() => {
+            }).catch((err) => {
+                console.warn('update() fetch failed:', err);
                 if (cs) cs.style.display = 'block';
             });
         }
