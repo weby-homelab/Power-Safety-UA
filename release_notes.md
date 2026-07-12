@@ -1,3 +1,19 @@
+# Release v3.9.4
+
+**Dashboard layout fix (CSP regression)**
+
+## What's Fixed
+- The dashboard layout broke in v3.9.1–v3.9.3 because the Content-Security-Policy `style-src`/`script-src`
+  carried a per-request `nonce`. Per the CSP spec, when a nonce is present `'unsafe-inline'` is ignored,
+  so every inline `style="..."` attribute and JS-applied style was blocked by the browser.
+- Symptoms: tiny AQI number, unstyled AQI/temp/hum grid items, wrong air-raid map sizing, broken mini-graphs.
+- Fix: dropped the nonce from `style-src`/`script-src` (kept `'unsafe-inline'`), so inline styles/JS are
+  allowed again — the dashboard now renders identically to v3.9.0.
+- Added `media-src` so the Web Push "ding" sound is permitted.
+
+### 🐳 Docker
+- Image rebuilt and published as `webyhomelab/power-safety-ua:3.9.4` (and `:3.9`, `:latest`).
+
 # Release v3.9.0
 
 **Performance, Reliability & Observability Improvements**

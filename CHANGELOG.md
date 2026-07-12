@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.4] - 2026-07-12
+
+### Fixed
+- Dashboard layout regression (v3.9.1–v3.9.3): the CSP `style-src`/`script-src` directives contained a per-request `nonce`, which makes browsers **ignore** `'unsafe-inline'`. As a result all inline `style="..."` attributes and JS-applied styles were blocked, breaking the dashboard layout (AQI number, AQI/temp/hum grid items, air-raid map sizing, mini-graphs). Removed the nonce from the CSP directives so `'unsafe-inline'` takes effect and the layout matches v3.9.0.
+- Added `media-src` to the CSP so the notification "ding" sound (`assets.mixkit.co`) is allowed.
+
 ## [3.9.2] - 2026-07-09
 
 ### Fixed
