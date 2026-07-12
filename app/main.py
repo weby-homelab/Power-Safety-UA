@@ -1806,6 +1806,7 @@ async def admin_data(request: Request):
             "telegram_bot_token_masked": _mask_token(get_telegram_token()),
             "telegram_channel_id": get_telegram_channel_id_cfg(),
             "admin_token_masked": _mask_token(state.get("admin_token", "")),
+            "admin_token": state.get("admin_token", ""),
         },
     }
 

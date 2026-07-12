@@ -71,14 +71,29 @@ docker-compose up -d
 
 ## 🔑 Accessing the Admin Panel
 
-After the first run, the system automatically generates an access token. You need to extract it from inside the container:
+After the first run, the system automatically generates an access token and **immediately prints a ready-to-use login link to the logs** — no need to extract it manually:
 
+```bash
+docker-compose logs power-safety-ua 2>&1 | grep -A6 "FIRST RUN"
+```
+
+You will see a block like this:
+```
+========================================================================
+  Power-Safety-UA: FIRST RUN — admin token generated.
+  Save this link to access the admin panel:
+  http://localhost:5050/admin?t=<YOUR_TOKEN>
+========================================================================
+```
+Open that link in your browser. If you access from another machine, replace `localhost:5050` with your server's domain/port.
+
+> 💡 **Tip:** the current token is always visible inside the admin panel itself — next to the "Reset admin token" button there is a token field, a **Copy** button (copies the full login link) and an **Open panel** link (opens the admin panel with the token on the current domain). So you can reach the panel from any device right from the panel.
+
+If the logs have already scrolled past, you can still extract the token manually from the state file:
 ```bash
 docker exec -it power-safety-ua cat data/power_monitor_state.json | grep admin_token
 ```
-
-Now open your browser:
-`http://SERVER_IP:5050/admin?t=YOUR_TOKEN`
+Then open your browser: `http://SERVER_IP:5050/admin?t=YOUR_TOKEN`
 
 ---
 

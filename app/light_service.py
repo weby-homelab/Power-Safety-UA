@@ -470,6 +470,26 @@ async def load_state():
         async with state_mgr:
             state["admin_token"] = secrets.token_urlsafe(16)
             await save_state()
+            token = state["admin_token"]
+            port = os.environ.get("PORT", "5050")
+            base = os.environ.get("APP_PUBLIC_URL") or f"http://localhost:{port}"
+            link = f"{base}/admin?t={token}"
+            banner = (
+                "\n"
+                + "=" * 72
+                + "\n"
+                + "  Power-Safety-UA: ПЕРШИЙ ЗАПУСК — токен адміна згенеровано.\n"
+                + "  Збережіть це посилання для входу в адмін-панель:\n"
+                + f"  {link}\n"
+                + "  (Якщо заходите з іншої машини — замініть localhost:5050\n"
+                + "   на свій домен/порт, напр. https://your.domain/admin?t=...)\n"
+                + "=" * 72
+                + "\n"
+            )
+            print(banner, flush=True)
+            logger.info(
+                "First-run admin token generated; admin panel link printed to console."
+            )
 
     if not state.get("push_settings"):
         state["push_settings"] = {}

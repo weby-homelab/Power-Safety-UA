@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.5] - 2026-07-12
+
+### Added
+- Admin onboarding: on first install the app prints a ready-to-use admin-panel link (`http://localhost:5050/admin?t=<token>`) to the container logs/console exactly once (the token is generated and persisted on first run).
+- Admin panel now shows the current admin token next to the "Reset admin token" button, with a **Copy** button (copies the full login link) and an **Open panel** link (opens the admin panel with the token on the current domain) — so the admin can reach the panel from any device/browser.
+- `/api/admin/data` (already auth-protected) now returns the full `admin_token` for the authenticated admin.
+
 ## [3.9.4] - 2026-07-12
 
 ### Fixed

@@ -1,6 +1,6 @@
 services:
   power-safety-ua:
-    image: webyhomelab/power-safety-ua:v3.9.2
+    image: webyhomelab/power-safety-ua:latest
     container_name: power-safety-ua
     restart: unless-stopped
     stop_grace_period: 30s
@@ -36,7 +36,7 @@ services:
       retries: 3
 
   background-worker:
-    image: webyhomelab/power-safety-ua:v3.9.2
+    image: webyhomelab/power-safety-ua:latest
     container_name: power-safety-ua-worker
     restart: unless-stopped
     stop_grace_period: 30s

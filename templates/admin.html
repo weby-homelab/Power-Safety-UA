@@ -623,6 +623,15 @@
                 <button class="btn btn-danger btn-sm" style="width: 100%; margin-bottom: 15px; background: rgba(239, 68, 68, 0.05);" onclick="regenAdminToken()">
                     <i class="fas fa-user-shield"></i> Скинути токен адміна <span class="info-icon">i<span class="tooltip">Змінює пароль доступу до цієї панелі. Потребує повторного входу за новим лінком.</span></span>
                 </button>
+                <div style="margin-bottom: 15px; padding: 12px; background: rgba(0,0,0,0.15); border: 1px solid var(--glass-border); border-radius: 10px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600;"><i class="fas fa-key"></i> Поточний токен адміна</label>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <code id="admin-token-display" style="flex: 1; min-width: 180px; padding: 6px 8px; background: rgba(0,0,0,0.25); border-radius: 6px; word-break: break-all; font-size: 0.8rem;">—</code>
+                        <button class="btn btn-secondary btn-sm" onclick="copyAdminToken(this)"><i class="fas fa-copy"></i> Копіювати</button>
+                        <a id="admin-token-open" class="btn btn-primary btn-sm" target="_self"><i class="fas fa-external-link-alt"></i> Відкрити панель</a>
+                    </div>
+                    <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 6px;">Лінк для входу в адмінку з будь-якого пристрою чи браузера. Збережіть його у надійному місці.</div>
+                </div>
                 <div id="backup-list" style="max-height: 100px; overflow-y: auto; background: rgba(0,0,0,0.1); border-radius: 10px; padding: 8px; border: 1px solid var(--glass-border); font-size: 0.75rem;">
                     <div style="text-align: center; color: var(--text-secondary);">Завантаження...</div>
                 </div>
@@ -756,7 +765,11 @@
                 if (data.version) {
                     document.getElementById('header-version').innerText = data.version;
                 }
-                
+
+                if (data.env && data.env.admin_token) {
+                    updateAdminTokenUI(data.env.admin_token);
+                }
+
                 document.getElementById('footer-info').innerHTML = '&copy; 2026 Weby Homelab &bull; ' + new Date().toLocaleTimeString();
             } catch (err) {
                 console.error('Fetch error:', err);
@@ -1238,6 +1251,37 @@
             }
         }
 
+        function updateAdminTokenUI(token) {
+            const disp = document.getElementById('admin-token-display');
+            const open = document.getElementById('admin-token-open');
+            if (disp) disp.textContent = token;
+            if (open) open.href = window.location.origin + '/admin?t=' + token;
+        }
+
+        function copyAdminToken(btn) {
+            const disp = document.getElementById('admin-token-display');
+            if (!disp) return;
+            const token = disp.textContent.trim();
+            if (!token || token === '—') return;
+            const link = window.location.origin + '/admin?t=' + token;
+            const text = link;
+            const ok = () => { if (btn) { const old = btn.innerHTML; btn.innerHTML = '<i class="fas fa-check"></i> Скопійовано'; setTimeout(() => btn.innerHTML = old, 1500); } };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(ok, () => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(ta);
+        }
+
         async function regenAdminToken() {
             if (confirm('КРИТИЧНО! Ваш токен доступу до цієї адмін-панелі буде змінено. Вас буде негайно розлогінено. Продовжити?')) {
                 try {
@@ -1245,6 +1289,7 @@
                     if (response.ok) {
                         const data = await response.json();
                         sessionStorage.setItem('admin_token', data.new_token);
+                        updateAdminTokenUI(data.new_token);
             const msg = `
                 НОВИЙ ТОКЕН АДМІНА: ${data.new_token}
 
