@@ -194,7 +194,7 @@ async def security_headers_middleware(request: Request, call_next):
         "default-src 'self'; "
         "img-src 'self' data: https:; "
         "font-src 'self' https://fonts.gstatic.com data:; "
-        f"style-src 'self' 'unsafe-inline' "
+        "style-src 'self' 'unsafe-inline' "
         "https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
         "script-src 'self' 'unsafe-inline'; "
         "frame-src https://alerts.in.ua; "
