@@ -399,7 +399,7 @@ def get_radiation():
         r = requests.get(
             "https://air-api.kyivcity.gov.ua/api/sensors/sensors-last-data",
             verify=False,
-            timeout=5,
+            timeout=3,
         )
         if r.status_code == 200:
             data = r.json()
@@ -417,6 +417,21 @@ def get_radiation():
                 _radiation_cache["data"] = res
                 _radiation_cache["expires_at"] = now + 300
                 return res
+    except Exception:
+        pass
+
+    try:
+        r = requests.get(
+            "http://100.124.218.39:5050/api/status",
+            timeout=3,
+        )
+        if r.status_code == 200:
+            data = r.json()
+            rad = data.get("radiation")
+            if rad and rad.get("status") != "unavailable" and rad.get("level") is not None:
+                _radiation_cache["data"] = rad
+                _radiation_cache["expires_at"] = now + 300
+                return rad
     except Exception:
         pass
 
