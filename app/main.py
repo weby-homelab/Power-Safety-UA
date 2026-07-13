@@ -377,7 +377,51 @@ async def health_worker():
     raise HTTPException(status_code=503, detail="Worker loops are not running")
 
 
+_radiation_cache = {
+    "data": None,
+    "expires_at": 0
+}
+
+
 def get_radiation():
+    global _radiation_cache
+    now = time.time()
+    if _radiation_cache["data"] is not None and now < _radiation_cache["expires_at"]:
+        return _radiation_cache["data"]
+
+    try:
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    except Exception:
+        pass
+
+    try:
+        r = requests.get(
+            "https://air-api.kyivcity.gov.ua/api/sensors/sensors-last-data",
+            verify=False,
+            timeout=5,
+        )
+        if r.status_code == 200:
+            data = r.json()
+            levels = []
+            for item in data.get("data", []):
+                attr = item.get("attributes", {})
+                if attr.get("phenomenon") == "paed":
+                    val = attr.get("value")
+                    if val is not None:
+                        levels.append(float(val))
+            if levels:
+                avg_level = sum(levels) / len(levels)
+                status = "normal" if avg_level <= 0.30 else "warning"
+                res = {"status": status, "level": round(avg_level, 2)}
+                _radiation_cache["data"] = res
+                _radiation_cache["expires_at"] = now + 300
+                return res
+    except Exception:
+        pass
+
+    if _radiation_cache["data"] is not None:
+        return _radiation_cache["data"]
     return {"status": "unavailable"}
 
 
@@ -913,7 +957,15 @@ async def get_air_quality(lang="ua"):
                     latest_m = hour_metrics[-1]
                     history_hourly.append(latest_m.get("aqi", 0))
                 else:
-                    history_hourly.append(0)
+                    h_ts = int(h_dt.timestamp())
+                    past_metrics = [x for x in history_data if x.get("timestamp", 0) <= h_ts]
+                    if past_metrics:
+                        past_metrics.sort(key=lambda x: x.get("timestamp", 0))
+                        history_hourly.append(past_metrics[-1].get("aqi", 0))
+                    elif history_data:
+                        history_hourly.append(history_data[0].get("aqi", 0))
+                    else:
+                        history_hourly.append(0)
 
                 history_times.append(h_dt.strftime("%H:00"))
 
@@ -939,8 +991,36 @@ async def get_air_quality(lang="ua"):
                         else 0
                     )
                 else:
-                    temp_history.append(0)
-                    hum_history.append(0)
+                    h_ts = int(h_dt.timestamp())
+                    past_metrics = [x for x in history_data if x.get("timestamp", 0) <= h_ts]
+                    if past_metrics:
+                        past_metrics.sort(key=lambda x: x.get("timestamp", 0))
+                        last_m = past_metrics[-1]
+                        temp_history.append(
+                            int(round(last_m.get("temp") or 0))
+                            if last_m.get("temp") is not None
+                            else 0
+                        )
+                        hum_history.append(
+                            int(round(last_m.get("hum") or 0))
+                            if last_m.get("hum") is not None
+                            else 0
+                        )
+                    elif history_data:
+                        first_m = history_data[0]
+                        temp_history.append(
+                            int(round(first_m.get("temp") or 0))
+                            if first_m.get("temp") is not None
+                            else 0
+                        )
+                        hum_history.append(
+                            int(round(first_m.get("hum") or 0))
+                            if first_m.get("hum") is not None
+                            else 0
+                        )
+                    else:
+                        temp_history.append(0)
+                        hum_history.append(0)
 
             if history_data:
                 latest = history_data[-1]
