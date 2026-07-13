@@ -1088,16 +1088,12 @@ def get_nearest_schedule_switch(event_time, target_is_up):
 
 def get_air_raid_alert():
     try:
-        r = requests.get(ALERTS_API_URL, timeout=5)
+        r = requests.get("https://jaam.net.ua/alerts_statuses_v1.json", timeout=5)
         if r.status_code == 200:
             data = r.json()
             alerts = data.get("states", {})
-            is_alert_city = "м. Київ" in alerts and alerts["м. Київ"].get(
-                "alertnow", False
-            )
-            is_alert_region = "Київська область" in alerts and alerts[
-                "Київська область"
-            ].get("alertnow", False)
+            is_alert_city = bool("м. Київ" in alerts and alerts["м. Київ"].get("enabled", False))
+            is_alert_region = bool("Київська область" in alerts and alerts["Київська область"].get("enabled", False))
             status_text = (
                 "active"
                 if is_alert_city
@@ -1115,7 +1111,33 @@ def get_air_raid_alert():
                 "location": location,
             }
     except Exception as e:
-        logger.error(f"Error fetching alerts: {e}")
+        logger.warning(f"Failed to fetch alerts from primary JAAM API: {e}")
+
+    try:
+        r = requests.get(ALERTS_API_URL, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            alerts = data.get("states", {})
+            is_alert_city = bool("м. Київ" in alerts and alerts["м. Київ"].get("alertnow", False))
+            is_alert_region = bool("Київська область" in alerts and alerts["Київська область"].get("alertnow", False))
+            status_text = (
+                "active"
+                if is_alert_city
+                else ("region" if is_alert_region else "clear")
+            )
+            location = (
+                "м. Київ"
+                if is_alert_city
+                else ("Київська область" if is_alert_region else "Тривоги немає")
+            )
+            return {
+                "city": is_alert_city,
+                "region": is_alert_region,
+                "status": status_text,
+                "location": location,
+            }
+    except Exception as e:
+        logger.error(f"Error fetching alerts from fallback Ubilling API: {e}")
     return {"status": "unknown", "location": "Невідомо"}
 
 
