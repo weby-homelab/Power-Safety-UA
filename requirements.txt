@@ -1,6 +1,6 @@
 requests==2.34.2
 python-dotenv==1.2.2
-matplotlib==3.9.2
+matplotlib==3.11.0
 prometheus-client==0.21.0
 tzdata==2026.2
 fastapi==0.139.0
