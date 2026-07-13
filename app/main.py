@@ -420,20 +420,22 @@ def get_radiation():
     except Exception:
         pass
 
-    try:
-        r = requests.get(
-            "http://100.124.218.39:5050/api/status",
-            timeout=3,
-        )
-        if r.status_code == 200:
-            data = r.json()
-            rad = data.get("radiation")
-            if rad and rad.get("status") != "unavailable" and rad.get("level") is not None:
-                _radiation_cache["data"] = rad
-                _radiation_cache["expires_at"] = now + 300
-                return rad
-    except Exception:
-        pass
+    fallback_url = os.environ.get("RADIATION_FALLBACK_URL")
+    if fallback_url:
+        try:
+            r = requests.get(
+                fallback_url,
+                timeout=3,
+            )
+            if r.status_code == 200:
+                data = r.json()
+                rad = data.get("radiation")
+                if rad and rad.get("status") != "unavailable" and rad.get("level") is not None:
+                    _radiation_cache["data"] = rad
+                    _radiation_cache["expires_at"] = now + 300
+                    return rad
+        except Exception:
+            pass
 
     if _radiation_cache["data"] is not None:
         return _radiation_cache["data"]
