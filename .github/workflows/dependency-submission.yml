@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Dependency Submission
-        uses: advanced-security/component-detection-dependency-submission-action@v0.1.1
+        uses: advanced-security/component-detection-dependency-submission-action@v0.1.4
         with:
           # This action will automatically detect the requirements.txt file
           # and submit the dependency graph to GitHub.
