@@ -1093,16 +1093,16 @@ def get_air_raid_alert():
             data = r.json()
             alerts = data.get("states", {})
             is_alert_city = bool("м. Київ" in alerts and alerts["м. Київ"].get("enabled", False))
-            is_alert_region = bool("Київська область" in alerts and alerts["Київська область"].get("enabled", False))
+            is_alert_region = False
             status_text = (
                 "active"
                 if is_alert_city
-                else ("region" if is_alert_region else "clear")
+                else "clear"
             )
             location = (
                 "м. Київ"
                 if is_alert_city
-                else ("Київська область" if is_alert_region else "Тривоги немає")
+                else "Тривоги немає"
             )
             return {
                 "city": is_alert_city,
@@ -1119,16 +1119,16 @@ def get_air_raid_alert():
             data = r.json()
             alerts = data.get("states", {})
             is_alert_city = bool("м. Київ" in alerts and alerts["м. Київ"].get("alertnow", False))
-            is_alert_region = bool("Київська область" in alerts and alerts["Київська область"].get("alertnow", False))
+            is_alert_region = False
             status_text = (
                 "active"
                 if is_alert_city
-                else ("region" if is_alert_region else "clear")
+                else "clear"
             )
             location = (
                 "м. Київ"
                 if is_alert_city
-                else ("Київська область" if is_alert_region else "Тривоги немає")
+                else "Тривоги немає"
             )
             return {
                 "city": is_alert_city,
