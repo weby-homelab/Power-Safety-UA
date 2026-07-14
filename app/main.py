@@ -99,14 +99,14 @@ async def _safe_send_push_notification(title: str, body: str, url: str = "/") ->
     await asyncio.to_thread(send_push_notification, title, body, url)
 
 
-# Structlog configuration
-structlog.configure(
-    processors=[
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer(),
-    ]
+# Centralized observability: structured logging + optional OpenTelemetry tracing
+from app.observability import (  # noqa: E402
+    configure_structlog,
+    init_telemetry,
+    RequestTracingMiddleware,
 )
+
+configure_structlog()
 logger = structlog.get_logger()
 
 # Shared httpx client for async Telegram API calls
@@ -120,6 +120,7 @@ async def lifespan(app: FastAPI):
     limiter.total_tokens = 100
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(10.0))
     logger.info("application_startup")
+    init_telemetry()
     from app.metrics import power_safety_info
     from app._version import get_version
 
@@ -142,6 +143,9 @@ from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 from app.config import settings  # noqa: E402
 
 app = FastAPI(lifespan=lifespan)
+
+# Request tracing / structured access logs (raw ASGI — preserves SSE streaming)
+app.add_middleware(RequestTracingMiddleware)
 
 
 # Rate Limiter
@@ -377,10 +381,7 @@ async def health_worker():
     raise HTTPException(status_code=503, detail="Worker loops are not running")
 
 
-_radiation_cache = {
-    "data": None,
-    "expires_at": 0
-}
+_radiation_cache = {"data": None, "expires_at": 0}
 
 
 def get_radiation():
@@ -391,6 +392,7 @@ def get_radiation():
 
     try:
         import urllib3
+
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     except Exception:
         pass
@@ -398,7 +400,7 @@ def get_radiation():
     try:
         r = requests.get(
             "https://air-api.kyivcity.gov.ua/api/sensors/sensors-last-data",
-            verify=False,
+            verify=False,  # nosec B501  (pre-existing: external endpoint presents an untrusted cert)
             timeout=3,
         )
         if r.status_code == 200:
@@ -430,7 +432,11 @@ def get_radiation():
             if r.status_code == 200:
                 data = r.json()
                 rad = data.get("radiation")
-                if rad and rad.get("status") != "unavailable" and rad.get("level") is not None:
+                if (
+                    rad
+                    and rad.get("status") != "unavailable"
+                    and rad.get("level") is not None
+                ):
                     _radiation_cache["data"] = rad
                     _radiation_cache["expires_at"] = now + 300
                     return rad
@@ -975,7 +981,9 @@ async def get_air_quality(lang="ua"):
                     history_hourly.append(latest_m.get("aqi", 0))
                 else:
                     h_ts = int(h_dt.timestamp())
-                    past_metrics = [x for x in history_data if x.get("timestamp", 0) <= h_ts]
+                    past_metrics = [
+                        x for x in history_data if x.get("timestamp", 0) <= h_ts
+                    ]
                     if past_metrics:
                         past_metrics.sort(key=lambda x: x.get("timestamp", 0))
                         history_hourly.append(past_metrics[-1].get("aqi", 0))
@@ -1009,7 +1017,9 @@ async def get_air_quality(lang="ua"):
                     )
                 else:
                     h_ts = int(h_dt.timestamp())
-                    past_metrics = [x for x in history_data if x.get("timestamp", 0) <= h_ts]
+                    past_metrics = [
+                        x for x in history_data if x.get("timestamp", 0) <= h_ts
+                    ]
                     if past_metrics:
                         past_metrics.sort(key=lambda x: x.get("timestamp", 0))
                         last_m = past_metrics[-1]

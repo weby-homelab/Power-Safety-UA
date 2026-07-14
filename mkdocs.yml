@@ -1,0 +1,63 @@
+site_name: Power-Safety-UA Documentation
+site_description: Autonomous power, air-raid, and AQI monitoring system for Kyiv — deployment, configuration, and operations guide.
+site_url: https://weby-homelab.github.io/Power-Safety-UA/
+site_author: Weby Homelab
+
+repo_name: weby-homelab/Power-Safety-UA
+repo_url: https://github.com/weby-homelab/Power-Safety-UA
+edit_uri: edit/main/docs_site/
+
+docs_dir: docs_site
+
+theme:
+  name: material
+  language: uk
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Observability: observability.md
+  - API Reference: api-reference.md
+  - Architecture: architecture.md
+  - Contributing: contributing.md
+  - FAQ: faq.md

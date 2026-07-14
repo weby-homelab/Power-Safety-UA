@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main"]
     tags: ["v*.*.*"]
-    paths-ignore: ["**.md", "docs/**", "LICENSE", ".pre-commit-config.yaml"]
+    paths-ignore: ["**.md", "docs/**", "docs_site/**", "mkdocs.yml", "LICENSE", ".pre-commit-config.yaml"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:

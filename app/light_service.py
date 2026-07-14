@@ -1092,18 +1092,12 @@ def get_air_raid_alert():
         if r.status_code == 200:
             data = r.json()
             alerts = data.get("states", {})
-            is_alert_city = bool("м. Київ" in alerts and alerts["м. Київ"].get("enabled", False))
+            is_alert_city = bool(
+                "м. Київ" in alerts and alerts["м. Київ"].get("enabled", False)
+            )
             is_alert_region = False
-            status_text = (
-                "active"
-                if is_alert_city
-                else "clear"
-            )
-            location = (
-                "м. Київ"
-                if is_alert_city
-                else "Тривоги немає"
-            )
+            status_text = "active" if is_alert_city else "clear"
+            location = "м. Київ" if is_alert_city else "Тривоги немає"
             return {
                 "city": is_alert_city,
                 "region": is_alert_region,
@@ -1118,18 +1112,12 @@ def get_air_raid_alert():
         if r.status_code == 200:
             data = r.json()
             alerts = data.get("states", {})
-            is_alert_city = bool("м. Київ" in alerts and alerts["м. Київ"].get("alertnow", False))
+            is_alert_city = bool(
+                "м. Київ" in alerts and alerts["м. Київ"].get("alertnow", False)
+            )
             is_alert_region = False
-            status_text = (
-                "active"
-                if is_alert_city
-                else "clear"
-            )
-            location = (
-                "м. Київ"
-                if is_alert_city
-                else "Тривоги немає"
-            )
+            status_text = "active" if is_alert_city else "clear"
+            location = "м. Київ" if is_alert_city else "Тривоги немає"
             return {
                 "city": is_alert_city,
                 "region": is_alert_region,
