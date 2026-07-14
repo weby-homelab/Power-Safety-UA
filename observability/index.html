@@ -437,6 +437,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#observability-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observability у адмін-панелі
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -612,6 +623,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#observability-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observability у адмін-панелі
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -682,6 +704,20 @@
 Collector з OTLP HTTP receiver). Для Grafana Tempo використовуйте той самий
 протокол.</p>
 </div>
+<h2 id="observability-">Observability у адмін-панелі<a class="headerlink" href="#observability-" title="Permanent link">&para;</a></h2>
+<p>Без зовнішнього пайплайну (Loki/Jaeger) останні події та агреговану
+статистику можна бачити просто в <strong>адмін-панелі</strong> (<code>/admin</code>), у секції
+<strong>Observability</strong>:</p>
+<ul>
+<li>картки з кількістю <code>5xx</code> / <code>4xx</code> помилок, середнім та <code>P95</code> часом відгуку,
+  загальною кількістю запитів і статусом трасування OTel;</li>
+<li>таблиця останніх HTTP-запитів (час, метод, шлях, статус, тривалість,
+  <code>request_id</code>).</li>
+</ul>
+<p>Дані беруться зі структурованих логів (<code>app/observability.py</code>) і зберігаються
+<strong>в оперативній пам'яті</strong> — вони обнуляються після рестарту застосунку. Для
+довгострокового зберігання та алертингу використовуйте Loki/ELK + Grafana.</p>
+<p>Ендпоінт: <code>GET /api/admin/observability</code> (захищений <code>X-Admin-Token</code>).</p>
 
 
 
