@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://weby-homelab.github.io/Power-Safety-UA/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://weby-homelab.github.io/Power-Safety-UA/api-reference/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://weby-homelab.github.io/Power-Safety-UA/architecture/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://weby-homelab.github.io/Power-Safety-UA/configuration/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://weby-homelab.github.io/Power-Safety-UA/contributing/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://weby-homelab.github.io/Power-Safety-UA/faq/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://weby-homelab.github.io/Power-Safety-UA/getting-started/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://weby-homelab.github.io/Power-Safety-UA/observability/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+</urlset>
