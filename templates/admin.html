@@ -431,6 +431,8 @@
         .status-pill.s3 { background: rgba(59,130,246,0.15); color: var(--accent-color); }
         .status-pill.s4 { background: rgba(245,158,11,0.15); color: #f59e0b; }
         .status-pill.s5 { background: rgba(239,68,68,0.15); color: var(--danger-color); }
+        .obs-scroll { max-height: 340px; overflow-y: auto; }
+        .obs-scroll thead th { position: sticky; top: 0; background: #0a0a0a; z-index: 1; border-bottom: 1px solid var(--glass-border); }
     </style>
 </head>
 <body>
@@ -739,7 +741,7 @@
                     <div class="obs-stat"><div class="label">Трейси OTel</div><div class="value" id="obs-trace">вимк.</div></div>
                 </div>
 
-                <div class="table-container">
+                <div class="table-container obs-scroll">
                     <table>
                         <thead>
                             <tr>
