@@ -1,6 +1,6 @@
 ruff==0.15.20
 bandit==1.8.0
-pytest==9.0.3
+pytest==9.1.1
 pytest-cov==7.0.0
 responses==0.25.7
 httpx==0.28.1
