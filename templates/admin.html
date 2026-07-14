@@ -418,6 +418,19 @@
             .tooltip { width: 200px; left: -50px; transform: none; }
             .tooltip::after { left: 60px; }
         }
+        .obs-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; margin-bottom: 18px; }
+        .obs-stat { background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 14px; padding: 14px 16px; }
+        .obs-stat .label { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+        .obs-stat .value { font-size: 1.5rem; font-weight: 800; margin-top: 4px; }
+        .obs-stat .value.danger { color: var(--danger-color); }
+        .obs-stat .value.warn { color: #f59e0b; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82em; color: var(--text-secondary); }
+        .obs-note { font-size: 0.75rem; color: var(--text-secondary); }
+        .status-pill { padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+        .status-pill.s2 { background: rgba(16,185,129,0.15); color: var(--success-color); }
+        .status-pill.s3 { background: rgba(59,130,246,0.15); color: var(--accent-color); }
+        .status-pill.s4 { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .status-pill.s5 { background: rgba(239,68,68,0.15); color: var(--danger-color); }
     </style>
 </head>
 <body>
@@ -710,6 +723,42 @@
                 </div>
             </div>
 
+            <!-- Observability -->
+            <div class="admin-section bottom-full-width">
+                <div class="section-header">
+                    <i class="fas fa-heartbeat"></i> Observability
+                    <span class="obs-note" style="margin-left:10px;">(дані в пам'яті, обнуляються після рестарту)</span>
+                </div>
+
+                <div class="obs-stat-grid">
+                    <div class="obs-stat"><div class="label">5xx Помилки</div><div class="value danger" id="obs-5xx">0</div></div>
+                    <div class="obs-stat"><div class="label">4xx</div><div class="value warn" id="obs-4xx">0</div></div>
+                    <div class="obs-stat"><div class="label">Середній час</div><div class="value" id="obs-avg">—</div></div>
+                    <div class="obs-stat"><div class="label">P95</div><div class="value" id="obs-p95">—</div></div>
+                    <div class="obs-stat"><div class="label">Запитів</div><div class="value" id="obs-total">0</div></div>
+                    <div class="obs-stat"><div class="label">Трейси OTel</div><div class="value" id="obs-trace">вимк.</div></div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Час</th>
+                                <th>Метод</th>
+                                <th>Шлях</th>
+                                <th>Статус</th>
+                                <th>Час</th>
+                                <th>request_id</th>
+                            </tr>
+                        </thead>
+                        <tbody id="obs-table-body">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="obs-note">Дані зі структурованих логів (app/observability.py): останні HTTP-запити, помилки та латентність. Розподілене трасування OpenTelemetry виводиться у зовнішній колектор (Jaeger/Tempo).</div>
+            </div>
+
             <!-- Save Button Row (Moved to bottom and outside grid) -->
             <div class="bottom-full-width" style="display: flex; justify-content: center; margin: 20px 0 20px 0;">
                 <button class="btn btn-primary" onclick="saveAllSettings()" style="width: 100%; padding: 18px; font-size: 1.2rem; box-shadow: 0 15px 30px -10px rgba(59, 130, 246, 0.5); border-radius: 20px;">
@@ -761,7 +810,11 @@
                 renderConfig(data.config, data);
                 renderLogs(data.logs);
                 renderBackups();
-                
+                try {
+                    const obsResp = await fetch('/api/admin/observability', { headers: authHeaders });
+                    if (obsResp.ok) renderObservability(await obsResp.json());
+                } catch (obsErr) { console.error('Obs fetch error:', obsErr); }
+
                 if (data.version) {
                     document.getElementById('header-version').innerText = data.version;
                 }
@@ -970,6 +1023,47 @@
                 const logTimeEl = document.getElementById('log-add-time');
                 if (logTimeEl) logTimeEl.value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
             } catch(e) { console.error('Render logs error:', e); }
+        }
+
+        function renderObservability(data) {
+            try {
+                if (!data || data.status !== 'ok') return;
+                const s = data.stats || {};
+                document.getElementById('obs-5xx').innerText = s.errors_5xx || 0;
+                document.getElementById('obs-4xx').innerText = s.errors_4xx || 0;
+                document.getElementById('obs-avg').innerText = s.avg_ms != null ? s.avg_ms + ' ms' : '—';
+                document.getElementById('obs-p95').innerText = s.p95_ms != null ? s.p95_ms + ' ms' : '—';
+                document.getElementById('obs-total').innerText = s.total || 0;
+                const traceEl = document.getElementById('obs-trace');
+                if (traceEl) {
+                    traceEl.innerText = s.tracing_enabled ? 'увімк.' : 'вимк.';
+                    traceEl.className = 'value ' + (s.tracing_enabled ? 'ok' : '');
+                }
+
+                const tbody = document.getElementById('obs-table-body');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                (data.recent || []).slice().reverse().forEach((e) => {
+                    const tr = document.createElement('tr');
+                    const st = e.status || 0;
+                    const first = String(st).charAt(0);
+                    const pillClass = ['s2', 's3', 's4', 's5'].includes(first) ? first : 's2';
+                    const raw = (e.ts || '').split('T')[1] || '';
+                    const time = raw.split('.')[0] || '-';
+                    const statusCell = st
+                        ? `<span class="status-pill ${pillClass}">${st}</span>`
+                        : (e.event === 'request_error' ? '<span class="status-pill s5">ERR</span>' : '-');
+                    tr.innerHTML = `
+                        <td>${time}</td>
+                        <td><span class="mono">${e.method || '-'}</span></td>
+                        <td><span class="mono">${e.path || '-'}</span></td>
+                        <td>${statusCell}</td>
+                        <td>${e.duration_ms != null ? e.duration_ms + ' ms' : '-'}</td>
+                        <td><span class="mono">${(e.request_id || '').slice(0, 8)}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) { console.error('Render observability error:', e); }
         }
 
         async function saveQuietMode() {

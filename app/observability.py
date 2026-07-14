@@ -25,7 +25,94 @@ import os
 import time
 import uuid
 
+import datetime
+import threading
+from collections import deque
+
 import structlog
+
+# In-memory ring buffer capturing HTTP access events and errors so they can be
+# surfaced in the admin panel without an external log pipeline. Resets on restart.
+_observability_buffer: deque = deque(maxlen=500)
+_observability_buffer_lock = threading.Lock()
+
+
+def _capture_event(logger, method_name, event_dict: dict) -> dict:
+    """structlog processor: retain request/error events in the ring buffer."""
+    level = (event_dict.get("level") or "").lower()
+    is_error = level in ("error", "critical", "exception")
+    is_http = event_dict.get("method") is not None or event_dict.get("event") in (
+        "request_handled",
+        "request_error",
+    )
+    if not (is_http or is_error):
+        return event_dict
+    rec = {
+        "ts": event_dict.get("timestamp") or datetime.datetime.utcnow().isoformat(),
+        "event": event_dict.get("event"),
+        "level": event_dict.get("level"),
+        "method": event_dict.get("method"),
+        "path": event_dict.get("path"),
+        "status": event_dict.get("status"),
+        "duration_ms": event_dict.get("duration_ms"),
+        "request_id": event_dict.get("request_id"),
+        "trace_id": event_dict.get("trace_id"),
+        "logger": event_dict.get("logger"),
+        "message": event_dict.get("message") or event_dict.get("event"),
+    }
+    with _observability_buffer_lock:
+        _observability_buffer.append(rec)
+    return event_dict
+
+
+def get_recent_events(limit: int = 200) -> list:
+    """Return up to ``limit`` most recent captured events (oldest first)."""
+    with _observability_buffer_lock:
+        return list(_observability_buffer)[-limit:]
+
+
+def _percentile(values: list, pct: float) -> float:
+    if not values:
+        return 0.0
+    s = sorted(values)
+    idx = max(0, min(len(s) - 1, int(round((pct / 100.0) * (len(s) - 1)))))
+    return float(s[idx])
+
+
+def summarize_events(events: list) -> dict:
+    """Aggregate captured events into error/latency stats for the admin panel."""
+    durations = [
+        e["duration_ms"]
+        for e in events
+        if e.get("event") == "request_handled" and e.get("duration_ms") is not None
+    ]
+    errors_5xx = 0
+    errors_4xx = 0
+    for e in events:
+        st = e.get("status")
+        if isinstance(st, int):
+            if st >= 500:
+                errors_5xx += 1
+            elif 400 <= st < 500:
+                errors_4xx += 1
+        elif e.get("event") == "request_error":
+            errors_5xx += 1
+    avg = round(sum(durations) / len(durations), 2) if durations else None
+    return {
+        "total": len([e for e in events if e.get("event") == "request_handled"]),
+        "errors_5xx": errors_5xx,
+        "errors_4xx": errors_4xx,
+        "avg_ms": avg,
+        "p50_ms": round(_percentile(durations, 50), 2) if durations else None,
+        "p95_ms": round(_percentile(durations, 95), 2) if durations else None,
+        "tracing_enabled": _otel_active(),
+    }
+
+
+def get_observability_snapshot(limit: int = 200) -> dict:
+    """Combined recent events + stats for the admin API."""
+    events = get_recent_events(limit)
+    return {"recent": events, "stats": summarize_events(events)}
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +143,7 @@ def configure_structlog() -> None:
         structlog.processors.add_log_level,
         structlog.processors.StackInfoRenderer(),
         structlog.processors.TimeStamper(fmt="iso"),
+        _capture_event,
     ]
     if log_format == "console":
         processors.append(structlog.dev.ConsoleRenderer())
