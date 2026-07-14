@@ -1918,6 +1918,19 @@ async def admin_data(request: Request):
     }
 
 
+@app.get("/api/admin/observability")
+@limiter.limit("60/minute")
+async def admin_observability(request: Request):
+    if not check_admin_token(request):
+        return JSONResponse(
+            {"status": "error", "msg": "Access Denied"}, status_code=403
+        )
+    from app.observability import get_observability_snapshot
+
+    snapshot = get_observability_snapshot(200)
+    return {"status": "ok", **snapshot}
+
+
 @app.post("/api/admin/config")
 @limiter.limit("30/minute")
 async def admin_config_post(request: Request, new_config: AdminConfigRequest):
