@@ -400,7 +400,7 @@ def get_radiation():
     try:
         r = requests.get(
             "https://air-api.kyivcity.gov.ua/api/sensors/sensors-last-data",
-            verify=False,
+            verify=False,  # nosec B501  (pre-existing: external endpoint presents an untrusted cert)
             timeout=3,
         )
         if r.status_code == 200:
