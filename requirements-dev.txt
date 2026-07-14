@@ -1,7 +1,7 @@
 ruff==0.15.20
 bandit==1.8.0
 pytest==9.0.3
-pytest-cov==7.0.0
+pytest-cov==7.1.0
 responses==0.25.7
 httpx==0.28.1
 mkdocs-material==9.7.6
