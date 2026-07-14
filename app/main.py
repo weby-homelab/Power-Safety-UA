@@ -381,10 +381,7 @@ async def health_worker():
     raise HTTPException(status_code=503, detail="Worker loops are not running")
 
 
-_radiation_cache = {
-    "data": None,
-    "expires_at": 0
-}
+_radiation_cache = {"data": None, "expires_at": 0}
 
 
 def get_radiation():
@@ -395,6 +392,7 @@ def get_radiation():
 
     try:
         import urllib3
+
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     except Exception:
         pass
@@ -434,7 +432,11 @@ def get_radiation():
             if r.status_code == 200:
                 data = r.json()
                 rad = data.get("radiation")
-                if rad and rad.get("status") != "unavailable" and rad.get("level") is not None:
+                if (
+                    rad
+                    and rad.get("status") != "unavailable"
+                    and rad.get("level") is not None
+                ):
                     _radiation_cache["data"] = rad
                     _radiation_cache["expires_at"] = now + 300
                     return rad
@@ -979,7 +981,9 @@ async def get_air_quality(lang="ua"):
                     history_hourly.append(latest_m.get("aqi", 0))
                 else:
                     h_ts = int(h_dt.timestamp())
-                    past_metrics = [x for x in history_data if x.get("timestamp", 0) <= h_ts]
+                    past_metrics = [
+                        x for x in history_data if x.get("timestamp", 0) <= h_ts
+                    ]
                     if past_metrics:
                         past_metrics.sort(key=lambda x: x.get("timestamp", 0))
                         history_hourly.append(past_metrics[-1].get("aqi", 0))
@@ -1013,7 +1017,9 @@ async def get_air_quality(lang="ua"):
                     )
                 else:
                     h_ts = int(h_dt.timestamp())
-                    past_metrics = [x for x in history_data if x.get("timestamp", 0) <= h_ts]
+                    past_metrics = [
+                        x for x in history_data if x.get("timestamp", 0) <= h_ts
+                    ]
                     if past_metrics:
                         past_metrics.sort(key=lambda x: x.get("timestamp", 0))
                         last_m = past_metrics[-1]

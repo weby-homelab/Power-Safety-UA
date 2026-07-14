@@ -17,6 +17,7 @@ Environment variables
                 (default ``power-safety-ua``).
 ``ENVIRONMENT`` Deployment environment (default ``production``).
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,6 +31,7 @@ import structlog
 # ---------------------------------------------------------------------------
 # Structured logging
 # ---------------------------------------------------------------------------
+
 
 def _log_level() -> int:
     level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -141,6 +143,7 @@ def get_tracer():
 # ---------------------------------------------------------------------------
 # Request tracing middleware (raw ASGI — preserves SSE/streaming)
 # ---------------------------------------------------------------------------
+
 
 class RequestTracingMiddleware:
     """Binds a request id and (optionally) an OTel span to every HTTP request.
