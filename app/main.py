@@ -99,14 +99,14 @@ async def _safe_send_push_notification(title: str, body: str, url: str = "/") ->
     await asyncio.to_thread(send_push_notification, title, body, url)
 
 
-# Structlog configuration
-structlog.configure(
-    processors=[
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer(),
-    ]
+# Centralized observability: structured logging + optional OpenTelemetry tracing
+from app.observability import (  # noqa: E402
+    configure_structlog,
+    init_telemetry,
+    RequestTracingMiddleware,
 )
+
+configure_structlog()
 logger = structlog.get_logger()
 
 # Shared httpx client for async Telegram API calls
@@ -120,6 +120,7 @@ async def lifespan(app: FastAPI):
     limiter.total_tokens = 100
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(10.0))
     logger.info("application_startup")
+    init_telemetry()
     from app.metrics import power_safety_info
     from app._version import get_version
 
@@ -142,6 +143,9 @@ from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 from app.config import settings  # noqa: E402
 
 app = FastAPI(lifespan=lifespan)
+
+# Request tracing / structured access logs (raw ASGI — preserves SSE streaming)
+app.add_middleware(RequestTracingMiddleware)
 
 
 # Rate Limiter

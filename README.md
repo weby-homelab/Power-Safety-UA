@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/docker/v/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white&label=Docker%20Hub" alt="Docker Hub Version">
   <img src="https://img.shields.io/docker/pulls/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
   <img src="https://img.shields.io/github/license/weby-homelab/Power-Safety-UA?style=for-the-badge&color=green" alt="GPLv3 License">
+  <img src="https://img.shields.io/badge/docs-MkDocs%20Material-9cf?style=for-the-badge&logo=mkdocs&logoColor=white" alt="Documentation">
 </p>
 
 <p align="center">
@@ -178,6 +179,7 @@ flowchart BT
 ---
 
 ## 📖 Додаткова документація:
+* [🌐 Документація сайту (MkDocs)](https://weby-homelab.github.io/Power-Safety-UA/)
 * [⚙️ Налаштування Telegram та IoT](docs/INSTRUCTIONS.md)
 * [📝 Історія змін (CHANGELOG.md)](docs/CHANGELOG.md)
 
