@@ -24,6 +24,6 @@ slowapi==0.1.10
 # --- Observability: OpenTelemetry distributed tracing (optional, opt-in) ---
 opentelemetry-api==1.43.0
 opentelemetry-sdk==1.43.0
-opentelemetry-exporter-otlp-proto-http==1.43.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
 opentelemetry-instrumentation-fastapi==0.64b0
 opentelemetry-instrumentation-requests==0.64b0
