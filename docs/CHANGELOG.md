@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.15] - 2026-09-08
+- **Пріоритет red:** Червона смужка тепер рендериться поверх жовтої при перекритті рівнів у денному/тижневому графіку. / Red intervals render above yellow on overlap in daily/weekly charts.
+
 ## [v3.9.14] - 2026-09-08
 - **Самовідновлення історії:** Якщо live-стан містить red/yellow, а typed-подія відсутня в історії, вона автоматично записується й оновлює графіки. / If live red/yellow state is missing from typed history, the event is recorded and reports are refreshed.
 
