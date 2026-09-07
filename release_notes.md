@@ -1,3 +1,14 @@
+# Release v3.9.14
+
+**Self-heal incomplete typed alert history**
+
+## What's Fixed
+- Reconciles live yellow/red levels with explicit history on every valid alert snapshot.
+- Repairs a missing red active/clear event without sending a duplicate Telegram notification.
+- Refreshes daily and weekly reports after the repair, keeping chart bars aligned with the dashboard card.
+
+---
+
 # Release v3.9.13
 
 **Keep live red alert level synchronized with report history**

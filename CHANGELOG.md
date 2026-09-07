@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.14] - 2026-09-08
+
+### Fixed
+- Added self-healing for missing typed alert history: when live state is red/yellow but explicit history is incomplete, the missing transition is recorded and the daily/weekly charts are refreshed.
+
 ## [3.9.13] - 2026-09-08
 
 ### Fixed
