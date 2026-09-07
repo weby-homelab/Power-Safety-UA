@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
 from app.light_service import (
+    _last_typed_alert_events,
     format_air_raid_clear_message,
     format_air_raid_start_message,
     get_air_raid_alert,
@@ -169,6 +170,18 @@ def test_telegram_alert_messages_include_level():
     assert "ЧЕРВОНИЙ РІВЕНЬ НЕБЕЗПЕКИ" in red_message
     assert "жовтий рівень" in clear_message
     assert "червоний рівень" in clear_message
+
+
+def test_legacy_alert_events_do_not_suppress_typed_red_transition():
+    last_events = _last_typed_alert_events(
+        [
+            {"timestamp": _timestamp(1), "event": "active"},
+            {"timestamp": _timestamp(2), "event": "clear"},
+            {"timestamp": _timestamp(3), "event": "active", "alert_type": "yellow"},
+        ]
+    )
+
+    assert last_events == {"yellow": "active"}
 
 
 def test_daily_and_weekly_summaries_include_alert_levels(tmp_path):
