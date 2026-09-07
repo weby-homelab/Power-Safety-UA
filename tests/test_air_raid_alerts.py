@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import json
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -149,6 +150,16 @@ def test_daily_and_weekly_chart_palettes_use_alert_levels():
     assert get_alert_color("red") == RED_ALERT_COLOR
     assert "get_alert_color" in generate_daily_chart.__code__.co_names
     assert "get_alert_color" in generate_weekly_chart.__code__.co_names
+
+
+def test_alert_bars_keep_the_full_strip_geometry():
+    daily_source = inspect.getsource(generate_daily_chart)
+    weekly_source = inspect.getsource(generate_weekly_chart)
+
+    assert "(alert_y, alert_h)" in daily_source
+    assert "(y_pos - 0.18, 0.36)" in weekly_source
+    assert "alert_lanes" not in daily_source
+    assert "alert_lanes" not in weekly_source
 
 
 def test_telegram_alert_messages_include_level():

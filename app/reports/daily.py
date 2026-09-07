@@ -17,7 +17,6 @@ from app.reports.common import (
     get_alert_color,
     get_alert_intervals as _get_alert_intervals_common,
     merged_alert_duration,
-    normalize_alert_type,
     summarize_alert_intervals,
 )
 
@@ -471,10 +470,6 @@ def generate_chart(
                 edgecolor="none",
             )
 
-        alert_lanes = {
-            ALERT_TYPE_YELLOW: (alert_y, alert_h / 2 - 0.08),
-            ALERT_TYPE_RED: (alert_y + alert_h / 2 + 0.08, alert_h / 2 - 0.08),
-        }
         for start, end, alert_type in alert_intervals:
             if start > now:
                 continue
@@ -483,12 +478,9 @@ def generate_chart(
             start_num = mdates.date2num(start)
             end_num = mdates.date2num(end)
             if end_num > start_num:
-                lane_y, lane_height = alert_lanes.get(
-                    normalize_alert_type(alert_type), alert_lanes[ALERT_TYPE_RED]
-                )
                 ax.broken_barh(
                     [(start_num, end_num - start_num)],
-                    (lane_y, lane_height),
+                    (alert_y, alert_h),
                     facecolors=get_alert_color(alert_type),
                     edgecolor="none",
                 )
