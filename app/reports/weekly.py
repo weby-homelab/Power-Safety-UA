@@ -53,6 +53,7 @@ from app.reports.common import (  # noqa: E402
     get_alert_intervals as _get_alert_intervals_common,
     merged_alert_duration,
     summarize_alert_intervals,
+    sort_alert_intervals_for_render,
 )
 
 logger = structlog.get_logger(__name__)
@@ -368,7 +369,9 @@ def generate_weekly_chart(end_date, daily_data, theme="dark", lang="ua"):
                 )
 
                 alert_intervals = get_alert_intervals(day_date)
-                for start, end, alert_type in alert_intervals:
+                for start, end, alert_type in sort_alert_intervals_for_render(
+                    alert_intervals
+                ):
                     if day_date == now_kyiv.date():
                         if start > now_kyiv:
                             continue

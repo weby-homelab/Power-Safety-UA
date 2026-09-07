@@ -1,3 +1,13 @@
+# Release v3.9.15
+
+**Render immediate danger above warning level**
+
+## What's Fixed
+- Yellow intervals are rendered first and red intervals last.
+- When levels overlap, the chart now visibly matches the red live dashboard card.
+
+---
+
 # Release v3.9.14
 
 **Self-heal incomplete typed alert history**

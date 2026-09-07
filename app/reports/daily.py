@@ -18,6 +18,7 @@ from app.reports.common import (
     get_alert_intervals as _get_alert_intervals_common,
     merged_alert_duration,
     summarize_alert_intervals,
+    sort_alert_intervals_for_render,
 )
 
 load_dotenv()
@@ -470,7 +471,7 @@ def generate_chart(
                 edgecolor="none",
             )
 
-        for start, end, alert_type in alert_intervals:
+        for start, end, alert_type in sort_alert_intervals_for_render(alert_intervals):
             if start > now:
                 continue
             if end > now:
