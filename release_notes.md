@@ -1,3 +1,14 @@
+# Release v3.9.13
+
+**Keep live red alert level synchronized with report history**
+
+## What's Fixed
+- Legacy untyped alert events no longer suppress a new explicit red transition.
+- Daily/weekly report history now records the same typed red state shown by the live dashboard card.
+- Existing legacy history remains readable as the documented fallback.
+
+---
+
 # Release v3.9.12
 
 **Restore full-width alert strips**

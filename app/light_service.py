@@ -1357,6 +1357,20 @@ def format_air_raid_clear_message(cleared_types, time_str, duration_str=""):
     return f"✅ <b>{time_str} ВІДБІЙ ТРИВОГИ{level_text}</b>{duration_str}"
 
 
+def _last_typed_alert_events(log_data):
+    """Return last events for explicit levels only; legacy events stay fallback-only."""
+    last_events = {}
+    for item in reversed(log_data if isinstance(log_data, list) else []):
+        if not isinstance(item, dict):
+            continue
+        alert_type = item.get("alert_type")
+        if alert_type not in (ALERT_TYPE_YELLOW, ALERT_TYPE_RED):
+            continue
+        if alert_type not in last_events:
+            last_events[alert_type] = item.get("event")
+    return last_events
+
+
 async def update_quiet_status():
     async with state_mgr:
         q_mode = state.get("quiet_mode", "auto")
@@ -1667,13 +1681,7 @@ async def _alerts_loop_iteration():
             )
             if not isinstance(log_data, list):
                 log_data = []
-            last_events = {}
-            for item in reversed(log_data):
-                if not isinstance(item, dict):
-                    continue
-                item_type = item.get("alert_type", ALERT_TYPE_RED)
-                if item_type not in last_events:
-                    last_events[item_type] = item.get("event")
+            last_events = _last_typed_alert_events(log_data)
             for alert_type in (ALERT_TYPE_YELLOW, ALERT_TYPE_RED):
                 if alert_type not in changed_types:
                     continue

@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.13] - 2026-09-08
+- **Синхронізація рівня:** Typed red transitions більше не блокуються старими безтиповими подіями; карточка та денний/тижневий графік узгоджуються. / Typed red transitions are no longer suppressed by legacy untyped events; card and daily/weekly history stay aligned.
+
 ## [v3.9.12] - 2026-09-08
 - **Смужки тривог:** Відновлено повну висоту й ширину смужок денного/тижневого звіту, прибрано штучний внутрішній поділ і проміжки. / Restored full-height and full-width daily/weekly alert strips and removed artificial gaps.
 
