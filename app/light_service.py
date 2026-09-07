@@ -1371,6 +1371,16 @@ def _last_typed_alert_events(log_data):
     return last_events
 
 
+def _typed_alert_history_sync_types(active_types, last_events):
+    """Return levels whose explicit history must be reconciled with live state."""
+    return {
+        alert_type
+        for alert_type in (ALERT_TYPE_YELLOW, ALERT_TYPE_RED)
+        if (alert_type in active_types and last_events.get(alert_type) != "active")
+        or (alert_type not in active_types and last_events.get(alert_type) == "active")
+    }
+
+
 async def update_quiet_status():
     async with state_mgr:
         q_mode = state.get("quiet_mode", "auto")
@@ -1657,9 +1667,20 @@ async def _alerts_loop_iteration():
             else "clear"
         )
         changed_types = old_types.symmetric_difference(new_types)
-        if not changed_types and old_type == new_type:
+        log_data = []
+        history_sync_types = set()
+        if changed_types or new_types:
+            log_data = await StorageUtils.load_json_async(
+                os.path.join(DATA_DIR, "air_raid_log.json"), default=[]
+            )
+            if not isinstance(log_data, list):
+                log_data = []
+            history_sync_types = _typed_alert_history_sync_types(
+                new_types, _last_typed_alert_events(log_data)
+            )
+        if not changed_types and not history_sync_types and old_type == new_type:
             return
-        has_transition = bool(changed_types)
+        has_transition = bool(changed_types or history_sync_types)
 
         now_dt = datetime.datetime.now(KYIV_TZ)
         time_str = now_dt.strftime("%H:%M")
@@ -1675,19 +1696,11 @@ async def _alerts_loop_iteration():
         else:
             can_notify = bool(can_notify)
 
-        if changed_types:
-            log_data = await StorageUtils.load_json_async(
-                os.path.join(DATA_DIR, "air_raid_log.json"), default=[]
-            )
-            if not isinstance(log_data, list):
-                log_data = []
-            last_events = _last_typed_alert_events(log_data)
+        if changed_types or history_sync_types:
             for alert_type in (ALERT_TYPE_YELLOW, ALERT_TYPE_RED):
-                if alert_type not in changed_types:
+                if alert_type not in (changed_types | history_sync_types):
                     continue
                 event_type = "active" if alert_type in new_types else "clear"
-                if last_events.get(alert_type) == event_type:
-                    continue
                 log_data.append(
                     {
                         "timestamp": now_dt.timestamp(),

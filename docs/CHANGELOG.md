@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.14] - 2026-09-08
+- **Самовідновлення історії:** Якщо live-стан містить red/yellow, а typed-подія відсутня в історії, вона автоматично записується й оновлює графіки. / If live red/yellow state is missing from typed history, the event is recorded and reports are refreshed.
+
 ## [v3.9.13] - 2026-09-08
 - **Синхронізація рівня:** Typed red transitions більше не блокуються старими безтиповими подіями; карточка та денний/тижневий графік узгоджуються. / Typed red transitions are no longer suppressed by legacy untyped events; card and daily/weekly history stay aligned.
 

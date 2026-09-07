@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from app.light_service import (
     _last_typed_alert_events,
+    _typed_alert_history_sync_types,
     format_air_raid_clear_message,
     format_air_raid_start_message,
     get_air_raid_alert,
@@ -182,6 +183,12 @@ def test_legacy_alert_events_do_not_suppress_typed_red_transition():
     )
 
     assert last_events == {"yellow": "active"}
+
+
+def test_history_sync_repairs_missing_red_for_live_red_state():
+    assert _typed_alert_history_sync_types({"yellow", "red"}, {"yellow": "active"}) == {
+        "red"
+    }
 
 
 def test_daily_and_weekly_summaries_include_alert_levels(tmp_path):
