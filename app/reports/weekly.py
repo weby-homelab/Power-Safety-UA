@@ -52,7 +52,6 @@ from app.reports.common import (  # noqa: E402
     get_alert_color,
     get_alert_intervals as _get_alert_intervals_common,
     merged_alert_duration,
-    normalize_alert_type,
     summarize_alert_intervals,
 )
 
@@ -369,10 +368,6 @@ def generate_weekly_chart(end_date, daily_data, theme="dark", lang="ua"):
                 )
 
                 alert_intervals = get_alert_intervals(day_date)
-                alert_lanes = {
-                    ALERT_TYPE_YELLOW: (y_pos - 0.18, 0.16),
-                    ALERT_TYPE_RED: (y_pos + 0.02, 0.16),
-                }
                 for start, end, alert_type in alert_intervals:
                     if day_date == now_kyiv.date():
                         if start > now_kyiv:
@@ -392,13 +387,9 @@ def generate_weekly_chart(end_date, daily_data, theme="dark", lang="ua"):
                     duration_num = mdates.date2num(d_end) - start_num
 
                     if duration_num > 0:
-                        lane_y, lane_height = alert_lanes.get(
-                            normalize_alert_type(alert_type),
-                            alert_lanes[ALERT_TYPE_RED],
-                        )
                         ax.broken_barh(
                             [(start_num, duration_num)],
-                            (lane_y, lane_height),
+                            (y_pos - 0.18, 0.36),
                             facecolors=get_alert_color(alert_type),
                             edgecolor="none",
                         )

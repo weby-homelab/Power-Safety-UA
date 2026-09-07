@@ -26,7 +26,7 @@ Extend the existing air-raid history pipeline with the alert-level data already 
 - A yellow-level alert renders yellow and is labeled as a warning-level alert.
 - A red-level alert renders red and is labeled as an immediate-danger alert.
 - If both are active, the live card identifies the red level while historical bars preserve both typed intervals.
-- Daily and weekly chart legends identify both alert colors; no alert remains the old single pale color.
+- Daily and weekly chart legends identify both alert colors; the levels use the full-height alert strip without artificial internal lanes or gaps.
 - Existing legacy alert log records remain readable.
 - `v3.9.11` is the version reported by the application, tag, GitHub release, and deployed services.
 - All tests, lint/SAST/dependency gates, release read-back, and both deployment smoke checks pass.
