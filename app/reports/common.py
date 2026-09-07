@@ -39,6 +39,17 @@ def get_alert_color(alert_type):
     )
 
 
+def sort_alert_intervals_for_render(intervals):
+    """Draw yellow first and red last so immediate danger wins overlaps."""
+    return sorted(
+        intervals,
+        key=lambda interval: (
+            normalize_alert_type(interval[2]) == ALERT_TYPE_RED,
+            interval[0],
+        ),
+    )
+
+
 def summarize_alert_intervals(intervals):
     summary = {
         alert_type: {"count": 0, "duration_sec": 0.0} for alert_type in ALERT_TYPES

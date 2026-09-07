@@ -14,7 +14,11 @@ from app.light_service import (
     parse_alert_states,
     parse_typed_alerts,
 )
-from app.reports.common import get_alert_color, get_alert_intervals
+from app.reports.common import (
+    get_alert_color,
+    get_alert_intervals,
+    sort_alert_intervals_for_render,
+)
 from app.reports.daily import generate_chart as generate_daily_chart
 from app.reports.daily import build_report_caption
 from app.reports.weekly import (
@@ -152,6 +156,20 @@ def test_daily_and_weekly_chart_palettes_use_alert_levels():
     assert get_alert_color("red") == RED_ALERT_COLOR
     assert "get_alert_color" in generate_daily_chart.__code__.co_names
     assert "get_alert_color" in generate_weekly_chart.__code__.co_names
+
+
+def test_red_alert_interval_renders_after_yellow_overlap():
+    start = datetime.datetime(2026, 4, 6, 1, tzinfo=KYIV_TZ)
+    end = start + datetime.timedelta(hours=2)
+
+    ordered = sort_alert_intervals_for_render(
+        [
+            (start, end, "red"),
+            (start, end, "yellow"),
+        ]
+    )
+
+    assert [interval[2] for interval in ordered] == ["yellow", "red"]
 
 
 def test_alert_bars_keep_the_full_strip_geometry():
