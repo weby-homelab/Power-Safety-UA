@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.12] - 2026-09-08
+- **Смужки тривог:** Відновлено повну висоту й ширину смужок денного/тижневого звіту, прибрано штучний внутрішній поділ і проміжки. / Restored full-height and full-width daily/weekly alert strips and removed artificial gaps.
+
 ## [v3.9.11] - 2026-09-08
 - **Рівні тривог:** Жовтий попереджувальний і червоний критичний рівні відображаються окремими кольорами на денних/тижневих графіках та в карточці дашборда. / Yellow warning and red immediate-danger levels render separately in daily/weekly charts and the dashboard card.
 - **Telegram:** Рівень додано до миттєвих, щоденних підсумкових і тижневих повідомлень. / Alert levels are included in immediate, daily summary, and weekly Telegram messages.

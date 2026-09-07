@@ -1,3 +1,14 @@
+# Release v3.9.12
+
+**Restore full-width alert strips**
+
+## What's Fixed
+- Daily and weekly alert intervals now use the complete alert-strip height and width.
+- Removed the artificial yellow/red internal lanes and their visible separation gap.
+- Red intervals remain the later overlay when yellow and red levels overlap in time.
+
+---
+
 # Release v3.9.11
 
 **Typed air-raid levels in dashboard, reports, and Telegram**
