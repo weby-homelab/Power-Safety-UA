@@ -249,6 +249,8 @@ def test_api_status_keeps_legacy_light_and_exposes_unknown_state():
             return "G1"
         if name == "_read_schedule_slots":
             return [True] * 48
+        if name == "_read_schedule_slots_with_status":
+            return [True] * 48, False
         raise AssertionError(f"Unexpected worker function: {name}")
 
     def fake_setting(section, key, default=None):
@@ -275,3 +277,11 @@ def test_api_status_keeps_legacy_light_and_exposes_unknown_state():
     assert result["light"] == "off"
     assert result["light_state"] == "unknown"
     assert result["alert"]["type"] == "clear"
+
+
+def test_schedule_reader_keeps_legacy_slots_and_reports_missing_data():
+    with patch("app.main.os.path.exists", return_value=False):
+        slots, schedule_known = app.main._read_schedule_slots_with_status()
+
+    assert slots == [True] * 48
+    assert schedule_known is False

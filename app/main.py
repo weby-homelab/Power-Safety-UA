@@ -1351,11 +1351,12 @@ def _read_group_name() -> str:
     return "---"
 
 
-def _read_schedule_slots() -> list:
+def _read_schedule_slots_with_status() -> tuple[list, bool]:
     """Sync: read current day schedule slots from last_schedules.json."""
     now = datetime.now(KYIV_TZ)
     date_str = now.strftime("%Y-%m-%d")
     slots = [True] * 48
+    schedule_known = False
     sched_file = os.path.join(DATA_DIR, "last_schedules.json")
     if os.path.exists(sched_file):
         try:
@@ -1375,10 +1376,17 @@ def _read_schedule_slots() -> list:
                             for i in range(min(len(merged), len(day_data))):
                                 if day_data[i] is False:
                                     merged[i] = False
-                if merged:
+                if merged is not None:
                     slots = merged
+                    schedule_known = True
         except Exception:
             pass
+    return slots, schedule_known
+
+
+def _read_schedule_slots() -> list:
+    """Return slots only for legacy callers that do not need availability metadata."""
+    slots, _ = _read_schedule_slots_with_status()
     return slots
 
 
@@ -1414,7 +1422,7 @@ async def api_status(lang: str = "ua"):
     group_name = await asyncio.to_thread(_read_group_name)
 
     # Extra: get raw slots for graph bar
-    slots = await asyncio.to_thread(_read_schedule_slots)
+    slots, schedule_known = await asyncio.to_thread(_read_schedule_slots_with_status)
 
     from app._version import get_version
 
@@ -1427,6 +1435,7 @@ async def api_status(lang: str = "ua"):
         "recent_events": recent_events,
         "schedule_text": schedule_text,
         "schedule_slots": slots,
+        "schedule_known": schedule_known,
         "aqi": aq_data,
         "radiation": rad_data,
         "alert": alert_data,

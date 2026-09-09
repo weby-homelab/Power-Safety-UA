@@ -98,20 +98,22 @@ def style_for_fact(state: str, palette: ReportPalette) -> dict[str, object]:
     }
 
 
-def style_for_plan(is_light: bool, palette: ReportPalette) -> dict[str, object]:
+def style_for_plan(is_light: bool | None, palette: ReportPalette) -> dict[str, object]:
     """Render normal schedule as a quiet track and outages as a hatched plan."""
-    if is_light:
+    if is_light is True:
         return {
             "facecolors": palette.track,
             "edgecolor": palette.track,
             "linewidth": 0.0,
         }
-    return {
-        "facecolors": PLAN_OUTAGE,
-        "edgecolor": palette.text,
-        "linewidth": HATCH_LINE_WIDTH,
-        "hatch": HATCH_PLAN,
-    }
+    if is_light is False:
+        return {
+            "facecolors": PLAN_OUTAGE,
+            "edgecolor": palette.text,
+            "linewidth": HATCH_LINE_WIDTH,
+            "hatch": HATCH_PLAN,
+        }
+    return style_for_fact("unknown", palette)
 
 
 def style_for_alert_clear(palette: ReportPalette) -> dict[str, object]:

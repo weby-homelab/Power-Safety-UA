@@ -76,6 +76,11 @@ def test_plan_outage_uses_hatch_and_normal_plan_uses_neutral_track():
     assert outage["hatch"] == HATCH_PLAN
     assert normal["facecolors"] == TRACK_LIGHT
     assert "hatch" not in normal
+    invalid = style_for_plan(None, dark_palette)
+    assert invalid["facecolors"] == UNKNOWN_DARK
+    assert invalid["hatch"] == HATCH_UNKNOWN
+    invalid_string = style_for_plan("false", dark_palette)
+    assert invalid_string["facecolors"] == UNKNOWN_DARK
 
 
 def test_aqi_thresholds_do_not_reuse_air_alert_red():
@@ -126,6 +131,13 @@ def test_dashboard_uses_non_color_state_identity_and_quiet_alerts():
     assert "Kyiv" in template
     assert 'id="schedule-grid"' in template
     assert "scheduleGridLabel" in template
+    assert "schedule_known" in template
+    assert ".grid-cell.unknown" in template
+    assert "alertType !== 'unknown'" in template
+    assert "alertPushRedDowngrade" in template
+    assert "document.documentElement.lang" in template
+    assert "value === null" in template
+    assert "value === ''" in template
     assert "var(--alert-warning)" in template
     assert "var(--alert-critical)" in template
     assert "data.light_state" in template

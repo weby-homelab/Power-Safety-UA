@@ -173,6 +173,11 @@
             background-color: var(--plan-outage);
             background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255,255,255,0.45) 4px 6px);
         }
+        .grid-cell.unknown {
+            background-color: var(--state-unknown);
+            background-image: radial-gradient(circle, rgba(255,255,255,0.55) 1px, transparent 1.5px);
+            background-size: 5px 5px;
+        }
         .grid-cell::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,0.1); }
         .grid-labels { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 4px; padding: 0 2px; font-weight: 700; }
         
@@ -341,7 +346,8 @@
         let lastAlertStatus = null;
         let statusRequestId = 0;
         let notificationsEnabled = localStorage.getItem('notifications') === 'true';
-        let currentLang = localStorage.getItem('lang') || 'ua';
+        const storedLang = localStorage.getItem('lang');
+        let currentLang = storedLang === 'en' ? 'en' : 'ua';
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Light "ding"
 
         const translations = {
@@ -383,6 +389,7 @@
                 pushTitleAlert: "🚨 ПОВІТРЯНА ТРИВОГА",
                 alertPushStart: "Початок повітряної тривоги!",
                 alertPushEnd: "Відбій тривоги",
+                alertPushRedDowngrade: "Відбій червоного рівня. Залишається жовтий рівень попередження",
                 groupHeader: "Графік групи",
                 scheduleGridLabel: "Планові відключення",
                 airLabel: "Повітря",
@@ -429,6 +436,7 @@
                 pushTitleAlert: "🚨 AIR RAID ALERT",
                 alertPushStart: "Air raid alert started!",
                 alertPushEnd: "Alert cleared",
+                alertPushRedDowngrade: "Red alert cleared. Yellow warning remains active.",
                 groupHeader: "Schedule Group",
                 scheduleGridLabel: "Planned outage schedule",
                 airLabel: "Air",
@@ -449,6 +457,7 @@
 
         function applyTranslations() {
             const t = translations[currentLang];
+            document.documentElement.lang = currentLang === 'en' ? 'en' : 'uk';
             document.title = t.title;
             const logoText = document.getElementById('logo-text');
             if (logoText) logoText.innerHTML = t.logo;
@@ -671,6 +680,9 @@
         }
 
         function getAqiColorToken(value) {
+            if (value === null || value === undefined || value === '' || typeof value === 'boolean') {
+                return 'var(--state-unknown)';
+            }
             const numericValue = Number(value);
             if (!Number.isFinite(numericValue)) return 'var(--state-unknown)';
             if (numericValue > 100) return 'var(--aqi-unhealthy)';
@@ -779,13 +791,26 @@
                      }
                  }
 
-                 if (lastAlertStatus !== null && alertType !== lastAlertStatus && (isAlert || lastAlertStatus === 'red' || lastAlertStatus === 'yellow')) {
-                     playDing();
-                     if (document.hasFocus()) triggerHaptic([100, 200, 100]);
-                     const alertMsg = isAlert ? `${translations[currentLang].alertPushStart} ${alertLocation}` : translations[currentLang].alertPushEnd;
-                     sendPush(translations[currentLang].pushTitleAlert, alertMsg);
-                 }
-                 lastAlertStatus = alertType;
+                 const alertCleared = alertType === 'clear' && (
+                      lastAlertStatus === 'red' || lastAlertStatus === 'yellow'
+                  );
+                  const alertDowngrade = alertType === 'yellow' && lastAlertStatus === 'red';
+                  if (
+                      lastAlertStatus !== null &&
+                      alertType !== lastAlertStatus &&
+                      alertType !== 'unknown' &&
+                      (isAlert || alertCleared)
+                  ) {
+                      playDing();
+                      if (document.hasFocus()) triggerHaptic([100, 200, 100]);
+                      const alertMsg = alertDowngrade
+                          ? translations[currentLang].alertPushRedDowngrade
+                          : isAlert
+                              ? `${translations[currentLang].alertPushStart} ${alertLocation}`
+                              : translations[currentLang].alertPushEnd;
+                      sendPush(translations[currentLang].pushTitleAlert, alertMsg);
+                  }
+                  lastAlertStatus = alertType;
                 
                 // Hide or show AQ block
                 const aqBlock = document.getElementById('aq-block');
@@ -1027,22 +1052,29 @@
 
                 // Update Schedule Grid Bar
                 const grid = document.getElementById('schedule-grid');
-                if (grid && data.schedule_slots) {
-                    grid.innerHTML = '';
-                    // 48 slots -> 24 cells (1 hour each). If any 30m slot is OFF, hour is OFF.
-                    for (let h = 0; h < 24; h++) {
-                        const cell = document.createElement('div');
-                        const isOff = data.schedule_slots[h*2] === false || data.schedule_slots[h*2+1] === false;
-                        cell.className = 'grid-cell' + (isOff ? ' off' : '');
-                        cell.dataset.state = isOff ? 'planned-outage' : 'neutral';
-                        cell.setAttribute('aria-label', isOff
-                            ? (currentLang === 'ua' ? 'Планове відключення' : 'Planned outage')
-                            : (currentLang === 'ua' ? 'Нормальний графік' : 'Normal schedule'));
-                        grid.appendChild(cell);
-                    }
-                }
-                
-                const scheduleTextEl = document.getElementById('schedule-text');
+                 const scheduleKnown = data.schedule_known !== false;
+                 if (grid) {
+                     grid.innerHTML = '';
+                     // 48 slots -> 24 cells (1 hour each). Invalid data stays unknown.
+                     for (let h = 0; h < 24; h++) {
+                         const cell = document.createElement('div');
+                         const firstSlot = Array.isArray(data.schedule_slots) ? data.schedule_slots[h*2] : undefined;
+                         const secondSlot = Array.isArray(data.schedule_slots) ? data.schedule_slots[h*2+1] : undefined;
+                         const validHour = scheduleKnown && typeof firstSlot === 'boolean' && typeof secondSlot === 'boolean';
+                         const isOff = validHour && (firstSlot === false || secondSlot === false);
+                         const cellState = !validHour ? 'unknown' : isOff ? 'planned-outage' : 'neutral';
+                         cell.className = 'grid-cell' + (cellState === 'planned-outage' ? ' off' : cellState === 'unknown' ? ' unknown' : '');
+                         cell.dataset.state = cellState;
+                         cell.setAttribute('aria-label', cellState === 'planned-outage'
+                             ? (currentLang === 'ua' ? 'Планове відключення' : 'Planned outage')
+                             : cellState === 'unknown'
+                                 ? (currentLang === 'ua' ? 'Графік невідомий' : 'Schedule unknown')
+                                 : (currentLang === 'ua' ? 'Нормальний графік' : 'Normal schedule'));
+                         grid.appendChild(cell);
+                     }
+                 }
+
+                 const scheduleTextEl = document.getElementById('schedule-text');
                 if (scheduleTextEl) scheduleTextEl.innerHTML = data.schedule_text;
                 
                 const lastUpdateEl = document.getElementById('last-update');
