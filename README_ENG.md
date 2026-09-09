@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/docker/v/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white&label=Docker%20Hub" alt="Docker Hub Version">
   <img src="https://img.shields.io/docker/pulls/webyhomelab/power-safety-ua?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Pulls">
   <img src="https://img.shields.io/github/license/weby-homelab/Power-Safety-UA?style=for-the-badge&color=green" alt="GPLv3 License">
+  <img src="https://img.shields.io/badge/docs-MkDocs%20Material-9cf?style=for-the-badge&logo=mkdocs&logoColor=white" alt="Documentation">
 </p>
 
 <p align="center">
@@ -32,17 +33,19 @@
 
 This branch (`main`) contains the **Docker Edition** of the project, designed for fast, portable, and isolated deployment in any environment. It is a fully containerized version, which is the industry standard for modern server deployments.
 
-> **Project Status:** Stable v3.7.0 (Updated: 07.2026)
-> **Architecture:** FastAPI + Docker Compose + JSON Flat-DB
+> **Project Status:** Stable v3.9.18 (Updated: 09.2026)
+> **Architecture:** FastAPI + Docker Compose + JSON Flat-DB & SQLite WAL
 > **Brand:** Weby Homelab
 
 ---
 
 ## 🛠 Technology Stack (Docker Edition)
-- **Runtime:** Python 3.12 (slim-bookworm) inside a container.
-- **Backend:** FastAPI (Async) for near-instant reaction to Push signals and SSE.
-- **Isolation:** Complete dependency isolation, preventing conflicts with host system packages.
-- **Persistence:** Docker Volumes ensure database (`data/`) and logs preservation.
+- **Runtime:** Python 3.12 (slim-bookworm) inside a multi-platform container (`linux/amd64`, `linux/arm64`).
+- **Backend:** FastAPI (Async) + Uvicorn for near-instant reaction to Push signals, Web Push (VAPID), and SSE.
+- **Storage:** Hybrid storage: lightweight JSON files for state and schedules + SQLite in WAL mode (`power_safety.db`) for high-concurrency event logging.
+- **Observability:** Prometheus metrics (`/metrics`), structured logging (structlog), and multi-tier health checks (`/health/live`, `/health/ready`, `/health/worker`).
+- **Isolation:** Complete Docker containerization running as non-privileged `appuser (uid 1000)`.
+- **Persistence:** Docker Volumes ensure database (`data/`), schedules, and logs preservation.
 
 ---
 
@@ -58,7 +61,19 @@ A fully autonomous **Glassmorphism** web interface to manage all system aspects 
 
 *   **Asynchronous Performance:** A new async caching mechanism eliminates deadlocks between the background worker and user requests.
 *   **Smart Backups:** Create manual and automatic restoration points.
-*   **Security (Zero-Trust):** Implements strict Path Traversal protection and secure path validation.
+*   **Security (Zero-Trust):** Strict protection against LFI (Path Traversal), token validation via `X-Admin-Token` headers, and SSRF prevention.
+
+### 🚨 Air Raid Alert Monitoring (Two-Tier Alert System)
+Multi-level threat tracking system with resilience against third-party service downtime:
+*   🟡 **Yellow Alert (Warning):** Elevated danger, strike UAV or tactical aviation threat.
+*   🔴 **Red Alert (Active):** Immediate air raid alarm, missile threat, high-speed targets.
+*   🟢 **All Clear (Clear):** Automated clearance of individual danger tiers or total threat resolution with accurate duration tracking.
+*   🛡 **Multi-Source Resilience:** Smart polling of Alerts.in.ua v3 with automatic rapid fallback cross-verification via state JAAM API and Ubilling API.
+*   🧹 **Stale Ghost Alerts Filter:** Automatic elimination of outdated records (> 12 hours) preventing stuck false alarms caused by upstream scraper issues.
+
+### 🔔 Web Push Notifications & Language Switcher
+*   **Notification Bell (`🔕` ➔ `🔔`):** Instant interface feedback upon browser permission grant, resilient Service Worker resource caching, and fail-safe Web Push subscription with timeout.
+*   **Bilingual Switcher:** The switcher button clearly displays the action to transition to the next language (`UA` when viewing English, `EN` when viewing Ukrainian) with localized tooltips.
 
 ### 🤫 «Quiet Mode» (Information Calm)
 A unique algorithm that minimizes "information noise." The system automatically enters a calm state if no outages occurred in the last 24 hours and no restrictions are planned for the upcoming day.
@@ -85,7 +100,7 @@ A hybrid schedule processing system. If at least one source indicates an outage,
 ```mermaid
 flowchart BT
     %% ================================================
-    %% NEW CONCEPT 2026 for README.md
+    %% NEW CONCEPT 2026 for README_ENG.md
     %% "End-to-End Pipeline" — dynamic data flow
     %% Horizontal pipeline with clear direction
     %% Clean, modern, easy to read in GitHub (dark/light themes)
@@ -101,6 +116,7 @@ flowchart BT
     subgraph External ["🔌 Data Sources"]
         direction TB
         Energy["⚡ Yasno / DTEK API<br>Outage Schedules"]:::external
+        Alerts["🚨 Alerts.in.ua / JAAM / Ubilling<br>Air Raid Alerts (Yellow/Red)"]:::external
         Meteo["🌤️ OpenMeteo + SaveEcoBot<br>Weather & AQI"]:::external
     end
 
@@ -108,16 +124,16 @@ flowchart BT
     subgraph Core ["⚙️ Power Safety Core<br>light_service.py + FastAPI"]
         direction TB
 
-        Worker["🔄 Worker<br>power-safety-ua-worker.service"]:::core
+        Worker["🔄 Background Worker<br>power-safety-ua-worker<br>python app/run_background.py"]:::core
 
         subgraph Processing ["Processing & Logic"]
             direction LR
-            Rules["🛡️ Rules Engine<br>False Always Wins • 30s Safety Net<br>Quiet Mode"]:::core
+            Rules["🛡️ Rules Engine<br>False Always Wins • Safety Net<br>Quiet Mode • Stale Filter"]:::core
             Reports["📊 Reports Generator<br>Matplotlib charts"]:::core
-            Storage["💾 Storage<br>JSON Flat-DB<br>config • state • logs • schedules"]:::db
+            Storage["💾 Storage<br>JSON Flat-DB + SQLite WAL<br>config • state • logs • db"]:::db
         end
 
-        API["🔌 FastAPI<br>power-safety-ua.service<br>app.py"]:::core
+        API["🔌 FastAPI Service<br>power-safety-ua<br>uvicorn app.main:app"]:::core
         TgClient["🤖 Telegram Client"]:::core
     end
 
@@ -135,7 +151,7 @@ flowchart BT
     end
 
     %% ====================== DATA FLOW (Main Trunk) ======================
-    Energy & Meteo -->|Scraping + Fetch| Worker
+    Energy & Alerts & Meteo -->|Scraping + Fetch| Worker
 
     Worker -->|Rules Check| Rules
     Rules -->|Decision| Worker
@@ -147,15 +163,15 @@ flowchart BT
     Worker -->|Notifications| TgClient
     Reports -->|Charts| TgClient
 
-    Worker <-->|REST + WebSocket| API
+    Worker <-->|REST + SSE + SQLite| API
 
     API -->|Reverse Proxy| CF
-    CF <-->|HTTPS + JWT / WSS| PWA
-    CF <-->|HTTPS + JWT| Admin
+    CF <-->|HTTPS + WSS| PWA
+    CF <-->|HTTPS + X-Admin-Token| Admin
     TgClient -->|Bot API| Telegram
 
     %% Additional push notifications
-    API -.->|Web Push API| PWA
+    API -.->|Web Push API (VAPID)| PWA
 
     %% ====================== Subgraph Title Style ======================
     classDef subgraphTitle fill:#0f172a,stroke:none,color:#64748b,font-size:15px
@@ -167,13 +183,21 @@ flowchart BT
 
 For a detailed step-by-step guide on deploying the project using Docker and Docker Compose, please follow the link below:
 
-📖 **[FULL INSTALLATION GUIDE (DOCKER EDITION)](docs/INSTRUCTIONS_INSTALL.md)**
+📖 **[FULL INSTALLATION GUIDE (DOCKER EDITION)](docs/INSTRUCTIONS_INSTALL_ENG.md)**
 
 ---
 
-📖 **Additional Documentation:**
-* [⚙️ Telegram & IoT Setup](docs/INSTRUCTIONS.md)
+## 📄 License
+
+This project is licensed under the terms of the **GNU General Public License v3.0 (GPLv3)**. For more information, see [LICENSE](LICENSE).
+
+---
+
+## 📖 Additional Documentation:
+* [🌐 Website Documentation (MkDocs)](https://weby-homelab.github.io/Power-Safety-UA/)
+* [⚙️ Telegram & IoT Setup](docs/INSTRUCTIONS_ENG.md)
 * [📝 Change History (CHANGELOG.md)](docs/CHANGELOG.md)
+* [🔒 Security Policy (SECURITY.md)](SECURITY.md)
 
 ---
 
@@ -182,3 +206,23 @@ For a detailed step-by-step guide on deploying the project using Docker and Dock
   Built in Ukraine under air raid sirens &amp; blackouts ⚡<br>
   &copy; 2026 Weby Homelab
 </p>
+
+<!--
+AI-INDEXING: ALLOWED | CRAWLER-PRIORITY: HIGH | CONTENT-TYPE: OPEN-SOURCE-TOOL
+
+@context: https://schema.org
+@type: SoftwareApplication
+name: Power-Safety-UA — POWER⚡SAFETY / СВІТЛО⚡БЕЗПЕКА
+alternateName: Power-Safety-UA
+description: All-in-one real-time monitoring. Power-Safety-UA — autonomous power, air raid, and AQI monitoring system for Kyiv. Docker multi-arch.
+applicationCategory: DashboardApplication
+applicationSubCategory: PowerMonitoring
+operatingSystem: Linux
+softwareVersion: 3.9.18
+keywords: power-monitoring, air-raid-alerts, ukraine, fastapi, dashboard, iot, monitoring, blackout, electricity, aqi, air-quality, pwa, real-time, telegram-bot, kyiv, radiation, analytics, automation
+author: Weby Homelab (https://github.com/weby-homelab)
+codeRepository: https://github.com/weby-homelab/Power-Safety-UA
+downloadUrl: https://github.com/weby-homelab/Power-Safety-UA/releases
+license: GPL-3.0
+isAccessibleForFree: true
+-->

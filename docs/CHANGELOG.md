@@ -5,6 +5,8 @@
 - **Підтримка ключів JAAM:** Виправлено розпізнавання ключів `"Київ"` та `"м. Київ"` в API JAAM, що забезпечує точне відстеження офіційних тривог та відбоїв. / Normalized Kyiv keys in JAAM integration to accurately detect official DSNS/AFU alerts and all-clear statuses.
 - **Крос-валідація джерел:** Додано швидку перевірку через JAAM у разі відсутності тривоги в типізованому фіді, що запобігає запізненню сповіщень. / Added rapid cross-check with JAAM when typed feed is clear to prevent delayed notifications.
 - **Санітизація тривалості тривоги:** Вилучено некоректний розрахунок багатоденної тривалості (>12 год) при відбої застарілих станів у Telegram. / Sanitized anomalous alert duration calculation in Telegram notifications for stale states.
+- **Патч безпеки контейнера (Trivy Security):** Оновлено `setuptools>=84.0.0` та `msgpack>=1.2.2` у `Dockerfile` та `requirements.txt` для усунення вразливостей Trivy (CVE-2025-47273, CVE-2026-59890, GHSA-6v7p-g79w-8964). / Patched Trivy container vulnerabilities by upgrading setuptools and msgpack.
+- **Синхронізація документації (Docs Drift Elimination):** Оновлено `README.md` та `README_ENG.md` (архітектура тривог, джерела, дзвіночок 🔕 ➔ 🔔, перемикач мов UA/EN, SQLite WAL, Prometheus). Синхронізовано таблиці версій у `SECURITY.md`. / Updated READMEs and security policies to eliminate documentation drift.
 
 ## [v3.9.17] - 2026-09-09
 - **Значок сповіщень (Bell UI):** Виправлено збій інсталяції Service Worker через відсутній ресурс, що блокувало оновлення значка 🔕 ➔ 🔔. Додано миттєвий відгук UI та захист таймаутом для фонової підписки. / Fixed Service Worker installation failure caused by missing asset, enabling immediate notification bell UI feedback and timeout-protected subscriptions.
