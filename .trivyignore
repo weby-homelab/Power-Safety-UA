@@ -1,0 +1,5 @@
+# Base python image layer includes pip which vendored setuptools 70.3.0 and msgpack in lower layer
+# Not used at runtime (FastAPI / uvicorn / power-safety services run with upgraded packages)
+GHSA-6v7p-g79w-8964
+CVE-2025-47273
+CVE-2026-59890
