@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sanitized anomalous alert duration calculation in Telegram notifications to prevent announcing obsolete/stale alert durations (> 12 hours).
 - Made alert API endpoints (`ALERTS_API_URL`, `TYPED_ALERTS_API_URL`, `JAAM_ALERTS_API_URL`) configurable via environment variables.
 
+### Security
+- Patched Trivy code scanning container vulnerabilities by pinning `setuptools>=84.0.0` (CVE-2025-47273, CVE-2026-59890) and `msgpack>=1.2.2` (GHSA-6v7p-g79w-8964) in `Dockerfile` and `requirements.txt`.
+
+### Documentation
+- Updated `README.md` and `README_ENG.md` to eliminate documentation drift: added two-tier alert architecture, alerts data sources, notification bell, next-language toggle, SQLite WAL storage, and Prometheus metrics.
+- Synchronized supported versions table in `SECURITY.md` and `docs/SECURITY.md` to reflect `v3.9.x`.
+- Aligned version references across installation manuals (`docs/INSTRUCTIONS_INSTALL.md`, `docs/INSTRUCTIONS_INSTALL_ENG.md`).
+
 ## [3.9.17] - 2026-09-09
 
 ### Fixed

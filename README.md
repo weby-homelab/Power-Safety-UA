@@ -33,17 +33,19 @@
 
 Ця гілка (`main`) містить **Docker Edition** проєкту, призначену для швидкого, портативного та ізольованого розгортання в будь-якому середовищі. Це повністю контейнеризована версія, яка є стандартом для сучасних серверів.
 
-> **Статус проєкту:** Stable v3.7.0 (Оновлено: 07.2026)
-> **Архітектура:** FastAPI + Docker Compose + JSON Flat-DB
+> **Статус проєкту:** Stable v3.9.18 (Оновлено: 09.2026)
+> **Архітектура:** FastAPI + Docker Compose + JSON Flat-DB & SQLite WAL
 > **Бренд:** Weby Homelab
 
 ---
 
 ## 🛠 Технологічний стек (Docker Edition)
-- **Runtime:** Python 3.12 (slim-bookworm) у контейнері.
-- **Backend:** FastAPI (Async) для миттєвої реакції на Push-сигнали та SSE.
-- **Isolation:** Повна ізоляція залежностей, що унеможливлює конфлікти з системними пакетами.
-- **Persistence:** Використання Docker Volumes для збереження бази даних (`data/`) та логів.
+- **Runtime:** Python 3.12 (slim-bookworm) у мультиплатформному контейнері (`linux/amd64`, `linux/arm64`).
+- **Backend:** FastAPI (Async) + Uvicorn для миттєвої реакції на Push-сигнали, Web Push (VAPID) та SSE.
+- **Storage:** Гібридне сховище: легковагі JSON-файли для стану та розкладів + SQLite у режимі WAL (`power_safety.db`) для швидкого concurrent-логування подій.
+- **Observability:** Prometheus метрики (`/metrics`), структуроване логування (structlog) та дворівневі перевірки працездатності (`/health/live`, `/health/ready`, `/health/worker`).
+- **Isolation:** Повна контейнеризація Docker, безпечний запуск від непривілейованого користувача `appuser (uid 1000)`.
+- **Persistence:** Використання Docker Volumes для збереження бази даних (`data/`), графіків та логів.
 
 ---
 
@@ -57,18 +59,29 @@
   <img src="docs/assets/Admin-control-panel-3.png" alt="Admin Panel 3" width="32%">
 </p>
 
-*   **Асинхронна швидкодія:** Новий асинхронний кеш унеможливлює дедлоки при одночасній роботі воркера та користувача.
+*   **Асинхронна швидкодія:** Асинхронний кеш унеможливлює дедлоки при одночасній роботі воркера та користувача.
 *   **Інтелектуальні бекапи:** Створення ручних та автоматичних точок відновлення конфігурації.
-*   **Безпека (Zero-Trust):** Усунуто LFI (Path Traversal) вразливості, забезпечено строгу перевірку шляхів.
+*   **Безпека (Zero-Trust):** Строгий захист від LFI (Path Traversal), валідація токенів у заголовках `X-Admin-Token` та захист від SSRF.
+
+### 🚨 Система моніторингу повітряних тривог (Two-Tier Alert System)
+Багаторівнева система відстеження небезпеки з захистом від збоїв зовнішніх сервісів:
+*   🟡 **Жовтий рівень (Warning):** Підвищена небезпека, загроза ударних БПЛА чи тактичної авіації.
+*   🔴 **Червоний рівень (Active):** Безпосередня повітряна тривога, ракетна небезпека, швидкісні цілі.
+*   🟢 **Відбій (Clear):** Автоматична фіксація відбою окремих рівнів або повної відміни небезпеки з точним розрахунком тривалості.
+*   🛡 **Мультиджерельна стійкість:** Інтелектуальне опитування Alerts.in.ua v3 з автоматичною швидкою крос-перевіркою через державний JAAM API та Ubilling API.
+*   🧹 **Фільтр застарілих фантомів (Stale Ghost Alerts Filter):** Автоматичне відсікання старих записів (> 12 годин), що запобігає зависанню хибних тривог при збоях сторонніх скраперів.
+
+### 🔔 Сповіщення Web Push & Мовний перемикач
+*   **Дзвіночок сповіщень (`🔕` ➔ `🔔`):** Миттєвий відгук інтерфейсу після надання дозволу браузера, стійке кешування ресурсів Service Worker та безпечна підписка на Web Push з таймаутом.
+*   **Двомовний перемикач:** Кнопка перемикання чітко відображає дію переходу на наступну мову (`EN` при українському інтерфейсі, `UA` при англійському) з локалізованими підказками.
 
 ### 🤫 Режим «Інформаційний спокій» (Quiet Mode)
-Унікальний алгоритм, що мінімізує "інформаційний шум". Система автоматично переходить у стан спокою, якщо за останні 24 години не було відключень, а в планах на завтра немає обмежень.
+Унікальний алгоритм, що мінімізує «інформаційний шум». Система автоматично переходить у стан спокою, якщо за останні 24 години не було відключень, а в планах на завтра немає обмежень.
 
 ### ⚖️ Логіка «False Always Wins»
-Гібридна система обробки графіків. Якщо хоча б одне джерело вказує на відключення, система відображає його як пріоритетне. Старі записи ніколи не затираються "чистими" планами.
+Гібридна система обробки графіків. Якщо хоча б одне джерело вказує на відключення, система відображає його як пріоритетне. Старі записи ніколи не затираються «чистими» планами.
 
 ---
-
 
 ### 📱 Приклади реальних повідомлень (Telegram)
 - 📊 **[Щоденний графік "План vs Факт" (Smart Daily Report)](https://t.me/svitlobot_Symyrenka22B/1230)**
@@ -88,8 +101,6 @@ flowchart BT
     %% ================================================
     %% НОВА КОНЦЕПЦІЯ 2026 для README.md
     %% "End-to-End Pipeline" — динамічний потік даних
-    %% Замість шарів — горизонтальний pipeline з чітким напрямком руху
-    %% Ідеально виглядає в GitHub (темна/світла тема), чистий, сучасний, легко читається
     %% ================================================
 
     classDef external fill:#0f766e,stroke:#14b8a6,stroke-width:3px,color:#fff,rx:16px,ry:16px
@@ -102,6 +113,7 @@ flowchart BT
     subgraph External ["🔌 Джерела даних"]
         direction TB
         Energy["⚡ Yasno / DTEK API<br>Розклади відключень"]:::external
+        Alerts["🚨 Alerts.in.ua / JAAM / Ubilling<br>Повітряні тривоги (Yellow/Red)"]:::external
         Meteo["🌤️ OpenMeteo + SaveEcoBot<br>Погода та AQI"]:::external
     end
 
@@ -109,16 +121,16 @@ flowchart BT
     subgraph Core ["⚙️ Power Safety Core<br>light_service.py + FastAPI"]
         direction TB
 
-        Worker["🔄 Worker<br>power-safety-ua-worker.service"]:::core
+        Worker["🔄 Background Worker<br>power-safety-ua-worker<br>python app/run_background.py"]:::core
 
         subgraph Processing ["Обробка та логіка"]
             direction LR
-            Rules["🛡️ Rules Engine<br>False Always Wins • 30s Safety Net<br>Quiet Mode"]:::core
+            Rules["🛡️ Rules Engine<br>False Always Wins • Safety Net<br>Quiet Mode • Stale Filter"]:::core
             Reports["📊 Reports Generator<br>Matplotlib charts"]:::core
-            Storage["💾 Storage<br>JSON Flat-DB<br>config • state • logs • schedules"]:::db
+            Storage["💾 Storage<br>JSON Flat-DB + SQLite WAL<br>config • state • logs • db"]:::db
         end
 
-        API["🔌 FastAPI<br>power-safety-ua.service<br>app.py"]:::core
+        API["🔌 FastAPI Service<br>power-safety-ua<br>uvicorn app.main:app"]:::core
         TgClient["🤖 Telegram Client"]:::core
     end
 
@@ -135,8 +147,8 @@ flowchart BT
         Telegram["📨 Telegram Channel<br>+ Push Notifications"]:::client
     end
 
-    %% ====================== ПОТІК ДАНИХ (головна магістраль) ======================
-    Energy & Meteo -->|Скрэйпінг + Fetch| Worker
+    %% ====================== ПОТІК ДАНИХ ======================
+    Energy & Alerts & Meteo -->|Скрейпінг + Fetch| Worker
 
     Worker -->|Перевірка правил| Rules
     Rules -->|Рішення| Worker
@@ -148,15 +160,15 @@ flowchart BT
     Worker -->|Сповіщення| TgClient
     Reports -->|Графіки| TgClient
 
-    Worker <-->|REST + WebSocket| API
+    Worker <-->|REST + SSE + SQLite| API
 
     API -->|Reverse Proxy| CF
-    CF <-->|HTTPS + JWT / WSS| PWA
-    CF <-->|HTTPS + JWT| Admin
+    CF <-->|HTTPS + WSS| PWA
+    CF <-->|HTTPS + X-Admin-Token| Admin
     TgClient -->|Bot API| Telegram
 
     %% Додаткові push-сповіщення
-    API -.->|Web Push API| PWA
+    API -.->|Web Push API (VAPID)| PWA
 
     %% ====================== Стиль для заголовків підграфів ======================
     classDef subgraphTitle fill:#0f172a,stroke:none,color:#64748b,font-size:15px
@@ -182,6 +194,7 @@ flowchart BT
 * [🌐 Документація сайту (MkDocs)](https://weby-homelab.github.io/Power-Safety-UA/)
 * [⚙️ Налаштування Telegram та IoT](docs/INSTRUCTIONS.md)
 * [📝 Історія змін (CHANGELOG.md)](docs/CHANGELOG.md)
+* [🔒 Політика безпеки (SECURITY.md)](SECURITY.md)
 
 ---
 
@@ -202,8 +215,8 @@ description: All-in-one real-time monitoring. Power-Safety-UA — autonomous pow
 applicationCategory: DashboardApplication
 applicationSubCategory: PowerMonitoring
 operatingSystem: Linux
-softwareVersion: 1.0.0
-keywords: power-monitoring, air-raid-alerts, ukraine, flask, dashboard, iot, monitoring, blackout, electricity, aqi, air-quality, pwa, real-time, telegram-bot, kyiv, radiation, analytics, automation
+softwareVersion: 3.9.18
+keywords: power-monitoring, air-raid-alerts, ukraine, fastapi, dashboard, iot, monitoring, blackout, electricity, aqi, air-quality, pwa, real-time, telegram-bot, kyiv, radiation, analytics, automation
 author: Weby Homelab (https://github.com/weby-homelab)
 codeRepository: https://github.com/weby-homelab/Power-Safety-UA
 downloadUrl: https://github.com/weby-homelab/Power-Safety-UA/releases

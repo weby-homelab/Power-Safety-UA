@@ -14,9 +14,9 @@ As of April 2026, the following rules are strictly enforced:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| v3.6.x  | ✅ YES             |
-| v3.5.x  | 🛠️ Security Only |
-| < v3.5  | ❌ NO              |
+| v3.9.x  | ✅ YES             |
+| v3.8.x  | 🛠️ Security Only |
+| < v3.8  | ❌ NO              |
 
 ---
 
