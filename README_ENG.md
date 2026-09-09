@@ -71,6 +71,13 @@ Multi-level threat tracking system with resilience against third-party service d
 *   🛡 **Multi-Source Resilience:** Smart polling of Alerts.in.ua v3 with automatic rapid fallback cross-verification via state JAAM API and Ubilling API.
 *   🧹 **Stale Ghost Alerts Filter:** Automatic elimination of outdated records (> 12 hours) preventing stuck false alarms caused by upstream scraper issues.
 
+### 🎨 Event Visual Grammar
+Graphical reports and the live dashboard use four independent channels:
+* **Fact** — solid strip; power states use teal for on and rose for off.
+* **Plan** — neutral track; a planned outage uses indigo with a hatch pattern.
+* **Alert** — a quiet dotted track for clear, amber for warning, and red for critical.
+* **Unknown** — slate + `?`/pattern; **AQI** — a thin environmental strip.
+
 ### 🔔 Web Push Notifications & Language Switcher
 *   **Notification Bell (`🔕` ➔ `🔔`):** Instant interface feedback upon browser permission grant, resilient Service Worker resource caching, and fail-safe Web Push subscription with timeout.
 *   **Bilingual Switcher:** The switcher button clearly displays the action to transition to the next language (`UA` when viewing English, `EN` when viewing Ukrainian) with localized tooltips.
