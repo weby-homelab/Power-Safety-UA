@@ -1147,19 +1147,32 @@ def _alert_level(record):
             "червон",
             "red",
             "🔴",
-            "бпла",
-            "дрон",
             "каб",
             "обстріл",
+            "артилер",
             "ракет",
             "повітряна тривога",
             "air raid",
         )
     ):
         return ALERT_TYPE_RED
-    if "жовт" in raw_text or "yellow" in raw_text or "🟡" in raw_text:
-        return ALERT_TYPE_YELLOW
-    if "warning" in raw_text or "potential-threat" in raw_text:
+    if any(
+        marker in raw_text
+        for marker in (
+            "жовт",
+            "yellow",
+            "🟡",
+            "бпла",
+            "дрон",
+            "шахед",
+            "шахід",
+            "підвищен",
+            "увага",
+            "попереджен",
+            "warning",
+            "potential-threat",
+        )
+    ):
         return ALERT_TYPE_YELLOW
     return None
 

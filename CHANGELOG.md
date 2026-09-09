@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.20] - 2026-09-09
+
+### Fixed
+- Fixed alert severity classification: drone threats (`"бпла"`, `"дрон"`, `"шахед"`) are now correctly classified as yellow warning level (`ALERT_TYPE_YELLOW`) instead of erroneously triggering red alert (`ALERT_TYPE_RED`).
+- Resolved conflict where eTryvoga sent both a drone threat description (`"Загроза застосування БПЛА"`) and a yellow level indicator (`"Жовтий рівень тривоги"`), which previously caused the entire city to be marked as red alert.
+- Added comprehensive regression test suite verifying standalone and companion UAV drone threats correctly resolve to yellow warning level.
+
 ## [3.9.19] - 2026-09-09
 
 ### Fixed
