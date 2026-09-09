@@ -24,7 +24,7 @@ def test_format_event_message_very_soon_outage():
         with patch("app.light_service.get_deviation_info", return_value=None):
             msg = format_event_message(True, event_time, prev_event_time)
 
-            assert "❌ Вимкнення через ~ менше хвилини" in msg
+            assert "🗓️ Вимкнення через ~ менше хвилини" in msg
             assert "🗓 (19:30-22:00)" in msg
 
 
@@ -341,3 +341,18 @@ class TestFormatEventMessageEdgeCases:
                     assert "CUSTOM_DOWN_TEXT" in msg
                     assert "CUSTOM_DUR_PREFIX" in msg
                     assert "CUSTOM_NEXT" in msg
+
+
+def test_format_event_message_uses_power_domain_icons():
+    now = time.time()
+
+    with patch("app.light_service.get_next_scheduled_event", return_value=None):
+        with patch("app.light_service.get_deviation_info", return_value=""):
+            with patch(
+                "app.light_service.get_config", return_value={"ui": {"text": {}}}
+            ):
+                up_message = format_event_message(True, now, now - 3600)
+                down_message = format_event_message(False, now, now - 3600)
+
+    assert up_message.startswith("💡 <b>")
+    assert down_message.startswith("⚡️ <b>")

@@ -753,8 +753,8 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
 
     caption = (
         f"📊 <b>{title_prefix} за {target_date.strftime('%d.%m.%Y')}</b>\n\n"
-        f"🔆 Світло було: {format_duration(t_up)}\n"
-        f"✖️ Світла не було: {format_duration(t_down)}"
+        f"💡 Факт: Світло було: {format_duration(t_up)}\n"
+        f"⚡️ Факт: Світла не було: {format_duration(t_down)}"
     )
 
     alert_intervals = get_alert_intervals(target_date)
@@ -773,7 +773,7 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
                     f"{label}: {details['count']} ({format_duration(details['duration_sec'])})"
                 )
         caption += (
-            f"\n⚠️ Повітряні тривоги: {alerts_count} "
+            f"\n🚨 Повітряні тривоги: {alerts_count} "
             f"(загалом {format_duration(total_alert_sec)})\n"
             f"   • " + "; ".join(type_parts)
         )
@@ -815,15 +815,15 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
                 elif slot_start < calc_end_time:
                     plan_up_sec_now += (calc_end_time - slot_start).total_seconds()
 
-        caption += "\n\n📉 <b>План vs Факт:</b>\n"
-        caption += f"🔆 За планом на добу:  {plan_up_sec_formatted}\n"
+        caption += "\n\n🗓️ <b>План vs Факт:</b>\n"
+        caption += f"🗓️ За планом на добу:  {plan_up_sec_formatted}\n"
 
         compliance_pct_now = (
             (t_up / plan_up_sec_now * 100) if plan_up_sec_now > 0 else 0
         )
         time_label = "На цю хвилину" if is_today else "На кінець доби"
         caption += f"🔆 {time_label}:\n"
-        caption += f"✅ Факт {format_duration(t_up)} ⚡️ План {format_duration(plan_up_sec_now)}\n"
+        caption += f"💡 Факт {format_duration(t_up)} 🗓️ План {format_duration(plan_up_sec_now)}\n"
         caption += f"👉 Світла {compliance_pct_now:.0f}% від плану\n"
         caption += "---\n"
         caption += f"🕐 Оновлено: {now_time.strftime('%H:%M')}"

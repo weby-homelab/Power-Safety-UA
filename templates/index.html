@@ -37,13 +37,10 @@
             --text-secondary: #94a3b8;
             --accent: #a78bfa;
             --success: #34d399;
-            --danger: #f87171;
-            --warning: #fbbf24;
             --blur: 25px;
+            --chart-bg: #0F172A;
             
             /* Professional Muted Graph Colors */
-            --color-graph-fact-on: #14b8a6;
-            --color-graph-fact-off: #f43f5e;
 
             /* Event & state visual identity */
             --power-up: #14B8A6;
@@ -67,15 +64,13 @@
                 --text-secondary: #4b5563;
                 --accent: #8b5cf6;
                 --success: #059669;
-                --danger: #dc2626;
                 
                 /* Light Mode Professional Muted */
-                --color-graph-fact-on: #0f766e;
-                --color-graph-fact-off: #be123c;
 
                 /* Keep semantic names stable while adapting quiet tracks. */
                 --state-neutral: #CBD5E1;
                 --state-unknown: #94A3B8;
+                --chart-bg: #F8FAFC;
             }
         }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -143,12 +138,21 @@
         .status-icon { font-size: 2.2rem; }
         .status-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 2px; }
         .status-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.4; font-weight: 500; }
-        .status-on { border-color: rgba(52, 211, 153, 0.3); }
-        .status-off { border-color: rgba(248, 113, 113, 0.3); }
-        .alert-yellow { border-color: #facc15; background: rgba(250, 204, 21, 0.16); animation: pulse-yellow 2s infinite; }
-        .alert-red { border-color: #ef4444; background: rgba(239, 68, 68, 0.16); animation: pulse-red 2s infinite; }
-        @keyframes pulse-yellow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.45); } 70% { box-shadow: 0 0 0 15px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
-        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .status-on { border-color: var(--power-up); }
+        .status-off { border-color: var(--power-down); }
+        .status-unknown { border-color: var(--state-unknown); background: var(--card-bg); }
+        .alert-clear { border-color: var(--state-neutral); border-style: dotted; background: var(--card-bg); }
+        .alert-unknown { border-color: var(--state-unknown); border-style: dashed; background: var(--card-bg); }
+        .alert-yellow {
+            border-color: var(--alert-warning);
+            background: var(--card-bg);
+            background: color-mix(in srgb, var(--alert-warning) 14%, var(--card-bg));
+        }
+        .alert-red {
+            border-color: var(--alert-critical);
+            background: var(--card-bg);
+            background: color-mix(in srgb, var(--alert-critical) 16%, var(--card-bg));
+        }
         
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .grid-item { background: rgba(0,0,0,0.03); padding: 16px; border-radius: 20px; border: 1px solid var(--card-border); }
@@ -164,19 +168,22 @@
 
         /* Schedule Grid Styling */
         .schedule-grid { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; margin-bottom: 16px; border-radius: 12px; overflow: hidden; height: 32px; border: 1px solid var(--card-border); }
-        .grid-cell { background: var(--color-graph-fact-on); position: relative; }
-        .grid-cell.off { background: var(--color-graph-fact-off); }
+        .grid-cell { background: var(--state-neutral); position: relative; }
+        .grid-cell.off {
+            background-color: var(--plan-outage);
+            background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255,255,255,0.45) 4px 6px);
+        }
         .grid-cell::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,0.1); }
         .grid-labels { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 4px; padding: 0 2px; font-weight: 700; }
         
-        .chart-wrap { border-radius: 24px; overflow: hidden; border: 1px solid var(--card-border); margin-top: 12px; background: #000; cursor: pointer; box-shadow: var(--card-shadow); }
+        .chart-wrap { border-radius: 24px; overflow: hidden; border: 1px solid var(--card-border); margin-top: 12px; background: var(--chart-bg); cursor: pointer; box-shadow: var(--card-shadow); }
         .chart-wrap img { width: 100%; display: block; }
         .schedule-text { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 28px; padding: 24px; font-family: 'Inter', sans-serif; font-size: 0.95rem; line-height: 1.7; white-space: pre-wrap; font-weight: 500; box-shadow: var(--card-shadow); color: var(--text-primary); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); }
         
         .schedule-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
         .col-header { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--card-border); }
-        .col-header.on { color: var(--color-graph-fact-on); } /* teal */
-        .col-header.off { color: var(--color-graph-fact-off); } /* rose */
+        .col-header.on { color: var(--power-up); } /* teal */
+        .col-header.off { color: var(--power-down); } /* rose */
 
         .schedule-date { color: var(--text-primary); font-weight: 600; margin-bottom: 20px; font-size: 1rem; }
         .schedule-line { display: flex; align-items: center; margin-bottom: 6px; font-variant-numeric: tabular-nums; font-size: 0.85rem; }
@@ -184,46 +191,40 @@
         .time-sep { width: 12px; text-align: center; opacity: 0.4; }
         .schedule-duration { color: var(--text-secondary); margin-left: 8px; font-size: 0.8em; opacity: 0.6; }
         
-        .schedule-line.off { color: var(--color-graph-fact-off) !important; }
-        .schedule-line.on { color: var(--color-graph-fact-on) !important; }
+        .schedule-line.off { color: var(--power-down) !important; }
+        .schedule-line.on { color: var(--power-up) !important; }
 
         .schedule-summary { border-top: 1px dashed var(--card-border); margin-top: 20px; padding-top: 16px; display: flex; gap: 24px; font-size: 1.1rem; }
         
-        .light-hours { color: var(--color-graph-fact-on); font-weight: 700; text-shadow: 0 0 8px rgb(20 184 166 / 0.3); }
-        .no-light-hours { color: var(--color-graph-fact-off); font-weight: 700; text-shadow: 0 0 8px rgb(244 63 94 / 0.3); }
+        .light-hours { color: var(--power-up); font-weight: 700; text-shadow: 0 0 8px rgb(20 184 166 / 0.3); }
+        .no-light-hours { color: var(--power-down); font-weight: 700; text-shadow: 0 0 8px rgb(244 63 94 / 0.3); }
         .schedule-divider { text-align: center; margin: 24px 0; opacity: 0.5; font-size: 0.8rem; letter-spacing: 4px; }
         .emergency-banner { 
-            background: rgba(255, 68, 68, 0.1); 
-            border: 1px solid #ff4444; 
+            background: color-mix(in srgb, var(--alert-critical) 10%, var(--card-bg));
+            border: 1px solid var(--alert-critical);
             border-radius: 16px; 
             padding: 16px; 
-            color: #ff4444; 
+            color: var(--alert-critical);
             text-align: center; 
             margin-bottom: 20px; 
             font-weight: 600;
             display: flex;
             flex-direction: column;
             gap: 8px;
-            animation: pulse-border 2s infinite;
+            /* Emergency state is conveyed by text and icon, not motion. */
         }
         .emergency-banner i { font-size: 1.5rem; }
         .emergency-title { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; }
         .emergency-desc { font-size: 0.9rem; opacity: 0.9; font-weight: 400; }
         .source-label { font-size: 0.7rem; text-transform: uppercase; opacity: 0.6; letter-spacing: 0.5px; margin-top: 4px; font-weight: 700; }
-        .emergency-banner .source-label { color: #ff4444; opacity: 0.8; margin-top: 8px; border-top: 1px solid rgba(255, 68, 68, 0.2); padding-top: 4px; }
-        
-        @keyframes pulse-border {
-            0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
-        }
+        .emergency-banner .source-label { color: var(--alert-critical); opacity: 0.8; margin-top: 8px; border-top: 1px solid color-mix(in srgb, var(--alert-critical) 20%, transparent); padding-top: 4px; }
         
         .updated-time { color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px; font-weight: 500; opacity: 0.8; }
         
         /* Safety Net Buttons */
         .safety-net-block { 
-            background: rgba(251, 191, 36, 0.1); 
-            border: 1px solid #fbbf24; 
+            background: color-mix(in srgb, var(--alert-warning) 10%, var(--card-bg));
+            border: 1px solid var(--alert-warning);
             border-radius: 16px; 
             padding: 16px; 
             margin-bottom: 20px; 
@@ -232,7 +233,7 @@
             flex-direction: column;
             gap: 12px;
         }
-        .safety-net-title { font-size: 0.95rem; font-weight: 700; color: #fbbf24; }
+        .safety-net-title { font-size: 0.95rem; font-weight: 700; color: var(--alert-warning); }
         .safety-btns { display: flex; gap: 8px; justify-content: center; }
         .safety-btn { 
             padding: 10px 16px; 
@@ -254,6 +255,15 @@
         #modal { display: none; position: fixed; z-index: 1000; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); padding: 16px; align-items: center; justify-content: center; }
         #modal img { max-width: 100%; max-height: 90vh; border-radius: 16px; }
 
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
         /* Air Raid Map Native Styling */
         #alert-map {
             border: none;
@@ -261,7 +271,7 @@
     </style>
 </head>
 <body>
-    <div id="connection-status" style="display: none; background: #fbbf24; color: #000; text-align: center; padding: 8px; font-weight: bold; font-size: 0.9rem; z-index: 9999; position: relative;">⚠️ Втрачено з'єднання з сервером. Перепідключення...</div>
+    <div id="connection-status" style="display: none; background: var(--alert-warning); color: #000; text-align: center; padding: 8px; font-weight: bold; font-size: 0.9rem; z-index: 9999; position: relative;">⚠️ Втрачено з'єднання з сервером. Перепідключення...</div>
     <div class="container">
         <header>
             <div class="logo" id="logo-text">СВІТЛО<span>⚡</span>БЕЗПЕКА</div>
@@ -271,7 +281,7 @@
             </div>
         </header>
         
-        <div id="light-card" class="card"><div class="status-row"><div class="status-icon" id="light-icon">⏳</div><div class="status-info"><div class="status-title" id="light-text">Завантаження</div><div class="status-desc" id="light-event">...</div></div></div></div>
+        <div id="light-card" class="card status-unknown" data-state="unknown" role="status" aria-live="polite"><div class="status-row"><div class="status-icon" id="light-icon">❔</div><div class="status-info"><div class="status-title" id="light-text">Завантаження</div><div class="status-desc" id="light-event">...</div></div></div></div>
         
         <div id="safety-net-card" class="safety-net-block">
             <div class="safety-net-title">⚠️ Світло зникло? Підтвердіть статус:</div>
@@ -281,7 +291,7 @@
             </div>
         </div>
         
-        <div id="alert-card" class="card"><div class="status-row"><div class="status-icon" id="alert-icon">🛡️</div><div class="status-info"><div class="status-title" id="alert-val">---</div><div class="status-desc" id="alert-status">...</div></div></div></div>
+        <div id="alert-card" class="card alert-clear" data-state="clear" role="status" aria-live="polite"><div class="status-row"><div class="status-icon" id="alert-icon">✅ 🛡️</div><div class="status-info"><div class="status-title" id="alert-val">---</div><div class="status-desc" id="alert-status">...</div></div></div></div>
         <div class="card" style="padding: 0; height: 320px; border: none; background: #000;"><iframe id="alert-map" src="https://alerts.in.ua/?minimal=true" width="100%" height="100%" frameborder="0" style="border:0;" allowfullscreen></iframe></div>
         
         <div id="aq-block">
@@ -353,6 +363,8 @@
                 lightOn: "Світло Є!",
                 lightOff: "Світло зникло!",
                 lightLoading: "Завантаження",
+                lightUnknown: "Стан невідомий",
+                lightUnknownDesc: "Не вдалося визначити стан електропостачання.",
                 lightStatusOn: "Світло з'явилося!",
                 lightStatusOff: "Світло зникло!",
                 pushTitleLight: "⚡ СВІТЛО⚡БЕЗПЕКА",
@@ -396,6 +408,8 @@
                 lightOn: "Power ON",
                 lightOff: "Power OUTAGE",
                 lightLoading: "Loading",
+                lightUnknown: "Power status unknown",
+                lightUnknownDesc: "The current power state could not be determined.",
                 lightStatusOn: "Power restored!",
                 lightStatusOff: "Power outage!",
                 pushTitleLight: "⚡ POWER⚡SAFETY",
@@ -649,6 +663,14 @@
             }
         }
 
+        function getAqiColorToken(value) {
+            const numericValue = Number(value);
+            if (!Number.isFinite(numericValue)) return 'var(--state-unknown)';
+            if (numericValue > 100) return 'var(--aqi-unhealthy)';
+            if (numericValue > 50) return 'var(--aqi-moderate)';
+            return 'var(--aqi-good)';
+        }
+
         function update() {
             const cs = document.getElementById('connection-status');
             const requestId = ++statusRequestId;
@@ -656,27 +678,46 @@
                 if (requestId !== statusRequestId) return;
                 if (cs) cs.style.display = 'none';
                 const lCard = document.getElementById('light-card');
-                const currentLight = data.light;
+                const currentLight = data.light_state || (data.light === 'on' ? 'up' : data.light === 'off' ? 'down' : 'unknown');
                 if (lCard) {
-                    if (currentLight === 'on') { 
-                        lCard.className = 'card status-on'; 
-                        document.getElementById('light-icon').innerText = '💡'; 
-                        document.getElementById('light-text').innerText = translations[currentLang].lightOn; 
-                    } else {
+                    if (currentLight === 'up') {
+                        lCard.className = 'card status-on';
+                        lCard.dataset.state = 'up';
+                        document.getElementById('light-icon').innerText = '💡';
+                        document.getElementById('light-text').innerText = translations[currentLang].lightOn;
+                    } else if (currentLight === 'down') {
                         lCard.className = 'card status-off';
-                        document.getElementById('light-icon').innerText = '✖️';
+                        lCard.dataset.state = 'down';
+                        document.getElementById('light-icon').innerText = '⚡️';
                         document.getElementById('light-text').innerText = translations[currentLang].lightOff;
+                    } else {
+                        lCard.className = 'card status-unknown';
+                        lCard.dataset.state = 'unknown';
+                        document.getElementById('light-icon').innerText = '❔';
+                        document.getElementById('light-text').innerText = translations[currentLang].lightUnknown;
                     }
                 }
-                
                 // Security: light_event and schedule_text contain trusted server-side HTML (br, div, span)
                 const lightEventEl = document.getElementById('light-event');
-                if (lightEventEl) lightEventEl.innerHTML = data.light_event;
-                
-                if (lastLightStatus && currentLight !== lastLightStatus) {
+                if (lightEventEl) {
+                    if (currentLight === 'unknown') {
+                        lightEventEl.innerText = translations[currentLang].lightUnknownDesc;
+                    } else {
+                        lightEventEl.innerHTML = data.light_event;
+                    }
+                }
+
+                if (
+                    lastLightStatus &&
+                    currentLight !== lastLightStatus &&
+                    currentLight !== 'unknown' &&
+                    lastLightStatus !== 'unknown'
+                ) {
                     playDing();
                     if (document.hasFocus()) triggerHaptic([50, 100, 50]);
-                    const statusText = currentLight === 'on' ? translations[currentLang].lightStatusOn : translations[currentLang].lightStatusOff;
+                    const statusText = currentLight === 'up'
+                        ? translations[currentLang].lightStatusOn
+                        : translations[currentLang].lightStatusOff;
                     sendPush(translations[currentLang].pushTitleLight, statusText);
                     refreshCharts();
                 }
@@ -697,22 +738,26 @@
                  if (aCard) {
                      if (alertType === 'red') {
                          aCard.className = 'card alert-red';
-                         document.getElementById('alert-icon').innerText = '🚨';
+                         aCard.dataset.state = 'red';
+                         document.getElementById('alert-icon').innerText = '🔴 🚨';
                          document.getElementById('alert-val').innerText = translations[currentLang].alertRed;
                          document.getElementById('alert-status').innerText = translations[currentLang].alertRedDesc + alertLocation;
                      } else if (alertType === 'yellow') {
                          aCard.className = 'card alert-yellow';
-                         document.getElementById('alert-icon').innerText = '⚠️';
+                         aCard.dataset.state = 'yellow';
+                         document.getElementById('alert-icon').innerText = '🟡 ⚠️';
                          document.getElementById('alert-val').innerText = translations[currentLang].alertYellow;
                          document.getElementById('alert-status').innerText = translations[currentLang].alertYellowDesc + alertLocation;
                      } else if (alertType === 'unknown') {
-                         aCard.className = 'card';
+                         aCard.className = 'card alert-unknown';
+                         aCard.dataset.state = 'unknown';
                          document.getElementById('alert-icon').innerText = '❔';
                          document.getElementById('alert-val').innerText = translations[currentLang].alertUnknown;
                          document.getElementById('alert-status').innerText = translations[currentLang].alertUnknownDesc;
                      } else {
-                         aCard.className = 'card';
-                         document.getElementById('alert-icon').innerText = '🛡️';
+                         aCard.className = 'card alert-clear';
+                         aCard.dataset.state = 'clear';
+                         document.getElementById('alert-icon').innerText = '✅ 🛡️';
                          document.getElementById('alert-val').innerText = translations[currentLang].alertQuiet;
                          document.getElementById('alert-status').innerText = translations[currentLang].alertQuietDesc;
                      }
@@ -734,18 +779,18 @@
                         const aqiNum = document.getElementById('aqi-num');
                         if (aqiNum) {
                             aqiNum.innerText = data.aqi.aqi;
-                            aqiNum.style.color = (data.aqi.aqi > 100) ? 'var(--danger)' : (data.aqi.aqi > 50) ? 'var(--warning)' : 'var(--success)';
+                            aqiNum.style.color = getAqiColorToken(data.aqi.aqi);
                         }
                         const aqiText = document.getElementById('aqi-text');
                         if (aqiText) {
                             aqiText.innerText = data.aqi.text;
-                            aqiText.style.color = (data.aqi.aqi > 100) ? 'var(--danger)' : (data.aqi.aqi > 50) ? 'var(--warning)' : 'var(--success)';
+                            aqiText.style.color = getAqiColorToken(data.aqi.aqi);
                         }
                         const aqiBar = document.getElementById('aqi-bar');
                         if (aqiBar) {
                             const barWidth = Math.min((data.aqi.aqi / 300) * 100, 100);
                             aqiBar.style.width = barWidth + '%';
-                            aqiBar.style.backgroundColor = (data.aqi.aqi > 100) ? 'var(--danger)' : (data.aqi.aqi > 50) ? 'var(--warning)' : 'var(--success)';
+                            aqiBar.style.backgroundColor = getAqiColorToken(data.aqi.aqi);
                         }
                         
                         const aqiLoc = document.getElementById('aqi-loc');
@@ -834,7 +879,7 @@
                     
                     data.aqi.history_hourly.forEach((val, idx) => {
                         const h = Math.max(4, (val / maxVal) * 44);
-                        const color = (val > 100) ? 'var(--danger)' : (val > 50) ? 'var(--warning)' : 'var(--success)';
+                        const color = getAqiColorToken(val);
                         const timeStr = data.aqi.history_times ? data.aqi.history_times[idx] : '';
 
                         const barWrap = document.createElement('div');
@@ -954,8 +999,8 @@
                         }
                     }
 
-                    renderMiniGraph('temp-graph', data.aqi.temp_history, 'var(--warning)', '°C');
-                    renderMiniGraph('hum-graph', data.aqi.hum_history, 'var(--color-graph-fact-on)', '%');
+                    renderMiniGraph('temp-graph', data.aqi.temp_history, 'var(--alert-warning)', '°C');
+                    renderMiniGraph('hum-graph', data.aqi.hum_history, 'var(--power-up)', '%');
                     
                     const windStatus = document.getElementById('wind-status');
                     if (windStatus) windStatus.innerText = '💨 ' + (data.aqi.wind_dir || '--') + ', ' + (data.aqi.wind_speed || '--') + ' ' + translations[currentLang].windUnit;
@@ -973,6 +1018,10 @@
                         const cell = document.createElement('div');
                         const isOff = data.schedule_slots[h*2] === false || data.schedule_slots[h*2+1] === false;
                         cell.className = 'grid-cell' + (isOff ? ' off' : '');
+                        cell.dataset.state = isOff ? 'planned-outage' : 'neutral';
+                        cell.setAttribute('aria-label', isOff
+                            ? (currentLang === 'ua' ? 'Планове відключення' : 'Planned outage')
+                            : (currentLang === 'ua' ? 'Нормальний графік' : 'Normal schedule'));
                         grid.appendChild(cell);
                     }
                 }

@@ -1407,6 +1407,7 @@ async def api_status(lang: str = "ua"):
 
     result = {
         "light": ui_light_state,
+        "light_state": current_status,
         "light_event": latest_event_text,
         "recent_events": recent_events,
         "schedule_text": schedule_text,

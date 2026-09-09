@@ -286,6 +286,8 @@ def test_telegram_alert_messages_include_level():
     clear_message = format_air_raid_clear_message({"red", "yellow"}, "13:00")
 
     assert "ЧЕРВОНИЙ РІВЕНЬ НЕБЕЗПЕКИ" in red_message
+    assert "🔴 🚨" in red_message
+    assert "✅ 🛡️" in clear_message
     assert "жовтий рівень" in clear_message
     assert "червоний рівень" in clear_message
 
@@ -346,6 +348,7 @@ def test_alert_downgrade_from_red_to_yellow_message(
     mock_send_tg.assert_called_once()
     sent_msg = mock_send_tg.call_args[0][0]
     assert "ВІДБІЙ ТРИВОГИ (червоний рівень)" in sent_msg
+    assert "🟡 ⚠️" in sent_msg
     assert "Залишається жовтий рівень попередження" in sent_msg
     assert state["alert_type"] == "yellow"
     assert state["alert_types"] == ["yellow"]

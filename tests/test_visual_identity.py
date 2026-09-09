@@ -105,6 +105,55 @@ def test_dashboard_semantic_tokens_match_report_tokens_in_both_themes():
     assert "--state-unknown: #94A3B8" in template
 
 
+def test_dashboard_uses_non_color_state_identity_and_quiet_alerts():
+    template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+
+    assert ".status-on" in template and "var(--power-up)" in template
+    assert ".status-off" in template and "var(--power-down)" in template
+    assert ".status-unknown" in template and "var(--state-unknown)" in template
+    assert "lightUnknown" in template
+    assert "alert-clear" in template
+    assert "alert-unknown" in template
+    assert "var(--alert-warning)" in template
+    assert "var(--alert-critical)" in template
+    assert "data.light_state" in template
+    assert "repeating-linear-gradient" in template
+    assert "var(--plan-outage)" in template
+    assert "--chart-bg" in template
+    assert "prefers-reduced-motion" in template
+    assert not re.search(r"\.alert-(?:yellow|red)[^{]*\{[^}]*infinite", template)
+    assert "animation: pulse-yellow" not in template
+    assert "animation: pulse-red" not in template
+
+
+def test_dashboard_keeps_report_image_contract_and_localized_alert_labels():
+    template = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+
+    assert "chart${themeSuffix}${langSuffix}.png" in template
+    assert "weekly${themeSuffix}${langSuffix}.png" in template
+    for label in (
+        "alertQuiet",
+        "alertRed",
+        "alertYellow",
+        "alertUnknown",
+        "ЧЕРВОНИЙ РІВЕНЬ",
+        "ЖОВТИЙ РІВЕНЬ",
+        "RED LEVEL",
+        "YELLOW LEVEL",
+    ):
+        assert label in template
+
+
+def test_weekly_caption_uses_domain_icons_and_keeps_alert_breakdown():
+    source = (ROOT / "app" / "reports" / "weekly.py").read_text(encoding="utf-8")
+
+    assert "🗓️ <b>План vs Факт:</b>" in source
+    assert "💡 <b>Факт" in source
+    assert "🚨 <b>Повітряні тривоги" in source
+    assert "Жовтий рівень" in source
+    assert "Червоний рівень" in source
+
+
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 
@@ -345,3 +394,29 @@ def test_weekly_chart_uses_the_same_semantic_shapes_and_thin_aqi(tmp_path):
     aqi_bars = [entry for entry in calls if entry[0][1] == WEEKLY_AQI_STRIP_HEIGHT]
     assert aqi_bars
     assert WEEKLY_AQI_STRIP_HEIGHT < WEEKLY_MAIN_STRIP_HEIGHT * 0.5
+
+
+def test_weekly_chart_keeps_all_dark_light_ua_en_filenames(tmp_path):
+    target_date, daily_data, schedule_slots, alert_intervals = _weekly_fixture(tmp_path)
+    fixed_now = datetime.datetime(2026, 4, 7, tzinfo=KYIV_TZ)
+    failed_aqi_response = Mock(status_code=500)
+    expected = {
+        ("dark", "ua"): "weekly_report_2026-04-06.png",
+        ("light", "ua"): "weekly_report_2026-04-06_light.png",
+        ("dark", "en"): "weekly_report_2026-04-06_en.png",
+        ("light", "en"): "weekly_report_2026-04-06_light_en.png",
+    }
+
+    with (
+        patch.object(weekly, "DATA_DIR", str(tmp_path)),
+        patch.object(weekly, "get_now", return_value=fixed_now),
+        patch.object(weekly, "get_schedule_slots", return_value=schedule_slots),
+        patch.object(weekly, "get_alert_intervals", return_value=alert_intervals),
+        patch.object(weekly.requests, "get", return_value=failed_aqi_response),
+        patch.object(weekly.plt, "savefig"),
+    ):
+        for (theme, lang), suffix in expected.items():
+            filename = weekly.generate_weekly_chart(
+                target_date, daily_data, theme=theme, lang=lang
+            )
+            assert filename.endswith(suffix)

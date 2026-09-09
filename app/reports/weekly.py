@@ -799,9 +799,9 @@ if __name__ == "__main__":
         compliance_pct = (up_h / plan_up_h * 100) if plan_up_h > 0 else 0
 
         plan_section = f"""
-📉 <b>План vs Факт:</b>
- • За планом 🔆 <b>{int(plan_up_h)}г</b>
- • Реально 🔆 <b>{int(up_h)}г</b>
+🗓️ <b>План vs Факт:</b>
+ • 🗓️ <b>План:</b> {int(plan_up_h)}г
+ • 💡 <b>Факт:</b> {int(up_h)}г
  • Відхилення: <b>{diff_formatted}</b> (Світла {compliance_pct:.0f}% від плану)
 """
         if easiest and hardest and easiest != hardest:
@@ -836,10 +836,10 @@ if __name__ == "__main__":
     caption = f"""📅 <b>Енергетичний тиждень ({monday.strftime("%d.%m")} - {sunday.strftime("%d.%m")})</b>
 
 📊 <b>Загальні підсумки:</b>
- • Світло було 🔆 <b>{int(up_h)}г {int((up_h % 1) * 60)}хв</b> ({int(up_pct)}%)
- • Відключення ✖️ <b>{int(down_h)}г {int((down_h % 1) * 60)}хв</b>
+ • 💡 Факт: Світло було <b>{int(up_h)}г {int((up_h % 1) * 60)}хв</b> ({int(up_pct)}%)
+ • ⚡️ Факт: Відключення <b>{int(down_h)}г {int((down_h % 1) * 60)}хв</b>
  • В середньому без світла: <b>{int(down_h / 7)}г {int(((down_h / 7) % 1) * 60)}хв</b> на добу
- • Повітряні тривоги 🚨 <b>{alerts_count}</b> за тиждень (сумарно <b>{alerts_h_int}г {alerts_m_int}хв</b>, або <b>{alerts_pct:.1f}%</b> від усього часу)
+ • 🚨 <b>Повітряні тривоги:</b> {alerts_count} за тиждень (сумарно <b>{alerts_h_int}г {alerts_m_int}хв</b>, або <b>{alerts_pct:.1f}%</b> від усього часу)
  • Рівні тривог: <b>{alert_type_summary}</b>
 {plan_section}
 
