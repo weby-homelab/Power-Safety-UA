@@ -1,3 +1,16 @@
+# Release v3.9.18
+
+**Fix Stale Ghost Air Raid Alerts, JAAM Key Compatibility & Alert Cross-Validation**
+
+## What's Fixed
+- **Stale Ghost Alerts Elimination:** Fixed persistent phantom air raid alert in Kyiv caused by orphaned records (> 42 hours old) in third-party typed feed (`v3/etryvoga/alerts/active.json`) by adding strict max-age filtering (`age > 12h`) in `parse_typed_alerts`.
+- **JAAM Kyiv Key Compatibility:** Fixed `parse_alert_states` to accept both `"Київ"` and `"м. Київ"`, enabling full compatibility with the fast JAAM alert map API for the capital.
+- **Fast Official Cross-Check:** Added rapid verification with JAAM when the typed scraper reports clear, ensuring official DSNS/AFU alerts are never missed.
+- **Anomalous Alert Duration Sanitization:** Prevented Telegram notifications from announcing absurdly long alert durations (> 12 hours) when recovering from stale/orphaned alert states.
+- **Configurable Endpoints:** Made `ALERTS_API_URL`, `TYPED_ALERTS_API_URL`, and `JAAM_ALERTS_API_URL` configurable via environment variables.
+
+---
+
 # Release v3.9.17
 
 **UI Bell Notification & Language Switcher Fixes, Service Worker Hardening**

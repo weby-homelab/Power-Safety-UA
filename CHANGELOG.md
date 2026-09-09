@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.18] - 2026-09-09
+
+### Fixed
+- Fixed stale/ghost air raid alerts in Kyiv caused by orphaned records in third-party typed feed (`v3/etryvoga/alerts/active.json`), by introducing a freshness filter (`age > 12h`) in `parse_typed_alerts`.
+- Fixed JAAM API integration in `parse_alert_states` to recognize both `"м. Київ"` and `"Київ"` keys, ensuring official DSNS/AFU alerts and clear statuses are accurately detected.
+- Added automatic fast cross-check with JAAM when typed feed reports clear, preventing missed or delayed official alerts.
+- Sanitized anomalous alert duration calculation in Telegram notifications to prevent announcing obsolete/stale alert durations (> 12 hours).
+- Made alert API endpoints (`ALERTS_API_URL`, `TYPED_ALERTS_API_URL`, `JAAM_ALERTS_API_URL`) configurable via environment variables.
+
 ## [3.9.17] - 2026-09-09
 
 ### Fixed

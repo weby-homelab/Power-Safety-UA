@@ -375,3 +375,107 @@ def test_dashboard_contains_typed_alert_card_states():
     assert "alert-yellow" in template
     assert "alertRed" in template
     assert "alertYellow" in template
+
+
+def test_parse_typed_alerts_rejects_stale_ghost_records():
+    fixed_now = 1788950000.0  # reference epoch
+    fixed_now_s = int(fixed_now - 1640000000)
+
+    stale_records = [
+        {
+            "n": "🔴 Київ",
+            "m": "Червоний рівень тривоги. Прямуйте в укриття!",
+            "s": fixed_now_s - (24 * 3600),  # 24 hours old
+        },
+        {
+            "n": "🟡 Київ",
+            "m": "Жовтий рівень тривоги. Прямуйте в укриття!",
+            "s": fixed_now_s - (40 * 3600),  # 40 hours old
+        },
+    ]
+
+    result = parse_typed_alerts(stale_records, current_time=fixed_now)
+
+    assert result["type"] == "clear"
+    assert result["status"] == "clear"
+    assert result["city"] is False
+    assert result["region"] is False
+    assert result["location"] == "Тривоги немає"
+
+
+def test_parse_typed_alerts_accepts_fresh_timestamped_records():
+    fixed_now = 1788950000.0
+    fixed_now_s = int(fixed_now - 1640000000)
+
+    fresh_records = [
+        {
+            "n": "🔴 Київ",
+            "m": "Червоний рівень тривоги. Прямуйте в укриття!",
+            "s": fixed_now_s - 300,  # 5 minutes old
+        }
+    ]
+
+    result = parse_typed_alerts(fresh_records, current_time=fixed_now)
+
+    assert result["type"] == "red"
+    assert result["status"] == "active"
+    assert result["city"] is True
+    assert result["location"] == "м. Київ"
+
+
+def test_parse_alert_states_supports_kyiv_without_prefix():
+    jaam_states = {
+        "Київ": {"enabled": True},
+        "Київська область": {"enabled": False},
+    }
+
+    result = parse_alert_states(jaam_states, "enabled")
+
+    assert result["city"] is True
+    assert result["region"] is False
+    assert result["status"] == "active"
+    assert result["type"] == "red"
+    assert result["location"] == "м. Київ"
+
+
+def test_get_air_raid_alert_cross_checks_jaam_when_typed_clear():
+    # Typed API has only stale alerts (effectively clear)
+    fixed_now = 1788950000.0
+    fixed_now_s = int(fixed_now - 1640000000)
+
+    typed_resp = Mock(status_code=200)
+    typed_resp.json.return_value = {
+        "alerts": [
+            {
+                "n": "🔴 Київ",
+                "m": "Червоний рівень тривоги",
+                "s": fixed_now_s - (40 * 3600),  # stale
+            }
+        ]
+    }
+
+    jaam_resp = Mock(status_code=200)
+    jaam_resp.json.return_value = {
+        "states": {
+            "Київ": {"enabled": True},
+            "Київська область": {"enabled": False},
+        }
+    }
+
+    def mock_get(url, *args, **kwargs):
+        if "alerts.in.ua" in url:
+            return typed_resp
+        if "jaam.net.ua" in url:
+            return jaam_resp
+        raise requests.exceptions.ConnectionError("Mocked failure")
+
+    with (
+        patch("app.light_service.requests.get", side_effect=mock_get),
+        patch("time.time", return_value=fixed_now),
+    ):
+        result = get_air_raid_alert()
+
+    assert result["city"] is True
+    assert result["status"] == "active"
+    assert result["type"] == "red"
+    assert result["location"] == "м. Київ"

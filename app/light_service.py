@@ -224,8 +224,16 @@ state_mgr = SafeStateContextAsync(STATE_LOCK_FILE)
 HISTORY_FILE = os.path.join(DATA_DIR, "schedule_history.json")
 EVENT_LOG_FILE = os.path.join(DATA_DIR, "event_log.json")
 SCHEDULE_API_URL = os.environ.get("SCHEDULE_API_URL", "")
-ALERTS_API_URL = "https://ubilling.net.ua/aerialalerts/"
-TYPED_ALERTS_API_URL = "https://api.alerts.in.ua/v3/etryvoga/alerts/active.json"
+ALERTS_API_URL = os.environ.get(
+    "ALERTS_API_URL", "https://ubilling.net.ua/aerialalerts/"
+)
+TYPED_ALERTS_API_URL = os.environ.get(
+    "TYPED_ALERTS_API_URL",
+    "https://api.alerts.in.ua/v3/etryvoga/alerts/active.json",
+)
+JAAM_ALERTS_API_URL = os.environ.get(
+    "JAAM_ALERTS_API_URL", "https://jaam.net.ua/alerts_statuses_v1.json"
+)
 
 
 def get_timezone():
@@ -1194,7 +1202,7 @@ def _alert_result(city=False, region=False, levels=None, location=None, source=N
     return result
 
 
-def parse_typed_alerts(records):
+def parse_typed_alerts(records, current_time=None):
     """Normalize Alerts.in.ua active records into dashboard-level states."""
     if not isinstance(records, list) or any(
         not isinstance(record, dict) for record in records
@@ -1215,18 +1223,38 @@ def parse_typed_alerts(records):
         and (
             any(
                 key in record
-                for key in ("message", "m", "alert_type", "reason_type", "severity")
+                for key in (
+                    "message",
+                    "m",
+                    "alert_type",
+                    "reason_type",
+                    "severity",
+                    "at",
+                )
             )
             or any(marker in str(record.get("n", "")) for marker in ("🔴", "🟡"))
+            or record.get("luid") is not None
         )
         for record in records
     ):
         return None
+
+    now_ts = current_time if current_time is not None else time.time()
+    now_s = int(now_ts - 1640000000)
+    max_alert_age_sec = 12 * 3600  # 12 hours max valid alert duration
+
     city_levels = set()
     region_levels = set()
     for record in records if isinstance(records, list) else []:
         if not isinstance(record, dict):
             continue
+        # Filter out stale ghost records (e.g. orphan records older than 12h or future clocks)
+        s_val = record.get("s")
+        if isinstance(s_val, (int, float)):
+            age = now_s - s_val
+            if age > max_alert_age_sec or (s_val - now_s) > 3600:
+                continue
+
         location_type = _alert_location(record)
         alert_type = _alert_level(record)
         if location_type is None or alert_type is None:
@@ -1256,13 +1284,15 @@ def parse_typed_alerts(records):
 
 def parse_alert_states(states, enabled_key):
     """Normalize legacy JAAM/Ubilling state maps as official red alerts."""
-    is_alert_city = bool(
-        "м. Київ" in states and states["м. Київ"].get(enabled_key, False)
+    city_data = states.get("м. Київ") or states.get("Київ") or {}
+    region_data = (
+        states.get("Київська область")
+        or states.get("Київська")
+        or states.get("Київська обл.")
+        or {}
     )
-    is_alert_region = bool(
-        "Київська область" in states
-        and states["Київська область"].get(enabled_key, False)
-    )
+    is_alert_city = bool(city_data.get(enabled_key, False))
+    is_alert_region = bool(region_data.get(enabled_key, False))
     levels = {ALERT_TYPE_RED} if is_alert_city or is_alert_region else set()
     return _alert_result(
         city=is_alert_city,
@@ -1287,14 +1317,24 @@ def get_air_raid_alert():
             if isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
                 result = parse_typed_alerts(payload["alerts"])
                 if result is not None:
+                    # If typed feed did not detect city or region alert, verify with JAAM
+                    # to prevent missing fresh official alerts if the typed scraper lags.
+                    if not result["city"] and not result["region"]:
+                        try:
+                            jaam_resp = requests.get(JAAM_ALERTS_API_URL, timeout=3)
+                            if jaam_resp.status_code == 200:
+                                jaam_data = jaam_resp.json().get("states", {})
+                                jaam_res = parse_alert_states(jaam_data, "enabled")
+                                if jaam_res["city"] or jaam_res["region"]:
+                                    return jaam_res
+                        except Exception as jaam_err:
+                            logger.debug(f"Quick JAAM check skipped: {jaam_err}")
                     return result
     except Exception as e:
         logger.warning(f"Failed to fetch typed alerts from Alerts.in.ua: {e}")
 
     try:
-        response = requests.get(
-            "https://jaam.net.ua/alerts_statuses_v1.json", timeout=5
-        )
+        response = requests.get(JAAM_ALERTS_API_URL, timeout=5)
         if response.status_code == 200:
             payload = response.json()
             states = payload.get("states", {})
@@ -1713,12 +1753,16 @@ async def _alerts_loop_iteration():
                     duration_str = ""
                     if start_ts:
                         duration_sec = int(now_dt.timestamp() - start_ts)
-                        hours, mins = duration_sec // 3600, (duration_sec % 3600) // 60
-                        duration_str = (
-                            f"\nяка тривала {hours} год {mins} хв"
-                            if hours > 0
-                            else f"\nяка тривала {mins} хв"
-                        )
+                        if 0 <= duration_sec <= 12 * 3600:
+                            hours, mins = (
+                                duration_sec // 3600,
+                                (duration_sec % 3600) // 60,
+                            )
+                            duration_str = (
+                                f"\nяка тривала {hours} год {mins} хв"
+                                if hours > 0
+                                else f"\nяка тривала {mins} хв"
+                            )
                     pending_message = (
                         f"✅ <b>{time_str} ВІДБІЙ ТРИВОГИ (червоний рівень)</b>{duration_str}\n"
                         f"🟡 Залишається жовтий рівень попередження"
@@ -1740,12 +1784,13 @@ async def _alerts_loop_iteration():
             duration_str = ""
             if start_ts:
                 duration_sec = int(now_dt.timestamp() - start_ts)
-                hours, mins = duration_sec // 3600, (duration_sec % 3600) // 60
-                duration_str = (
-                    f"\nяка тривала {hours} год {mins} хв"
-                    if hours > 0
-                    else f"\nяка тривала {mins} хв"
-                )
+                if 0 <= duration_sec <= 12 * 3600:
+                    hours, mins = duration_sec // 3600, (duration_sec % 3600) // 60
+                    duration_str = (
+                        f"\nяка тривала {hours} год {mins} хв"
+                        if hours > 0
+                        else f"\nяка тривала {mins} хв"
+                    )
             if can_notify:
                 pending_message = format_air_raid_clear_message(
                     old_types, time_str, duration_str
