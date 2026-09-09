@@ -1,3 +1,15 @@
+# Release v3.9.17
+
+**UI Bell Notification & Language Switcher Fixes, Service Worker Hardening**
+
+## What's Fixed
+- **Notification Bell UI (`🔕` ➔ `🔔`):** Fixed Service Worker installation failure caused by missing `/static/dashboard_preview.jpg` in cache assets, which caused `navigator.serviceWorker.ready` to hang indefinitely and prevented notification bell UI (`🔕` ➔ `🔔`) from updating.
+- **Immediate UI Responsiveness:** The notification toggle button now updates its icon and state immediately upon permission grant without waiting for background Web Push handshake.
+- **Next-Language Toggle Display:** The language toggle button now clearly displays the next target language (`EN` when viewing in Ukrainian, `UA` when viewing in English) with localized tooltips.
+- **Resilient Asset Caching:** Individual caching errors in Service Worker no longer block worker installation.
+
+---
+
 # Release v3.9.16
 
 **Reliable fallback alert resolution and accurate downgrade transitions**

@@ -251,7 +251,7 @@
             <div class="logo" id="logo-text">СВІТЛО<span>⚡</span>БЕЗПЕКА</div>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <div id="bell-btn" class="bell-btn off" onclick="toggleNotifications()" title="Увімкнути сповіщення">🔕</div>
-                <div id="lang-btn" class="lang-btn" onclick="toggleLang()">UA</div>
+                <div id="lang-btn" class="lang-btn" onclick="toggleLang()" title="Switch to English">EN</div>
             </div>
         </header>
         
@@ -447,9 +447,13 @@
             const connStatus = document.getElementById('connection-status');
             if (connStatus) connStatus.innerText = t.connStatus;
             
-            // Lang button text
+            // Lang button text (displays the next language upon clicking)
             const langBtn = document.getElementById('lang-btn');
-            if (langBtn) langBtn.innerText = currentLang.toUpperCase();
+            if (langBtn) {
+                const nextLang = currentLang === 'ua' ? 'EN' : 'UA';
+                langBtn.innerText = nextLang;
+                langBtn.title = currentLang === 'ua' ? 'Switch to English' : 'Перемкнути на українську';
+            }
             
             // Radiation labels
             const radNormTag = document.getElementById('rad-norm-tag');
@@ -506,59 +510,85 @@
             triggerHaptic([15, 30, 15]);
             if (!notificationsEnabled) {
                 try {
-                    const permission = await Notification.requestPermission();
+                    let permission = window.Notification ? Notification.permission : 'denied';
+                    if (permission !== 'granted' && window.Notification) {
+                        permission = await Notification.requestPermission();
+                    }
                     if (permission === 'granted') {
-                        // Subscribe to Web Push
-                        const reg = await navigator.serviceWorker.ready;
-                        const keyResp = await fetch('/api/push/vapid-key');
-                        const keyData = await keyResp.json();
-                        if (keyData.publicKey) {
-                            const sub = await reg.pushManager.subscribe({
-                                userVisibleOnly: true,
-                                applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
-                            });
-                            await fetch('/api/push/subscribe', {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({subscription: sub.toJSON()})
-                            });
-                            localStorage.setItem('pushEndpoint', sub.endpoint);
-                        }
+                        // Immediately update UI to enabled state
                         notificationsEnabled = true;
                         localStorage.setItem('notifications', 'true');
+                        updateBellUI();
                         showToast(translations[currentLang].toastNotificationsOn);
+
+                        // Subscribe to Web Push in background with timeout protection
+                        if ('serviceWorker' in navigator && 'PushManager' in window) {
+                            try {
+                                const reg = await Promise.race([
+                                    navigator.serviceWorker.ready,
+                                    new Promise((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 5000))
+                                ]);
+                                const keyResp = await fetch('/api/push/vapid-key');
+                                const keyData = await keyResp.json();
+                                if (keyData.publicKey) {
+                                    const sub = await reg.pushManager.subscribe({
+                                        userVisibleOnly: true,
+                                        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+                                    });
+                                    await fetch('/api/push/subscribe', {
+                                        method: 'POST',
+                                        headers: {'Content-Type': 'application/json'},
+                                        body: JSON.stringify({subscription: sub.toJSON()})
+                                    });
+                                    localStorage.setItem('pushEndpoint', sub.endpoint);
+                                }
+                            } catch (pushErr) {
+                                console.warn('Push subscription background error or timeout:', pushErr);
+                            }
+                        }
                     } else {
                         alert(translations[currentLang].alertNotificationsBrowser);
+                        notificationsEnabled = false;
+                        localStorage.setItem('notifications', 'false');
+                        updateBellUI();
                     }
                 } catch (err) {
-                    console.error('Push subscription error:', err);
-                    // Fallback to basic notifications
+                    console.error('Notification setup error:', err);
+                    // Fallback to in-app notifications
                     notificationsEnabled = true;
                     localStorage.setItem('notifications', 'true');
+                    updateBellUI();
                     showToast(translations[currentLang].toastNotificationsOn);
                 }
             } else {
-                // Unsubscribe
-                try {
-                    const reg = await navigator.serviceWorker.ready;
-                    const sub = await reg.pushManager.getSubscription();
-                    if (sub) {
-                        const endpoint = sub.endpoint;
-                        await sub.unsubscribe();
-                        await fetch('/api/push/unsubscribe', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({endpoint})
-                        });
-                    }
-                } catch (err) {
-                    console.error('Push unsubscribe error:', err);
-                }
+                // Immediately update UI to disabled state
                 notificationsEnabled = false;
                 localStorage.setItem('notifications', 'false');
                 localStorage.removeItem('pushEndpoint');
+                updateBellUI();
+
+                // Unsubscribe from Web Push in background
+                if ('serviceWorker' in navigator && 'PushManager' in window) {
+                    try {
+                        const reg = await Promise.race([
+                            navigator.serviceWorker.ready,
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 3000))
+                        ]);
+                        const sub = await reg.pushManager.getSubscription();
+                        if (sub) {
+                            const endpoint = sub.endpoint;
+                            await sub.unsubscribe();
+                            await fetch('/api/push/unsubscribe', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({endpoint})
+                            });
+                        }
+                    } catch (err) {
+                        console.warn('Push unsubscribe background error:', err);
+                    }
+                }
             }
-            updateBellUI();
         }
 
         function showToast(text) {
@@ -953,32 +983,39 @@
         setInterval(refreshCharts, 60000); // Оновлення графіків кожну хвилину
         update();
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', async () => {
-                const reg = await navigator.serviceWorker.register('/service-worker.js');
-                console.log('SW ok');
-                // Check if already subscribed to push
-                if (notificationsEnabled) {
-                    const sub = await reg.pushManager.getSubscription();
-                    if (!sub) {
-                        // Re-subscribe if notifications were enabled but subscription lost
-                        try {
-                            const keyResp = await fetch('/api/push/vapid-key');
-                            const keyData = await keyResp.json();
-                            if (keyData.publicKey && Notification.permission === 'granted') {
-                                const newSub = await reg.pushManager.subscribe({
-                                    userVisibleOnly: true,
-                                    applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
-                                });
-                                await fetch('/api/push/subscribe', {
-                                    method: 'POST',
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: JSON.stringify({subscription: newSub.toJSON()})
-                                });
-                            }
-                        } catch (e) { console.log('Push re-subscribe skipped:', e); }
+            const registerSW = async () => {
+                try {
+                    const reg = await navigator.serviceWorker.register('/service-worker.js');
+                    console.log('SW ok');
+                    // Check if already subscribed to push
+                    if (notificationsEnabled && reg.pushManager) {
+                        const sub = await reg.pushManager.getSubscription();
+                        if (!sub) {
+                            // Re-subscribe if notifications were enabled but subscription lost
+                            try {
+                                const keyResp = await fetch('/api/push/vapid-key');
+                                const keyData = await keyResp.json();
+                                if (keyData.publicKey && Notification.permission === 'granted') {
+                                    const newSub = await reg.pushManager.subscribe({
+                                        userVisibleOnly: true,
+                                        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+                                    });
+                                    await fetch('/api/push/subscribe', {
+                                        method: 'POST',
+                                        headers: {'Content-Type': 'application/json'},
+                                        body: JSON.stringify({subscription: newSub.toJSON()})
+                                    });
+                                }
+                            } catch (e) { console.log('Push re-subscribe skipped:', e); }
+                        }
                     }
-                }
-            });
+                } catch (e) { console.warn('SW register error:', e); }
+            };
+            if (document.readyState === 'complete') {
+                registerSW();
+            } else {
+                window.addEventListener('load', registerSW);
+            }
         }
     </script>
     <noscript>
