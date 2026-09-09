@@ -74,6 +74,40 @@ def test_parse_typed_alerts_prioritizes_red_immediate_danger():
     assert result["city"] is True
 
 
+def test_parse_typed_alerts_uav_threat_with_yellow_level_is_yellow():
+    records = [
+        {
+            "luid": 31,
+            "m": "Загроза застосування БПЛА. Перейдіть в укриття!",
+            "at": 3,
+        },
+        {
+            "luid": 31,
+            "m": "Жовтий рівень тривоги. Прямуйте в укриття!",
+        },
+    ]
+    result = parse_typed_alerts(records)
+    assert result["type"] == "yellow"
+    assert result["types"] == ["yellow"]
+    assert result["status"] == "warning"
+    assert result["city"] is True
+
+
+def test_parse_typed_alerts_standalone_uav_threat_is_yellow():
+    records = [
+        {
+            "luid": 31,
+            "m": "Загроза застосування БПЛА. Перейдіть в укриття!",
+            "at": 3,
+        }
+    ]
+    result = parse_typed_alerts(records)
+    assert result["type"] == "yellow"
+    assert result["types"] == ["yellow"]
+    assert result["status"] == "warning"
+    assert result["city"] is True
+
+
 def test_parse_typed_alerts_recognizes_emoji_only_red_and_rejects_bad_schema():
     assert parse_typed_alerts([{"n": "🔴 Київ"}])["type"] == "red"
     assert parse_typed_alerts([{"unexpected": "payload"}]) is None

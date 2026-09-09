@@ -1,5 +1,9 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.20] - 2026-09-09
+- **Класифікація загрози БПЛА як жовтого рівня (Drone Threats Yellow Level Classification):** Виправлено класифікацію загроз: маркери БПЛА (`"бпла"`, `"дрон"`, `"шахед"`) тепер відносяться до жовтого рівня попередження (`ALERT_TYPE_YELLOW`), а не до червоного. Усунено конфлікт, коли одночасне надходження запису загрози БПЛА та жовтого рівня тривоги помилково підвищувало загальний статус міста до червоного рівня. / Reclassified drone threats as yellow warning level instead of red, eliminating false red alerts when yellow UAV warnings are active.
+- **Регресійні тести:** Додано перевірки для автономних та комбінованих повідомлень про загрозу БПЛА. / Added regression test coverage for UAV alert levels.
+
 ## [v3.9.19] - 2026-09-09
 - **Ізоляція тривог для м. Київ (Kyiv City Alerts Isolation):** Забезпечено сувору ізоляцію моніторингу та сповіщень виключно для міста Київ (`UID 31`, `м. Київ`). Тривоги, що лунають лише по Київській області, більше не викликають статус тривоги на дашборді та не надсилають сповіщень до Telegram. / Strictly isolated air raid alerts, threat levels, and Telegram notifications to Kyiv city only, completely ignoring alerts in Kyiv Oblast.
 - **Оновлення крос-валідації JAAM:** Перевірка через JAAM API тепер запитує виключно статус міста Київ (`is_alert_city`). / JAAM cross-checks now strictly evaluate Kyiv city status.
