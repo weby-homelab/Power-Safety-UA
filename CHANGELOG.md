@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.19] - 2026-09-09
+
+### Fixed
+- Strictly isolated air raid alerts, threat levels, and notifications to Kyiv city only (`UID 31`, `м. Київ`), completely ignoring alerts in Kyiv Oblast (`loi: 8`).
+- Air raid status, threat levels, and Telegram notifications no longer trigger when alerts sound exclusively in Kyiv Oblast.
+- Updated JAAM cross-checks to evaluate strictly Kyiv city status (`is_alert_city`).
+- Added comprehensive regression test suite ensuring alerts in Kyiv Oblast do not trigger active state or notifications.
+
 ## [3.9.18] - 2026-09-09
 
 ### Fixed
