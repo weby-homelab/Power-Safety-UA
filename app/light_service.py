@@ -1182,13 +1182,7 @@ def _alert_result(city=False, region=False, levels=None, location=None, source=N
         "clear": "clear",
     }[effective_type]
     if location is None:
-        location = (
-            "м. Київ"
-            if city and effective_type != ALERT_TYPE_YELLOW
-            else "Київська область"
-            if region
-            else "Тривоги немає"
-        )
+        location = "м. Київ" if city else "Тривоги немає"
     result = {
         "city": bool(city),
         "region": bool(region),
@@ -1262,15 +1256,9 @@ def parse_typed_alerts(records, current_time=None):
         target = city_levels if location_type == "city" else region_levels
         target.add(alert_type)
 
-    levels = city_levels | region_levels
-    if ALERT_TYPE_RED in city_levels:
+    levels = set(city_levels)
+    if ALERT_TYPE_RED in city_levels or ALERT_TYPE_YELLOW in city_levels:
         location = "м. Київ"
-    elif ALERT_TYPE_RED in region_levels:
-        location = "Київська область"
-    elif ALERT_TYPE_YELLOW in city_levels:
-        location = "м. Київ"
-    elif ALERT_TYPE_YELLOW in region_levels:
-        location = "Київська область"
     else:
         location = "Тривоги немає"
     return _alert_result(
@@ -1293,18 +1281,12 @@ def parse_alert_states(states, enabled_key):
     )
     is_alert_city = bool(city_data.get(enabled_key, False))
     is_alert_region = bool(region_data.get(enabled_key, False))
-    levels = {ALERT_TYPE_RED} if is_alert_city or is_alert_region else set()
+    levels = {ALERT_TYPE_RED} if is_alert_city else set()
     return _alert_result(
         city=is_alert_city,
         region=is_alert_region,
         levels=levels,
-        location=(
-            "м. Київ"
-            if is_alert_city
-            else "Київська область"
-            if is_alert_region
-            else "Тривоги немає"
-        ),
+        location="м. Київ" if is_alert_city else "Тривоги немає",
         source="legacy-alert-api",
     )
 
@@ -1317,15 +1299,15 @@ def get_air_raid_alert():
             if isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
                 result = parse_typed_alerts(payload["alerts"])
                 if result is not None:
-                    # If typed feed did not detect city or region alert, verify with JAAM
+                    # If typed feed did not detect city alert, verify with JAAM
                     # to prevent missing fresh official alerts if the typed scraper lags.
-                    if not result["city"] and not result["region"]:
+                    if not result["city"]:
                         try:
                             jaam_resp = requests.get(JAAM_ALERTS_API_URL, timeout=3)
                             if jaam_resp.status_code == 200:
                                 jaam_data = jaam_resp.json().get("states", {})
                                 jaam_res = parse_alert_states(jaam_data, "enabled")
-                                if jaam_res["city"] or jaam_res["region"]:
+                                if jaam_res["city"]:
                                     return jaam_res
                         except Exception as jaam_err:
                             logger.debug(f"Quick JAAM check skipped: {jaam_err}")

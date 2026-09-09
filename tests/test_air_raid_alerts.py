@@ -479,3 +479,124 @@ def test_get_air_raid_alert_cross_checks_jaam_when_typed_clear():
     assert result["status"] == "active"
     assert result["type"] == "red"
     assert result["location"] == "м. Київ"
+
+
+def test_parse_typed_alerts_ignores_region_only_red_and_yellow():
+    records = [
+        {
+            "n": "🔴 Київська область",
+            "m": "Червоний рівень тривоги. Прямуйте в укриття!",
+        },
+        {
+            "n": "🟡 Київська область",
+            "m": "Жовтий рівень тривоги.",
+        },
+    ]
+
+    result = parse_typed_alerts(records)
+
+    assert result["city"] is False
+    assert result["region"] is True
+    assert result["status"] == "clear"
+    assert result["type"] == "clear"
+    assert result["types"] == []
+    assert result["location"] == "Тривоги немає"
+
+
+def test_parse_alert_states_ignores_region_only_alert():
+    jaam_states = {
+        "м. Київ": {"enabled": False},
+        "Київська область": {"enabled": True},
+    }
+
+    result = parse_alert_states(jaam_states, "enabled")
+
+    assert result["city"] is False
+    assert result["region"] is True
+    assert result["status"] == "clear"
+    assert result["type"] == "clear"
+    assert result["types"] == []
+    assert result["location"] == "Тривоги немає"
+
+
+def test_get_air_raid_alert_ignores_jaam_when_only_region_active():
+    typed_resp = Mock(status_code=200)
+    typed_resp.json.return_value = {"alerts": []}
+
+    jaam_resp = Mock(status_code=200)
+    jaam_resp.json.return_value = {
+        "states": {
+            "м. Київ": {"enabled": False},
+            "Київська область": {"enabled": True},
+        }
+    }
+
+    def mock_get(url, *args, **kwargs):
+        if "alerts.in.ua" in url:
+            return typed_resp
+        if "jaam.net.ua" in url:
+            return jaam_resp
+        raise requests.exceptions.ConnectionError("Mocked failure")
+
+    with patch("app.light_service.requests.get", side_effect=mock_get):
+        result = get_air_raid_alert()
+
+    assert result["city"] is False
+    assert result["region"] is False
+    assert result["status"] == "clear"
+    assert result["type"] == "clear"
+    assert result["types"] == []
+    assert result["location"] == "Тривоги немає"
+
+
+@patch("app.light_service.send_telegram")
+@patch("app.light_service.save_state", return_value=True)
+@patch("app.light_service.StorageUtils.save_json_async", return_value=True)
+def test_alerts_loop_does_not_notify_telegram_on_region_only_alert(
+    mock_save_log, mock_save_state, mock_send_tg
+):
+    import asyncio
+    from app.light_service import _alerts_loop_iteration, state
+
+    initial_state = {
+        "alert_status": "clear",
+        "alert_type": "clear",
+        "alert_types": [],
+    }
+    state.update(initial_state)
+
+    async def mock_load_json(path, default=None):
+        if "state" in path:
+            return dict(initial_state)
+        return []
+
+    region_only_alert = {
+        "city": False,
+        "region": True,
+        "status": "clear",
+        "type": "clear",
+        "types": [],
+        "location": "Тривоги немає",
+    }
+
+    with patch(
+        "app.light_service.StorageUtils.load_json_async", side_effect=mock_load_json
+    ):
+        with patch(
+            "app.light_service.get_air_raid_alert", return_value=region_only_alert
+        ):
+            with patch("app.light_service.load_state", return_value=None):
+                with patch(
+                    "app.light_service.get_config",
+                    return_value={
+                        "advanced": {
+                            "notifications": {"telegram_air_raid_alerts": True}
+                        }
+                    },
+                ):
+                    asyncio.run(_alerts_loop_iteration())
+
+    mock_send_tg.assert_not_called()
+    assert state["alert_status"] == "clear"
+    assert state["alert_type"] == "clear"
+    assert state["alert_types"] == []
