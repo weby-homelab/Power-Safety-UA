@@ -346,7 +346,7 @@ class TestFormatEventMessageEdgeCases:
 
 
 def test_format_event_message_uses_power_domain_icons():
-    now = time.time()
+    now = datetime.datetime(2026, 3, 5, 12, tzinfo=KYIV_TZ).timestamp()
 
     with patch("app.light_service.get_next_scheduled_event", return_value=None):
         with patch("app.light_service.get_deviation_info", return_value=""):
