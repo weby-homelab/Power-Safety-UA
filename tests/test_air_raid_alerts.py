@@ -258,7 +258,9 @@ def test_telegram_alert_messages_include_level():
 @patch("app.light_service.send_telegram")
 @patch("app.light_service.save_state", return_value=True)
 @patch("app.light_service.StorageUtils.save_json_async", return_value=True)
-def test_alert_downgrade_from_red_to_yellow_message(mock_save_log, mock_save_state, mock_send_tg):
+def test_alert_downgrade_from_red_to_yellow_message(
+    mock_save_log, mock_save_state, mock_send_tg
+):
     import asyncio
     from app.light_service import _alerts_loop_iteration, state
 
@@ -289,10 +291,21 @@ def test_alert_downgrade_from_red_to_yellow_message(mock_save_log, mock_save_sta
         "location": "м. Київ",
     }
 
-    with patch("app.light_service.StorageUtils.load_json_async", side_effect=mock_load_json):
-        with patch("app.light_service.get_air_raid_alert", return_value=yellow_only_alert):
+    with patch(
+        "app.light_service.StorageUtils.load_json_async", side_effect=mock_load_json
+    ):
+        with patch(
+            "app.light_service.get_air_raid_alert", return_value=yellow_only_alert
+        ):
             with patch("app.light_service.load_state", return_value=None):
-                with patch("app.light_service.get_config", return_value={"advanced": {"notifications": {"telegram_air_raid_alerts": True}}}):
+                with patch(
+                    "app.light_service.get_config",
+                    return_value={
+                        "advanced": {
+                            "notifications": {"telegram_air_raid_alerts": True}
+                        }
+                    },
+                ):
                     asyncio.run(_alerts_loop_iteration())
 
     mock_send_tg.assert_called_once()
