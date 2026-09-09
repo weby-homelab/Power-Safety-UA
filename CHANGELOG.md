@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.16] - 2026-09-09
+
+### Fixed
+- Fixed fallback air raid alert sources (JAAM and Ubilling) overriding clear alerts as unknown, allowing proper cancellation and peace status detection when primary alerts.in.ua is unreachable.
+- Fixed alert downgrade transition from Red to Yellow in Telegram notifications: now properly announces all-clear for red threat in Ukrainian and notes that yellow warning remains in effect.
+- Restored fallback chain execution when typed alert payload fails schema validation.
+- Reset stale alert start timestamp upon alert clearance to prevent inflated duration calculations.
+
 ## [3.9.15] - 2026-09-08
 
 ### Fixed

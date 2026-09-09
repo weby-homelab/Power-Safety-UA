@@ -1,3 +1,15 @@
+# Release v3.9.16
+
+**Reliable fallback alert resolution and accurate downgrade transitions**
+
+## What's Fixed
+- Fallback APIs (JAAM and Ubilling) correctly propagate "clear" alert status instead of masking it as unknown, guaranteeing reliable alert cancellation when primary Alerts.in.ua is unreachable.
+- Alert downgrade from Red to Yellow in Telegram notifications sends an all-clear notification for the red threat in Ukrainian (`ВІДБІЙ ТРИВОГИ (червоний рівень)`) while notifying that the yellow warning level remains.
+- Fallback chain is invoked when typed alert payload fails schema validation instead of returning None.
+- Stale alert start timestamps are reset on all-clear to avoid duration inflation.
+
+---
+
 # Release v3.9.15
 
 **Render immediate danger above warning level**

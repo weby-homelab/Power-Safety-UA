@@ -5,11 +5,14 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
+import requests
+
 from app.light_service import (
     _last_typed_alert_events,
     _typed_alert_history_sync_types,
     format_air_raid_clear_message,
     format_air_raid_start_message,
+    format_level_names,
     get_air_raid_alert,
     parse_alert_states,
     parse_typed_alerts,
@@ -109,6 +112,67 @@ def test_get_air_raid_alert_returns_level_from_typed_api():
     assert result["location"] == "м. Київ"
 
 
+def test_get_air_raid_alert_falls_back_to_jaam_on_typed_api_failure():
+    jaam_response = Mock(status_code=200)
+    jaam_response.json.return_value = {
+        "states": {
+            "м. Київ": {"enabled": False},
+            "Київська область": {"enabled": False},
+        }
+    }
+
+    def mock_get(url, *args, **kwargs):
+        if "alerts.in.ua" in url:
+            raise requests.exceptions.ConnectionError("Connection failed")
+        if "jaam.net.ua" in url:
+            return jaam_response
+        raise requests.exceptions.ConnectionError("Other API failed")
+
+    with patch("app.light_service.requests.get", side_effect=mock_get):
+        result = get_air_raid_alert()
+
+    assert result["type"] == "clear"
+    assert result["status"] == "clear"
+    assert result["location"] == "Тривоги немає"
+
+
+def test_get_air_raid_alert_falls_through_on_invalid_typed_schema():
+    bad_typed_response = Mock(status_code=200)
+    bad_typed_response.json.return_value = {"alerts": [{"unrecognized": "data"}]}
+
+    jaam_response = Mock(status_code=200)
+    jaam_response.json.return_value = {
+        "states": {
+            "м. Київ": {"enabled": True},
+            "Київська область": {"enabled": False},
+        }
+    }
+
+    def mock_get(url, *args, **kwargs):
+        if "alerts.in.ua" in url:
+            return bad_typed_response
+        if "jaam.net.ua" in url:
+            return jaam_response
+        raise requests.exceptions.ConnectionError("Other API failed")
+
+    with patch("app.light_service.requests.get", side_effect=mock_get):
+        result = get_air_raid_alert()
+
+    assert result["type"] == "red"
+    assert result["status"] == "active"
+    assert result["location"] == "м. Київ"
+
+
+def test_format_level_names():
+    assert format_level_names({"yellow"}) == "жовтий рівень"
+    assert format_level_names({"red"}) == "червоний рівень"
+    assert format_level_names({"yellow", "red"}) in (
+        "жовтий рівень, червоний рівень",
+        "червоний рівень, жовтий рівень",
+    )
+    assert format_level_names(set()) == ""
+
+
 def test_get_alert_intervals_preserves_city_and_region_types(tmp_path):
     log_path = Path(tmp_path) / "air_raid_log.json"
     log_path.write_text(
@@ -189,6 +253,54 @@ def test_telegram_alert_messages_include_level():
     assert "ЧЕРВОНИЙ РІВЕНЬ НЕБЕЗПЕКИ" in red_message
     assert "жовтий рівень" in clear_message
     assert "червоний рівень" in clear_message
+
+
+@patch("app.light_service.send_telegram")
+@patch("app.light_service.save_state", return_value=True)
+@patch("app.light_service.StorageUtils.save_json_async", return_value=True)
+def test_alert_downgrade_from_red_to_yellow_message(mock_save_log, mock_save_state, mock_send_tg):
+    import asyncio
+    from app.light_service import _alerts_loop_iteration, state
+
+    initial_state = {
+        "alert_status": "active",
+        "alert_type": "red",
+        "alert_types": ["red", "yellow"],
+        "alert_start_time": datetime.datetime.now(KYIV_TZ).timestamp() - 1800,
+    }
+    state.update(initial_state)
+
+    async def mock_load_json(path, default=None):
+        if "state" in path:
+            return dict(initial_state)
+        if "air_raid_log" in path:
+            return [
+                {"event": "active", "alert_type": "yellow"},
+                {"event": "active", "alert_type": "red"},
+            ]
+        return default
+
+    yellow_only_alert = {
+        "city": True,
+        "region": False,
+        "status": "warning",
+        "type": "yellow",
+        "types": ["yellow"],
+        "location": "м. Київ",
+    }
+
+    with patch("app.light_service.StorageUtils.load_json_async", side_effect=mock_load_json):
+        with patch("app.light_service.get_air_raid_alert", return_value=yellow_only_alert):
+            with patch("app.light_service.load_state", return_value=None):
+                with patch("app.light_service.get_config", return_value={"advanced": {"notifications": {"telegram_air_raid_alerts": True}}}):
+                    asyncio.run(_alerts_loop_iteration())
+
+    mock_send_tg.assert_called_once()
+    sent_msg = mock_send_tg.call_args[0][0]
+    assert "ВІДБІЙ ТРИВОГИ (червоний рівень)" in sent_msg
+    assert "Залишається жовтий рівень попередження" in sent_msg
+    assert state["alert_type"] == "yellow"
+    assert state["alert_types"] == ["yellow"]
 
 
 def test_legacy_alert_events_do_not_suppress_typed_red_transition():

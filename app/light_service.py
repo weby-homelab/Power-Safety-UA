@@ -1285,7 +1285,9 @@ def get_air_raid_alert():
         if response.status_code == 200:
             payload = response.json()
             if isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
-                return parse_typed_alerts(payload["alerts"])
+                result = parse_typed_alerts(payload["alerts"])
+                if result is not None:
+                    return result
     except Exception as e:
         logger.warning(f"Failed to fetch typed alerts from Alerts.in.ua: {e}")
 
@@ -1297,16 +1299,7 @@ def get_air_raid_alert():
             payload = response.json()
             states = payload.get("states", {})
             if isinstance(states, dict):
-                result = parse_alert_states(states, "enabled")
-                if result["type"] == "clear":
-                    return {
-                        **result,
-                        "status": "unknown",
-                        "type": "unknown",
-                        "types": [],
-                        "location": "Невідомо",
-                    }
-                return result
+                return parse_alert_states(states, "enabled")
     except Exception as e:
         logger.warning(f"Failed to fetch alerts from primary JAAM API: {e}")
 
@@ -1316,16 +1309,7 @@ def get_air_raid_alert():
             payload = response.json()
             states = payload.get("states", {})
             if isinstance(states, dict):
-                result = parse_alert_states(states, "alertnow")
-                if result["type"] == "clear":
-                    return {
-                        **result,
-                        "status": "unknown",
-                        "type": "unknown",
-                        "types": [],
-                        "location": "Невідомо",
-                    }
-                return result
+                return parse_alert_states(states, "alertnow")
     except Exception as e:
         logger.error(f"Error fetching alerts from fallback Ubilling API: {e}")
     return {
@@ -1347,13 +1331,18 @@ def format_air_raid_start_message(alert_type, time_str, location):
     return f"⚠️ <b>{time_str} {level_label}! {location}</b>"
 
 
-def format_air_raid_clear_message(cleared_types, time_str, duration_str=""):
+def format_level_names(types_set):
     labels = []
-    if ALERT_TYPE_YELLOW in cleared_types:
+    if ALERT_TYPE_YELLOW in types_set:
         labels.append("жовтий рівень")
-    if ALERT_TYPE_RED in cleared_types:
+    if ALERT_TYPE_RED in types_set:
         labels.append("червоний рівень")
-    level_text = f" ({', '.join(labels)})" if labels else ""
+    return ", ".join(labels)
+
+
+def format_air_raid_clear_message(cleared_types, time_str, duration_str=""):
+    labels_str = format_level_names(cleared_types)
+    level_text = f" ({labels_str})" if labels_str else ""
     return f"✅ <b>{time_str} ВІДБІЙ ТРИВОГИ{level_text}</b>{duration_str}"
 
 
@@ -1719,16 +1708,32 @@ async def _alerts_loop_iteration():
             if old_type == "clear":
                 state["alert_start_time"] = now_dt.timestamp()
             if can_notify:
-                pending_message = format_air_raid_start_message(
-                    new_type,
-                    time_str,
-                    current_alert.get("location", "Київ"),
-                )
-                cleared_types = old_types.difference(new_types)
-                if cleared_types:
-                    pending_message += "\n↘️ Відбій рівня: " + ", ".join(
-                        sorted(cleared_types)
+                if old_type == ALERT_TYPE_RED and new_type == ALERT_TYPE_YELLOW:
+                    start_ts = state.get("alert_start_time")
+                    duration_str = ""
+                    if start_ts:
+                        duration_sec = int(now_dt.timestamp() - start_ts)
+                        hours, mins = duration_sec // 3600, (duration_sec % 3600) // 60
+                        duration_str = (
+                            f"\nяка тривала {hours} год {mins} хв"
+                            if hours > 0
+                            else f"\nяка тривала {mins} хв"
+                        )
+                    pending_message = (
+                        f"✅ <b>{time_str} ВІДБІЙ ТРИВОГИ (червоний рівень)</b>{duration_str}\n"
+                        f"🟡 Залишається жовтий рівень попередження"
                     )
+                else:
+                    pending_message = format_air_raid_start_message(
+                        new_type,
+                        time_str,
+                        current_alert.get("location", "Київ"),
+                    )
+                    cleared_types = old_types.difference(new_types)
+                    if cleared_types:
+                        cleared_label = format_level_names(cleared_types)
+                        if cleared_label:
+                            pending_message += f"\n↘️ Відбій: {cleared_label}"
                 pending_metric_status = new_type
         elif new_type == "clear" and old_type != "clear":
             start_ts = state.get("alert_start_time")
@@ -1746,6 +1751,7 @@ async def _alerts_loop_iteration():
                     old_types, time_str, duration_str
                 )
                 pending_metric_status = "clear"
+            state["alert_start_time"] = None
 
         state["alert_status"] = (
             "active"

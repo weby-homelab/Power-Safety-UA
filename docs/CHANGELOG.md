@@ -1,5 +1,10 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.16] - 2026-09-09
+- **Резервні джерела тривог:** Виправлено обробку статусу "відбій" у резервних API (JAAM та Ubilling), щоб відбій коректно фіксувався при недоступності Alerts.in.ua. / Fixed clear alert handling in fallback APIs (JAAM/Ubilling) when primary Alerts.in.ua is unreachable.
+- **Сповіщення при переході Red -> Yellow:** Замінено помилковий тривожний банер на коректне повідомлення про відбій червоного рівня українською мовою з нагадуванням про активний жовтий рівень. / Replaced alarming start banner on Red -> Yellow transition with clear notification in Ukrainian.
+- **Очищення таймера тривоги:** Скидання застарілого `alert_start_time` при відбої тривоги. / Reset stale alert start timestamp upon alert clearance.
+
 ## [v3.9.15] - 2026-09-08
 - **Пріоритет red:** Червона смужка тепер рендериться поверх жовтої при перекритті рівнів у денному/тижневому графіку. / Red intervals render above yellow on overlap in daily/weekly charts.
 
