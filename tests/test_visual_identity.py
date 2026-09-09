@@ -465,17 +465,19 @@ def test_weekly_chart_keeps_all_dark_light_ua_en_filenames(tmp_path):
             assert filename.endswith(suffix)
 
 
-def _color_bbox(image: Image.Image, color: tuple[int, int, int]):
-    points = [
-        (x, y)
-        for y in range(image.height)
-        for x in range(image.width)
-        if image.getpixel((x, y)) == color
-    ]
-    assert points
-    xs = [point[0] for point in points]
-    ys = [point[1] for point in points]
-    return min(xs), min(ys), max(xs) + 1, max(ys) + 1
+def _max_exact_color_runs(image: Image.Image, color: tuple[int, int, int]):
+    max_runs = 0
+    for y in range(image.height):
+        runs = 0
+        previous_x = -2
+        for x in range(image.width):
+            if image.getpixel((x, y)) != color:
+                continue
+            if x != previous_x + 1:
+                runs += 1
+            previous_x = x
+        max_runs = max(max_runs, runs)
+    return max_runs
 
 
 def test_real_daily_and_weekly_pngs_keep_hatches_after_downscale(tmp_path):
@@ -522,8 +524,10 @@ def test_real_daily_and_weekly_pngs_keep_hatches_after_downscale(tmp_path):
 
     assert any(kwargs.get("hatch") == HATCH_PLAN for _, kwargs in daily_calls)
     assert any(kwargs.get("hatch") == HATCH_UNKNOWN for _, kwargs in daily_calls)
+    assert any(kwargs.get("hatch") == HATCH_CLEAR for _, kwargs in daily_calls)
     assert any(kwargs.get("hatch") == HATCH_PLAN for _, kwargs in weekly_calls)
     assert any(kwargs.get("hatch") == HATCH_UNKNOWN for _, kwargs in weekly_calls)
+    assert any(kwargs.get("hatch") == HATCH_CLEAR for _, kwargs in weekly_calls)
 
     for path, size in (
         (Path(daily_path), (1000, 280)),
@@ -533,10 +537,21 @@ def test_real_daily_and_weekly_pngs_keep_hatches_after_downscale(tmp_path):
             image = source.convert("RGB")
             assert image.size == size
             assert image.getbbox() is not None
-            bbox = _color_bbox(image, (129, 140, 248))
+            lane_box = (
+                (820, 80, 920, 112) if size == (1000, 280) else (820, 60, 920, 90)
+            )
+            lane_crop = image.crop(lane_box)
+            assert _max_exact_color_runs(lane_crop, (129, 140, 248)) >= 4
             mobile = image.resize(
                 (600, round(image.height * 600 / image.width)), Image.Resampling.LANCZOS
             )
-            mobile_bbox = tuple(round(value * 0.6) for value in bbox)
-            mobile_crop = mobile.crop(mobile_bbox)
-            assert len(set(mobile_crop.getdata())) >= 8
+            mobile_box = tuple(round(value * 0.6) for value in lane_box)
+            mobile_crop = mobile.crop(mobile_box)
+            max_transitions = max(
+                sum(
+                    mobile_crop.getpixel((x, y)) != mobile_crop.getpixel((x - 1, y))
+                    for x in range(1, mobile_crop.width)
+                )
+                for y in range(mobile_crop.height)
+            )
+            assert max_transitions >= 8
