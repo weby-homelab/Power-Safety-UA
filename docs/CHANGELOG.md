@@ -1,5 +1,11 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.18] - 2026-09-09
+- **Фільтрація завислих тривог (Stale Alerts Filter):** Виправлено зависання тривоги в Києві через старі неактуальні записи (>12 год) у сторонньому типізованому фіді `v3/etryvoga`. Додано фільтрацію застарілих записів за часом. / Fixed stale/ghost Kyiv air raid alerts caused by orphaned records in third-party typed feed, adding a freshness filter.
+- **Підтримка ключів JAAM:** Виправлено розпізнавання ключів `"Київ"` та `"м. Київ"` в API JAAM, що забезпечує точне відстеження офіційних тривог та відбоїв. / Normalized Kyiv keys in JAAM integration to accurately detect official DSNS/AFU alerts and all-clear statuses.
+- **Крос-валідація джерел:** Додано швидку перевірку через JAAM у разі відсутності тривоги в типізованому фіді, що запобігає запізненню сповіщень. / Added rapid cross-check with JAAM when typed feed is clear to prevent delayed notifications.
+- **Санітизація тривалості тривоги:** Вилучено некоректний розрахунок багатоденної тривалості (>12 год) при відбої застарілих станів у Telegram. / Sanitized anomalous alert duration calculation in Telegram notifications for stale states.
+
 ## [v3.9.17] - 2026-09-09
 - **Значок сповіщень (Bell UI):** Виправлено збій інсталяції Service Worker через відсутній ресурс, що блокувало оновлення значка 🔕 ➔ 🔔. Додано миттєвий відгук UI та захист таймаутом для фонової підписки. / Fixed Service Worker installation failure caused by missing asset, enabling immediate notification bell UI feedback and timeout-protected subscriptions.
 - **Перемикач мов (Language switcher):** Значок тепер показує назву наступної мови (EN при активній українській, UA при англійській) з локалізованими підказками. / Language toggle button now shows the next language action (EN when in Ukrainian, UA when in English).
