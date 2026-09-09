@@ -168,7 +168,7 @@ flowchart BT
     TgClient -->|Bot API| Telegram
 
     %% Додаткові push-сповіщення
-    API -.->|Web Push API (VAPID)| PWA
+    API -.->|"Web Push API (VAPID)"| PWA
 
     %% ====================== Стиль для заголовків підграфів ======================
     classDef subgraphTitle fill:#0f172a,stroke:none,color:#64748b,font-size:15px

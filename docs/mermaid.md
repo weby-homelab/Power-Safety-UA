@@ -47,7 +47,7 @@ flowchart TB
         Worker --> Storage
     end
 
-    CF <-->|Reverse Proxy (Port 5050)| API
+    CF <-->|"Reverse Proxy (Port 5050)"| API
 
     subgraph DataLayer ["💾 Data Storage (JSON Flat-DB)"]
         direction LR
