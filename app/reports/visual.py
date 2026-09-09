@@ -68,13 +68,13 @@ def get_report_palette(theme: str) -> ReportPalette:
 
 def get_aqi_color(value, unknown_color: str = UNKNOWN_DARK) -> str:
     """Map the existing three AQI thresholds to one shared visual token."""
-    if value is None:
+    if value is None or isinstance(value, bool):
         return unknown_color
     try:
         aqi_value = float(value)
     except (TypeError, ValueError):
         return unknown_color
-    if not math.isfinite(aqi_value):
+    if not math.isfinite(aqi_value) or aqi_value < 0:
         return unknown_color
 
     if aqi_value <= 50:
@@ -98,7 +98,7 @@ def style_for_fact(state: str, palette: ReportPalette) -> dict[str, object]:
     }
 
 
-def style_for_plan(is_light: bool | None, palette: ReportPalette) -> dict[str, object]:
+def style_for_plan(is_light: object, palette: ReportPalette) -> dict[str, object]:
     """Render normal schedule as a quiet track and outages as a hatched plan."""
     if is_light is True:
         return {

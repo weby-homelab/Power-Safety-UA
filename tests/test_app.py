@@ -285,3 +285,19 @@ def test_schedule_reader_keeps_legacy_slots_and_reports_missing_data():
 
     assert slots == [True] * 48
     assert schedule_known is False
+
+
+def test_power_events_data_marks_unavailable_schedule_as_unknown():
+    with (
+        patch.object(
+            app.main,
+            "get_schedule_context",
+            return_value=(None, None, "Невідомо", None, False),
+        ),
+        patch.object(app.main, "_read_event_log_raw", return_value=[]),
+    ):
+        ua_text, _ = asyncio.run(app.main.get_power_events_data(lang="ua"))
+        en_text, _ = asyncio.run(app.main.get_power_events_data(lang="en"))
+
+    assert "Графік невідомий" in ua_text
+    assert "Schedule unknown" in en_text

@@ -32,6 +32,7 @@ from app.reports.visual import (
     PLAN_OUTAGE,
     POWER_DOWN,
     POWER_UP,
+    PLAN_ICON,
     REPORT_AQI_STRIP_HEIGHT,
     REPORT_MAIN_STRIP_HEIGHT,
     get_aqi_color,
@@ -822,7 +823,7 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
             (t_up / plan_up_sec_now * 100) if plan_up_sec_now > 0 else 0
         )
         time_label = "На цю хвилину" if is_today else "На кінець доби"
-        caption += f"🔆 {time_label}:\n"
+        caption += f"{PLAN_ICON} {time_label}:\n"
         caption += f"💡 Факт {format_duration(t_up)} 🗓️ План {format_duration(plan_up_sec_now)}\n"
         caption += f"👉 Світла {compliance_pct_now:.0f}% від плану\n"
         caption += "---\n"

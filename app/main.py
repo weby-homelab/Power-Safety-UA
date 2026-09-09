@@ -77,6 +77,7 @@ from app.push_service import (  # noqa: E402
     send_push_notification,
     VAPID_PUBLIC_KEY,
 )
+from app.reports.visual import UNKNOWN_ICON  # noqa: E402
 from app.storage import StorageUtils  # noqa: E402
 from app.models import (  # noqa: E402
     AdminConfigRequest,
@@ -477,13 +478,20 @@ async def get_power_events_data(limit=5, lang="ua"):
             else "• можливі аварійні відключення ⚠️"
         )
     elif (
-        "не плануються" in next_range.lower()
-        or "невідомий час" in next_range.lower()
+        "невідомий час" in next_range.lower()
         or "час невідомий" in next_range.lower()
         or "час очікується" in next_range.lower()
-        or "no outages" in next_range.lower()
+        or "no schedule" in next_range.lower()
+        or "графік відсутній" in next_range.lower()
+        or "невідомо" in next_range.lower()
         or "unknown" in next_range.lower()
     ):
+        latest_event_text = (
+            f"• {UNKNOWN_ICON} Schedule unknown"
+            if lang == "en"
+            else f"• {UNKNOWN_ICON} Графік невідомий"
+        )
+    elif "не плануються" in next_range.lower() or "no outages" in next_range.lower():
         latest_event_text = (
             f"• {PLAN_ICON} No outages scheduled {POWER_UP_ICON}"
             if lang == "en"
@@ -631,12 +639,22 @@ async def get_power_events_data(limit=5, lang="ua"):
             elif wait_line:
                 latest_event_text = f"{wait_line}"
             elif (
-                "не плануються" in next_range.lower()
-                or "невідомий час" in next_range.lower()
+                "невідомий час" in next_range.lower()
                 or "час невідомий" in next_range.lower()
                 or "час очікується" in next_range.lower()
-                or "no outages" in next_range.lower()
+                or "no schedule" in next_range.lower()
+                or "графік відсутній" in next_range.lower()
+                or "невідомо" in next_range.lower()
                 or "unknown" in next_range.lower()
+            ):
+                latest_event_text = (
+                    f"• {UNKNOWN_ICON} Schedule unknown"
+                    if lang == "en"
+                    else f"• {UNKNOWN_ICON} Графік невідомий"
+                )
+            elif (
+                "не плануються" in next_range.lower()
+                or "no outages" in next_range.lower()
             ):
                 latest_event_text = (
                     f"• {PLAN_ICON} No outages scheduled {POWER_UP_ICON}"
@@ -874,8 +892,8 @@ def get_today_schedule_text(lang="ua"):
 
         if today_slots is None and not emergency_sources:
             if lang == "en":
-                return "🟢 <b>No schedule</b><br><br>No outages scheduled (or data is not updated yet)."
-            return "🟢 <b>Графік відсутній</b><br><br>Відключень не передбачається (або дані ще не оновлено)."
+                return f"{UNKNOWN_ICON} <b>No schedule</b><br><br>Schedule data is unavailable or not updated yet."
+            return f"{UNKNOWN_ICON} <b>Графік відсутній</b><br><br>Дані графіка недоступні або ще не оновлені."
 
         output = []
 

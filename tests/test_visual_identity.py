@@ -85,6 +85,8 @@ def test_plan_outage_uses_hatch_and_normal_plan_uses_neutral_track():
 
 def test_aqi_thresholds_do_not_reuse_air_alert_red():
     assert get_aqi_color(None) == UNKNOWN_DARK
+    assert get_aqi_color(True) == UNKNOWN_DARK
+    assert get_aqi_color(-1) == UNKNOWN_DARK
     assert get_aqi_color(float("nan")) == UNKNOWN_DARK
     assert get_aqi_color(50) == AQI_GOOD
     assert get_aqi_color(51) == AQI_MODERATE
@@ -134,6 +136,9 @@ def test_dashboard_uses_non_color_state_identity_and_quiet_alerts():
     assert "schedule_known" in template
     assert ".grid-cell.unknown" in template
     assert "alertType !== 'unknown'" in template
+    assert "includes(alertData.type)" in template
+    assert "schedule_known === true" in template
+    assert "if (alertType !== 'unknown')" in template
     assert "alertPushRedDowngrade" in template
     assert "document.documentElement.lang" in template
     assert "value === null" in template

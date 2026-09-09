@@ -751,7 +751,10 @@
                  // Alert level: red takes precedence when both levels are active.
                  const aCard = document.getElementById('alert-card');
                  const alertData = data.alert || {};
-                 const alertType = alertData.type || (
+                 const explicitAlertType = ['red', 'yellow', 'clear', 'unknown'].includes(alertData.type)
+                      ? alertData.type
+                      : null;
+                  const alertType = explicitAlertType || (
                       alertData.status === 'active' ? 'red'
                       : alertData.status === 'warning' ? 'yellow'
                       : alertData.status === 'unknown' ? 'unknown'
@@ -810,7 +813,7 @@
                               : translations[currentLang].alertPushEnd;
                       sendPush(translations[currentLang].pushTitleAlert, alertMsg);
                   }
-                  lastAlertStatus = alertType;
+                  if (alertType !== 'unknown') lastAlertStatus = alertType;
                 
                 // Hide or show AQ block
                 const aqBlock = document.getElementById('aq-block');
@@ -1052,7 +1055,7 @@
 
                 // Update Schedule Grid Bar
                 const grid = document.getElementById('schedule-grid');
-                 const scheduleKnown = data.schedule_known !== false;
+                 const scheduleKnown = data.schedule_known === true || (data.schedule_known === undefined && Array.isArray(data.schedule_slots));
                  if (grid) {
                      grid.innerHTML = '';
                      // 48 slots -> 24 cells (1 hour each). Invalid data stays unknown.
