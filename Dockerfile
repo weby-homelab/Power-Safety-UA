@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b AS builder
+FROM python:3.12-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254 AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && pip install --no-cache-dir --upgrade "pip>=26.1.2" "setuptools>=84.0.0" "msgpack>=1.2.2" \
     && pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
+FROM python:3.12-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254
 
 LABEL org.opencontainers.image.title="Power-Safety-UA" \
       org.opencontainers.image.description="Autonomous critical infrastructure monitoring system" \
