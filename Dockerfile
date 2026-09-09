@@ -36,7 +36,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && apt-get purge -y --auto-remove libkrb5-3 libgssapi-krb5-2 libkrb5support0 libk5crypto3 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir --upgrade "pip>=26.1.2" "setuptools>=84.0.0" "msgpack>=1.2.2"
+    && rm -rf /usr/local/lib/python3.12/site-packages/pip*
 
 COPY --from=builder /install /usr/local
 COPY . .
