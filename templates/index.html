@@ -684,7 +684,7 @@
                 return 'var(--state-unknown)';
             }
             const numericValue = Number(value);
-            if (!Number.isFinite(numericValue)) return 'var(--state-unknown)';
+            if (!Number.isFinite(numericValue) || numericValue < 0) return 'var(--state-unknown)';
             if (numericValue > 100) return 'var(--aqi-unhealthy)';
             if (numericValue > 50) return 'var(--aqi-moderate)';
             return 'var(--aqi-good)';
@@ -1055,7 +1055,7 @@
 
                 // Update Schedule Grid Bar
                 const grid = document.getElementById('schedule-grid');
-                 const scheduleKnown = data.schedule_known === true || (data.schedule_known === undefined && Array.isArray(data.schedule_slots));
+                 const scheduleKnown = data.schedule_known === true;
                  if (grid) {
                      grid.innerHTML = '';
                      // 48 slots -> 24 cells (1 hour each). Invalid data stays unknown.

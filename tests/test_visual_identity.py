@@ -143,6 +143,8 @@ def test_dashboard_uses_non_color_state_identity_and_quiet_alerts():
     assert "document.documentElement.lang" in template
     assert "value === null" in template
     assert "value === ''" in template
+    assert "numericValue < 0" in template
+    assert "schedule_known === true" in template
     assert "var(--alert-warning)" in template
     assert "var(--alert-critical)" in template
     assert "data.light_state" in template

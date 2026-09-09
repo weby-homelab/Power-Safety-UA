@@ -1422,6 +1422,9 @@ async def api_status(lang: str = "ua"):
     current_status = state.get("status", "unknown")
     # Ensure we return strictly "on" or "off" for UI icons
     ui_light_state = "on" if current_status == "up" else "off"
+    light_state = (
+        current_status if current_status in {"up", "down", "unknown"} else "unknown"
+    )
 
     latest_event_text, recent_events = await get_power_events_data(lang=lang)
     schedule_text = await asyncio.to_thread(get_today_schedule_text, lang=lang)
@@ -1448,7 +1451,7 @@ async def api_status(lang: str = "ua"):
 
     result = {
         "light": ui_light_state,
-        "light_state": current_status,
+        "light_state": light_state,
         "light_event": latest_event_text,
         "recent_events": recent_events,
         "schedule_text": schedule_text,
