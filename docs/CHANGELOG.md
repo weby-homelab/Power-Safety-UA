@@ -1,5 +1,10 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.19] - 2026-09-09
+- **Ізоляція тривог для м. Київ (Kyiv City Alerts Isolation):** Забезпечено сувору ізоляцію моніторингу та сповіщень виключно для міста Київ (`UID 31`, `м. Київ`). Тривоги, що лунають лише по Київській області, більше не викликають статус тривоги на дашборді та не надсилають сповіщень до Telegram. / Strictly isolated air raid alerts, threat levels, and Telegram notifications to Kyiv city only, completely ignoring alerts in Kyiv Oblast.
+- **Оновлення крос-валідації JAAM:** Перевірка через JAAM API тепер запитує виключно статус міста Київ (`is_alert_city`). / JAAM cross-checks now strictly evaluate Kyiv city status.
+- **Регресійні тести:** Додано комплексний набір тестів, що гарантує відсутність хибних спрацьовувань при тривогах в області. / Added regression test suite ensuring alerts in Kyiv Oblast do not trigger active state or notifications.
+
 ## [v3.9.18] - 2026-09-09
 - **Фільтрація завислих тривог (Stale Alerts Filter):** Виправлено зависання тривоги в Києві через старі неактуальні записи (>12 год) у сторонньому типізованому фіді `v3/etryvoga`. Додано фільтрацію застарілих записів за часом. / Fixed stale/ghost Kyiv air raid alerts caused by orphaned records in third-party typed feed, adding a freshness filter.
 - **Підтримка ключів JAAM:** Виправлено розпізнавання ключів `"Київ"` та `"м. Київ"` в API JAAM, що забезпечує точне відстеження офіційних тривог та відбоїв. / Normalized Kyiv keys in JAAM integration to accurately detect official DSNS/AFU alerts and all-clear statuses.
