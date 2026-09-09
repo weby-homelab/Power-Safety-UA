@@ -10,7 +10,6 @@ import shutil
 from dotenv import load_dotenv
 
 from app.reports.common import (
-    ALERT_COLORS,
     ALERT_TYPE_RED,
     ALERT_TYPE_YELLOW,
     KYIV_TZ,
@@ -19,6 +18,27 @@ from app.reports.common import (
     merged_alert_duration,
     summarize_alert_intervals,
     sort_alert_intervals_for_render,
+)
+from app.reports.visual import (
+    ALERT_CRITICAL,
+    ALERT_WARNING,
+    AQI_GOOD,
+    AQI_MODERATE,
+    AQI_UNHEALTHY,
+    HATCH_CLEAR,
+    HATCH_LINE_WIDTH,
+    HATCH_PLAN,
+    HATCH_UNKNOWN,
+    PLAN_OUTAGE,
+    POWER_DOWN,
+    POWER_UP,
+    REPORT_AQI_STRIP_HEIGHT,
+    REPORT_MAIN_STRIP_HEIGHT,
+    get_aqi_color,
+    get_report_palette,
+    style_for_alert_clear,
+    style_for_fact,
+    style_for_plan,
 )
 
 load_dotenv()
@@ -277,37 +297,24 @@ def format_duration(seconds):
 def generate_chart(
     target_date, intervals, schedule_intervals, alert_intervals, theme="dark", lang="ua"
 ):
-    # Vibrant colors for Fact, Muted for Plan
-    if theme == "dark":
-        bg_color = "#0f172a"
-        text_color = "#f8fafc"
-        fact_on_color = "#14b8a6"  # Vibrant Teal
-        fact_off_color = "#f43f5e"  # Vibrant Rose
-        plan_on_color = "#818cf8"  # Distinct Indigo
-        plan_off_color = "#475569"  # Distinct Slate
-        plt_style = "dark_background"
-    else:
-        bg_color = "#f8fafc"
-        text_color = "#0f172a"
-        fact_on_color = "#14b8a6"
-        fact_off_color = "#f43f5e"
-        plan_on_color = "#818cf8"
-        plan_off_color = "#64748b"
-        plt_style = "default"
+    report_palette = get_report_palette(theme)
+    bg_color = report_palette.background
+    text_color = report_palette.text
+    plt_style = "default" if theme == "light" else "dark_background"
 
     with plt.style.context(plt_style):
         fig, ax = plt.subplots(figsize=(10, 2.8), facecolor=bg_color)
         ax.set_facecolor(bg_color)
 
-        # Define geometries - Glued together
-        aqi_y = 9.15
-        aqi_h = 1.7
+        # Keep incident lanes prominent while making environmental data thinner.
+        aqi_y = 9.45
+        aqi_h = REPORT_AQI_STRIP_HEIGHT
         alert_y = 11.15
-        alert_h = 1.7
+        alert_h = REPORT_MAIN_STRIP_HEIGHT
         sched_y = 13.15
-        sched_h = 1.7
+        sched_h = REPORT_MAIN_STRIP_HEIGHT
         act_y = 15.15
-        act_h = 1.7
+        act_h = REPORT_MAIN_STRIP_HEIGHT
 
         day_start = datetime.datetime.combine(target_date, datetime.time.min).replace(
             tzinfo=KYIV_TZ
@@ -360,12 +367,7 @@ def generate_chart(
                     ts = item.get("timestamp", 0)
                     aqi_val = item.get("aqi", 0)
 
-                    if aqi_val <= 50:
-                        color = "#22c55e"  # Green
-                    elif aqi_val <= 100:
-                        color = "#eab308"  # Yellow
-                    else:
-                        color = "#ef4444"  # Red
+                    color = get_aqi_color(aqi_val, unknown_color=report_palette.unknown)
 
                     start_t = datetime.datetime.fromtimestamp(ts, KYIV_TZ)
                     if start_t > now:
@@ -399,12 +401,9 @@ def generate_chart(
                             continue
                         aqi_val = int(val)
 
-                        if aqi_val <= 50:
-                            color = "#22c55e"  # Green
-                        elif aqi_val <= 100:
-                            color = "#eab308"  # Yellow
-                        else:
-                            color = "#ef4444"  # Red
+                        color = get_aqi_color(
+                            aqi_val, unknown_color=report_palette.unknown
+                        )
 
                         start_t = datetime.datetime.combine(
                             target_date, datetime.time(i, 0)
@@ -422,7 +421,7 @@ def generate_chart(
             if target_date <= now.date():
                 end_fallback = min(day_end, now)
                 if day_start < end_fallback:
-                    aqi_intervals = [(day_start, end_fallback, "#64748b")]
+                    aqi_intervals = [(day_start, end_fallback, report_palette.unknown)]
 
         for start, end, color in aqi_intervals:
             start_num = mdates.date2num(start)
@@ -435,22 +434,17 @@ def generate_chart(
             )
 
         # --- Schedule Data (Middle Bar) ---
-        sched_color_map = {True: plan_on_color, False: plan_off_color}
-
         if schedule_intervals:
             for start, duration_hours, is_light in schedule_intervals:
-                color = sched_color_map.get(is_light, plan_off_color)
                 start_num = mdates.date2num(start)
                 duration_days = duration_hours / 24.0
                 ax.broken_barh(
                     [(start_num, duration_days)],
                     (sched_y, sched_h),
-                    facecolors=color,
-                    edgecolor="none",
+                    **style_for_plan(is_light, report_palette),
                 )
 
         # --- Alert Data (Middle Bar) ---
-        alert_off_color = "#334155" if theme == "dark" else "#cbd5e1"
         if target_date == now.date():
             alert_end = now
         elif target_date < now.date():
@@ -467,8 +461,7 @@ def generate_chart(
                     )
                 ],
                 (alert_y, alert_h),
-                facecolors=alert_off_color,
-                edgecolor="none",
+                **style_for_alert_clear(report_palette),
             )
 
         for start, end, alert_type in sort_alert_intervals_for_render(alert_intervals):
@@ -502,12 +495,6 @@ def generate_chart(
         ax.vlines(hour_points, 9.0, 17.0, colors=bg_color, linewidth=0.8, zorder=10)
 
         # --- Actual Data (Top Bar) ---
-        color_map = {
-            "up": fact_on_color,
-            "down": fact_off_color,
-            "unknown": fact_on_color,
-        }
-
         total_up = 0
         total_down = 0
 
@@ -520,8 +507,6 @@ def generate_chart(
             elif state == "unknown":
                 total_up += duration_sec
 
-            color = color_map.get(state, fact_on_color)
-
             start_num = mdates.date2num(start)
             end_num = mdates.date2num(end)
             duration_num = end_num - start_num
@@ -529,8 +514,7 @@ def generate_chart(
             ax.broken_barh(
                 [(start_num, duration_num)],
                 (act_y, act_h),
-                facecolors=color,
-                edgecolor="none",
+                **style_for_fact(state, report_palette),
             )
 
         # --- Formatting ---
@@ -574,55 +558,73 @@ def generate_chart(
         import matplotlib.patches as mpatches
 
         if lang == "en":
-            green_label = "Power ON"
-            red_label = "Power OFF"
-            yellow_label = "Schedule: ON"
-            gray_label = "Schedule: OFF"
+            fact_up_label = "Power ON"
+            fact_down_label = "Power OFF"
+            plan_label = "Planned outage"
+            clear_label = "No events"
+            unknown_label = "Unknown"
             alert_yellow_label = "Yellow warning level"
             alert_red_label = "Red immediate danger"
-            alert_off_label = "No Alerts"
             aqi_green_label = "AQI: Good"
             aqi_yellow_label = "AQI: Moderate"
             aqi_red_label = "AQI: Unhealthy"
         else:
-            green_label = "Світло є"
-            red_label = "Світла немає"
-            yellow_label = "Графік: Є"
-            gray_label = "Графік: Немає"
+            fact_up_label = "Світло є"
+            fact_down_label = "Світла немає"
+            plan_label = "Планове відключення"
+            clear_label = "Немає подій"
+            unknown_label = "Невідомо"
             alert_yellow_label = "Жовтий рівень"
             alert_red_label = "Червоний рівень"
-            alert_off_label = "Немає тривог"
             aqi_green_label = "AQI: Добре"
             aqi_yellow_label = "AQI: Помірне"
             aqi_red_label = "AQI: Шкідливе"
 
-        green_patch = mpatches.Patch(color=fact_on_color, label=green_label)
-        red_patch = mpatches.Patch(color=fact_off_color, label=red_label)
-        yellow_patch = mpatches.Patch(color=plan_on_color, label=yellow_label)
-        gray_patch = mpatches.Patch(color=plan_off_color, label=gray_label)
+        fact_up_patch = mpatches.Patch(
+            facecolor=POWER_UP, edgecolor=POWER_UP, label=fact_up_label
+        )
+        fact_down_patch = mpatches.Patch(
+            facecolor=POWER_DOWN, edgecolor=POWER_DOWN, label=fact_down_label
+        )
+        plan_patch = mpatches.Patch(
+            facecolor=PLAN_OUTAGE,
+            edgecolor=text_color,
+            hatch=HATCH_PLAN,
+            linewidth=HATCH_LINE_WIDTH,
+            label=plan_label,
+        )
+        clear_patch = mpatches.Patch(
+            facecolor=report_palette.track,
+            edgecolor=report_palette.unknown,
+            hatch=HATCH_CLEAR,
+            linewidth=HATCH_LINE_WIDTH,
+            label=clear_label,
+        )
+        unknown_patch = mpatches.Patch(
+            facecolor=report_palette.unknown,
+            edgecolor=text_color,
+            hatch=HATCH_UNKNOWN,
+            linewidth=HATCH_LINE_WIDTH,
+            label=unknown_label,
+        )
         alert_yellow_patch = mpatches.Patch(
-            color=ALERT_COLORS[ALERT_TYPE_YELLOW], label=alert_yellow_label
+            color=ALERT_WARNING, label=alert_yellow_label
         )
-        alert_red_patch = mpatches.Patch(
-            color=ALERT_COLORS[ALERT_TYPE_RED], label=alert_red_label
-        )
-        alert_off_patch = mpatches.Patch(
-            color=("#334155" if theme == "dark" else "#cbd5e1"), label=alert_off_label
-        )
+        alert_red_patch = mpatches.Patch(color=ALERT_CRITICAL, label=alert_red_label)
 
-        aqi_green = mpatches.Patch(color="#22c55e", label=aqi_green_label)
-        aqi_yellow = mpatches.Patch(color="#eab308", label=aqi_yellow_label)
-        aqi_red = mpatches.Patch(color="#ef4444", label=aqi_red_label)
+        aqi_green = mpatches.Patch(color=AQI_GOOD, label=aqi_green_label)
+        aqi_yellow = mpatches.Patch(color=AQI_MODERATE, label=aqi_yellow_label)
+        aqi_red = mpatches.Patch(color=AQI_UNHEALTHY, label=aqi_red_label)
 
         legend = plt.legend(
             handles=[
-                green_patch,
-                red_patch,
-                yellow_patch,
-                gray_patch,
+                fact_up_patch,
+                fact_down_patch,
+                plan_patch,
+                clear_patch,
+                unknown_patch,
                 alert_yellow_patch,
                 alert_red_patch,
-                alert_off_patch,
                 aqi_green,
                 aqi_yellow,
                 aqi_red,
@@ -632,13 +634,13 @@ def generate_chart(
             fancybox=False,
             frameon=False,
             shadow=False,
-            ncol=5,
+            ncol=3,
             fontsize="small",
         )
         plt.setp(legend.get_texts(), color=text_color)
 
         plt.tight_layout()
-        plt.subplots_adjust(bottom=0.28)
+        plt.subplots_adjust(bottom=0.34)
 
         suffix = "_light" if theme == "light" else ""
         if lang == "en":

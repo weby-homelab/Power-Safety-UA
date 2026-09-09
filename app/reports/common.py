@@ -3,6 +3,8 @@ import os
 import datetime
 from zoneinfo import ZoneInfo
 
+from app.reports.visual import ALERT_CRITICAL, ALERT_WARNING
+
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 DAYS_UA = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота", "Неділя"]
@@ -11,8 +13,8 @@ ALERT_TYPE_YELLOW = "yellow"
 ALERT_TYPE_RED = "red"
 ALERT_TYPES = (ALERT_TYPE_YELLOW, ALERT_TYPE_RED)
 ALERT_COLORS = {
-    ALERT_TYPE_YELLOW: "#facc15",
-    ALERT_TYPE_RED: "#ef4444",
+    ALERT_TYPE_YELLOW: ALERT_WARNING,
+    ALERT_TYPE_RED: ALERT_CRITICAL,
 }
 
 

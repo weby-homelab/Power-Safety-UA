@@ -44,6 +44,18 @@
             /* Professional Muted Graph Colors */
             --color-graph-fact-on: #14b8a6;
             --color-graph-fact-off: #f43f5e;
+
+            /* Event & state visual identity */
+            --power-up: #14B8A6;
+            --power-down: #F43F5E;
+            --plan-outage: #818CF8;
+            --alert-warning: #F59E0B;
+            --alert-critical: #EF4444;
+            --state-neutral: #334155;
+            --state-unknown: #64748B;
+            --aqi-good: #22C55E;
+            --aqi-moderate: #EAB308;
+            --aqi-unhealthy: #E11D48;
         }
         @media (prefers-color-scheme: light) {
             :root {
@@ -60,6 +72,10 @@
                 /* Light Mode Professional Muted */
                 --color-graph-fact-on: #0f766e;
                 --color-graph-fact-off: #be123c;
+
+                /* Keep semantic names stable while adapting quiet tracks. */
+                --state-neutral: #CBD5E1;
+                --state-unknown: #94A3B8;
             }
         }
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
