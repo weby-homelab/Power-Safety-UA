@@ -1,5 +1,10 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.17] - 2026-09-09
+- **Значок сповіщень (Bell UI):** Виправлено збій інсталяції Service Worker через відсутній ресурс, що блокувало оновлення значка 🔕 ➔ 🔔. Додано миттєвий відгук UI та захист таймаутом для фонової підписки. / Fixed Service Worker installation failure caused by missing asset, enabling immediate notification bell UI feedback and timeout-protected subscriptions.
+- **Перемикач мов (Language switcher):** Значок тепер показує назву наступної мови (EN при активній українській, UA при англійській) з локалізованими підказками. / Language toggle button now shows the next language action (EN when in Ukrainian, UA when in English).
+- **Стійкість Service Worker:** Ізольовано завантаження кешу кожного окремого ресурсу. / Made Service Worker cache installation resilient against individual asset errors.
+
 ## [v3.9.16] - 2026-09-09
 - **Резервні джерела тривог:** Виправлено обробку статусу "відбій" у резервних API (JAAM та Ubilling), щоб відбій коректно фіксувався при недоступності Alerts.in.ua. / Fixed clear alert handling in fallback APIs (JAAM/Ubilling) when primary Alerts.in.ua is unreachable.
 - **Сповіщення при переході Red -> Yellow:** Замінено помилковий тривожний банер на коректне повідомлення про відбій червоного рівня українською мовою з нагадуванням про активний жовтий рівень. / Replaced alarming start banner on Red -> Yellow transition with clear notification in Ukrainian.

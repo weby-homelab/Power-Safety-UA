@@ -1,18 +1,23 @@
-const CACHE_NAME = 'power-safety-v3.8.0';
+const CACHE_NAME = 'power-safety-v3.9.17';
 const ASSETS = [
     '/',
     '/manifest.json',
     '/static/favicon.png',
     '/static/icon-192.png',
     '/static/icon-512.png',
-    '/static/icon.svg',
-    '/static/dashboard_preview.jpg'
+    '/static/icon.svg'
 ];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS);
+        caches.open(CACHE_NAME).then(async (cache) => {
+            for (const asset of ASSETS) {
+                try {
+                    await cache.add(asset);
+                } catch (err) {
+                    console.warn('Failed to cache asset:', asset, err);
+                }
+            }
         }).then(() => {
             return self.skipWaiting();
         })

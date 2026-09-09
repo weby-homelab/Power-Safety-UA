@@ -186,3 +186,40 @@ def test_safety_net_react_invalid_token(mock_compare, mock_state):
         headers={"X-Admin-Token": "bad_token"},
     )
     assert response.status_code == 403
+
+
+def test_service_worker_assets_availability():
+    """Verify all assets declared in service-worker.js return HTTP 200."""
+    sw_response = client.get("/service-worker.js")
+    assert sw_response.status_code == 200
+    sw_text = sw_response.text
+
+    # Extract asset paths from the JS array
+    import re
+
+    match = re.search(r"const ASSETS = \[(.*?)\];", sw_text, re.DOTALL)
+    assert match is not None, "ASSETS array not found in service-worker.js"
+    assets = [
+        line.strip().strip("'\",")
+        for line in match.group(1).splitlines()
+        if line.strip().strip("'\",")
+    ]
+
+    for asset in assets:
+        resp = client.get(asset)
+        assert resp.status_code == 200, f"Asset {asset} returned {resp.status_code}"
+
+
+@patch("app.main.get_power_events_data")
+def test_index_html_buttons_and_lang(mock_events):
+    """Verify index.html contains bell-btn and lang-btn with expected initial next language."""
+    mock_events.return_value = []
+    response = client.get("/")
+    assert response.status_code == 200
+    html = response.text
+
+    assert 'id="bell-btn"' in html
+    assert 'id="lang-btn"' in html
+    assert ">EN</div>" in html
+    assert "toggleNotifications()" in html
+    assert "toggleLang()" in html
