@@ -66,6 +66,9 @@ from app.light_service import (  # noqa: E402
     get_telegram_token,
     get_telegram_channel_id_cfg,
     KYIV_TZ,
+    PLAN_ICON,
+    POWER_DOWN_ICON,
+    POWER_UP_ICON,
 )
 
 from app.push_service import (  # noqa: E402
@@ -482,12 +485,16 @@ async def get_power_events_data(limit=5, lang="ua"):
         or "unknown" in next_range.lower()
     ):
         latest_event_text = (
-            "• No outages scheduled 🔆"
+            f"• {PLAN_ICON} No outages scheduled {POWER_UP_ICON}"
             if lang == "en"
-            else "• Відключення не плануються 🔆"
+            else f"• {PLAN_ICON} Відключення не плануються {POWER_UP_ICON}"
         )
     else:
-        prefix = "• Next scheduled: " if lang == "en" else "• Наступне планове: "
+        prefix = (
+            f"• {PLAN_ICON} Next scheduled: "
+            if lang == "en"
+            else f"• {PLAN_ICON} Наступне планове: "
+        )
         latest_event_text = f"{prefix}{next_range}"
 
     try:
@@ -510,7 +517,7 @@ async def get_power_events_data(limit=5, lang="ua"):
                 dur_sec = log.get("duration_prev")
 
                 dt_str = datetime.fromtimestamp(ts).strftime("%d.%m %H:%M")
-                icon = "🟢" if evt == "up" else "🔴"
+                icon = POWER_UP_ICON if evt == "up" else POWER_DOWN_ICON
                 if lang == "en":
                     text = "Power restored" if evt == "up" else "Power outage"
                     pre_text = "offline" if evt == "up" else "online"
@@ -632,13 +639,15 @@ async def get_power_events_data(limit=5, lang="ua"):
                 or "unknown" in next_range.lower()
             ):
                 latest_event_text = (
-                    "• No outages scheduled 🔆"
+                    f"• {PLAN_ICON} No outages scheduled {POWER_UP_ICON}"
                     if lang == "en"
-                    else "• Відключення не плануються 🔆"
+                    else f"• {PLAN_ICON} Відключення не плануються {POWER_UP_ICON}"
                 )
             else:
                 prefix = (
-                    "• Next scheduled: " if lang == "en" else "• Наступне планове: "
+                    f"• {PLAN_ICON} Next scheduled: "
+                    if lang == "en"
+                    else f"• {PLAN_ICON} Наступне планове: "
                 )
                 latest_event_text = f"{prefix}{next_range}"
 
@@ -758,7 +767,9 @@ def render_day_schedule_html(slots, date_obj, lang="ua"):
     res.append("<div class='schedule-columns'>")
 
     # Column ON
-    on_header = "Power ON 🔆 " if lang == "en" else "Увімкнення 🔆 "
+    on_header = (
+        f"Power ON {POWER_UP_ICON} " if lang == "en" else f"Увімкнення {POWER_UP_ICON} "
+    )
     res.append("<div class='schedule-col'>")
     res.append(f"<div class='col-header on'>{on_header}{fmt_dur(total_on)}</div>")
     for inv in intervals_on:
@@ -768,7 +779,11 @@ def render_day_schedule_html(slots, date_obj, lang="ua"):
     res.append("</div>")
 
     # Column OFF
-    off_header = "Power OFF ✖️ " if lang == "en" else "Вимкнення ✖️ "
+    off_header = (
+        f"Power OFF {POWER_DOWN_ICON} "
+        if lang == "en"
+        else f"Вимкнення {POWER_DOWN_ICON} "
+    )
     res.append("<div class='schedule-col'>")
     res.append(f"<div class='col-header off'>{off_header}{fmt_dur(total_off)}</div>")
     for inv in intervals_off:

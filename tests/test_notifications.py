@@ -305,6 +305,8 @@ class TestFormatEventMessageEdgeCases:
                 ):
                     msg = format_event_message(True, now, prev)
                     assert "не плануються" in msg
+                    assert "🗓️" in msg
+                    assert "💡" in msg
 
     def test_format_down_with_no_schedule_at_all(self):
         """Down event from region without scheduled outages."""

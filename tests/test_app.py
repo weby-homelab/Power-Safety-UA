@@ -71,7 +71,7 @@ def test_get_wind_label_localization():
 
 
 def test_render_day_schedule_html_localization():
-    slots = [True] * 48
+    slots = [True] * 24 + [False] * 24
     date_obj = datetime.date(2026, 6, 5)
 
     html_ua = app.main.render_day_schedule_html(slots, date_obj, lang="ua")
@@ -80,6 +80,8 @@ def test_render_day_schedule_html_localization():
     assert "Червня" in html_ua
     assert "June" in html_en
     assert "Power ON" in html_en
+    assert "Power ON 💡" in html_en
+    assert "Power OFF ⚡️" in html_en
     assert "Увімкнення" in html_ua
 
 

@@ -9,6 +9,7 @@ from matplotlib.axes import Axes
 from PIL import Image
 
 from app.reports import daily, weekly
+from app.reports import text as text_report
 
 from app.reports.visual import (
     ALERT_CRITICAL,
@@ -123,6 +124,8 @@ def test_dashboard_uses_non_color_state_identity_and_quiet_alerts():
     assert "alertData.status === 'unknown'" in template
     assert "alertData.status === 'clear'" in template
     assert "Kyiv" in template
+    assert 'id="schedule-grid"' in template
+    assert "scheduleGridLabel" in template
     assert "var(--alert-warning)" in template
     assert "var(--alert-critical)" in template
     assert "data.light_state" in template
@@ -161,6 +164,20 @@ def test_weekly_caption_uses_domain_icons_and_keeps_alert_breakdown():
     assert "🚨 <b>Повітряні тривоги" in source
     assert "Жовтий рівень" in source
     assert "Червоний рівень" in source
+
+
+def test_text_schedule_report_uses_domain_icons_without_breaking_overrides():
+    intervals = text_report.get_all_intervals([True, False] + [True] * 46)
+
+    default_block = text_report.generate_day_block(True, intervals, {})
+    custom_block = text_report.generate_day_block(
+        True, intervals, {"ui": {"icons": {"on": "ON", "off": "OFF"}}}
+    )
+
+    assert "💡" in default_block
+    assert "⚡️" in default_block
+    assert "ON" in custom_block
+    assert "OFF" in custom_block
 
 
 KYIV_TZ = ZoneInfo("Europe/Kyiv")

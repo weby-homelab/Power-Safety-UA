@@ -325,6 +325,8 @@
             <div class="chart-wrap" onclick="zoomImage(this.querySelector('img').src)"><img id="weekly-chart" src="/static/weekly.png"></div>
         </div>
         <div class="section-header" id="group-schedule-header">Графік</div>
+        <div class="grid-labels" aria-hidden="true"><span>00:00</span><span>12:00</span><span>24:00</span></div>
+        <div id="schedule-grid" class="schedule-grid" role="img" aria-label="Планові відключення"></div>
         <div id="schedule-text" class="schedule-text">...</div>
         
         <footer>
@@ -382,6 +384,7 @@
                 alertPushStart: "Початок повітряної тривоги!",
                 alertPushEnd: "Відбій тривоги",
                 groupHeader: "Графік групи",
+                scheduleGridLabel: "Планові відключення",
                 airLabel: "Повітря",
                 airQualityLabel: "Якість повітря",
                                 windUnit: "км/год",
@@ -427,6 +430,7 @@
                 alertPushStart: "Air raid alert started!",
                 alertPushEnd: "Alert cleared",
                 groupHeader: "Schedule Group",
+                scheduleGridLabel: "Planned outage schedule",
                 airLabel: "Air",
                 airQualityLabel: "Air Quality",
                 windUnit: "km/h",
@@ -501,6 +505,9 @@
                     aqiLoc.innerText = currentLang === 'ua' ? 'Якість повітря' : 'Air Quality';
                 }
             }
+
+            const scheduleGrid = document.getElementById('schedule-grid');
+            if (scheduleGrid) scheduleGrid.setAttribute('aria-label', t.scheduleGridLabel);
 
             // Update bell UI title/icon
             updateBellUI();

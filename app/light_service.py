@@ -762,7 +762,7 @@ def format_event_message(is_up, event_time, prev_event_time):
         interval_line = f"🗓 ({next_info['interval']})"
     else:
         if is_up:
-            wait_line = "❌ Відключення не плануються 🔆"
+            wait_line = f"{PLAN_ICON} Відключення не плануються {POWER_UP_ICON}"
         else:
             wait_line = f"{wait_prefix} невідомий час 🤷‍♂️"
 
