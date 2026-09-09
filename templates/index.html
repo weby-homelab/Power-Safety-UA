@@ -732,9 +732,17 @@
                  // Alert level: red takes precedence when both levels are active.
                  const aCard = document.getElementById('alert-card');
                  const alertData = data.alert || {};
-                 const alertType = alertData.type || 'clear';
-                 const isAlert = alertType === 'red' || alertType === 'yellow';
-                 const alertLocation = alertData.location ? ` ${alertData.location}` : '';
+                 const alertType = alertData.type || (
+                      alertData.status === 'active' ? 'red'
+                      : alertData.status === 'warning' ? 'yellow'
+                      : alertData.status === 'unknown' ? 'unknown'
+                      : 'clear'
+                  );
+                  const alertLocationValue = alertData.location || '';
+                  const alertLocation = currentLang === 'en' && alertLocationValue === 'м. Київ'
+                      ? ' Kyiv'
+                      : alertLocationValue ? ` ${alertLocationValue}` : '';
+                  const isAlert = alertType === 'red' || alertType === 'yellow';
                  if (aCard) {
                      if (alertType === 'red') {
                          aCard.className = 'card alert-red';

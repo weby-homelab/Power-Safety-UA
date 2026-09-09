@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
 from matplotlib.axes import Axes
+from PIL import Image
 
 from app.reports import daily, weekly
 
@@ -114,6 +115,10 @@ def test_dashboard_uses_non_color_state_identity_and_quiet_alerts():
     assert "lightUnknown" in template
     assert "alert-clear" in template
     assert "alert-unknown" in template
+    assert "alertData.status === 'active'" in template
+    assert "alertData.status === 'warning'" in template
+    assert "alertData.status === 'unknown'" in template
+    assert "Kyiv" in template
     assert "var(--alert-warning)" in template
     assert "var(--alert-critical)" in template
     assert "data.light_state" in template
@@ -420,3 +425,80 @@ def test_weekly_chart_keeps_all_dark_light_ua_en_filenames(tmp_path):
                 target_date, daily_data, theme=theme, lang=lang
             )
             assert filename.endswith(suffix)
+
+
+def _color_bbox(image: Image.Image, color: tuple[int, int, int]):
+    points = [
+        (x, y)
+        for y in range(image.height)
+        for x in range(image.width)
+        if image.getpixel((x, y)) == color
+    ]
+    assert points
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    return min(xs), min(ys), max(xs) + 1, max(ys) + 1
+
+
+def test_real_daily_and_weekly_pngs_keep_hatches_after_downscale(tmp_path):
+    target_date, intervals, schedule_intervals, alert_intervals = _daily_fixture(
+        tmp_path
+    )
+    fixed_now = datetime.datetime(2026, 4, 7, tzinfo=KYIV_TZ)
+    daily_calls, daily_capture = _capture_broken_barh()
+    weekly_calls, weekly_capture = _capture_broken_barh()
+    daily_path = None
+    weekly_path = None
+
+    with (
+        patch.object(daily, "DATA_DIR", str(tmp_path)),
+        patch.object(daily, "get_now", return_value=fixed_now),
+        patch.object(daily.requests, "get", return_value=Mock(status_code=500)),
+        patch.object(Axes, "broken_barh", new=daily_capture),
+    ):
+        daily_path, _, _ = daily.generate_chart(
+            target_date,
+            intervals,
+            schedule_intervals,
+            alert_intervals,
+            theme="dark",
+            lang="ua",
+        )
+
+    with (
+        patch.object(weekly, "DATA_DIR", str(tmp_path)),
+        patch.object(weekly, "get_now", return_value=fixed_now),
+        patch.object(
+            weekly, "get_schedule_slots", return_value=[True] * 40 + [False] * 8
+        ),
+        patch.object(weekly, "get_alert_intervals", return_value=alert_intervals),
+        patch.object(weekly.requests, "get", return_value=Mock(status_code=500)),
+        patch.object(Axes, "broken_barh", new=weekly_capture),
+    ):
+        weekly_path = weekly.generate_weekly_chart(
+            target_date,
+            [{"date": target_date, "intervals": intervals}],
+            theme="dark",
+            lang="ua",
+        )
+
+    assert any(kwargs.get("hatch") == HATCH_PLAN for _, kwargs in daily_calls)
+    assert any(kwargs.get("hatch") == HATCH_UNKNOWN for _, kwargs in daily_calls)
+    assert any(kwargs.get("hatch") == HATCH_PLAN for _, kwargs in weekly_calls)
+    assert any(kwargs.get("hatch") == HATCH_UNKNOWN for _, kwargs in weekly_calls)
+
+    for path, size in (
+        (Path(daily_path), (1000, 280)),
+        (Path(weekly_path), (1000, 550)),
+    ):
+        with Image.open(path) as source:
+            image = source.convert("RGB")
+            assert image.size == size
+            assert image.getbbox() is not None
+            bbox = _color_bbox(image, (129, 140, 248))
+            mobile = image.resize(
+                (600, round(image.height * 600 / image.width)), Image.Resampling.LANCZOS
+            )
+            mobile_bbox = tuple(round(value * 0.6) for value in bbox)
+            mobile_crop = mobile.crop(mobile_bbox)
+            assert len(set(mobile_crop.getdata())) >= 8
