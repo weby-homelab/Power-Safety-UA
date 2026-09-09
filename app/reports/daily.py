@@ -365,7 +365,7 @@ def generate_chart(
             if target_day_metrics:
                 for idx, item in enumerate(target_day_metrics):
                     ts = item.get("timestamp", 0)
-                    aqi_val = item.get("aqi", 0)
+                    aqi_val = item.get("aqi")
 
                     color = get_aqi_color(aqi_val, unknown_color=report_palette.unknown)
 

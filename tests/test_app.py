@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 import datetime
-from unittest.mock import patch
+import asyncio
+from unittest.mock import AsyncMock, patch
 
 # Mock some dependencies before importing app
 with patch("scripts.bootstrap.perform_cold_start_if_needed"):
@@ -223,3 +224,52 @@ def test_index_html_buttons_and_lang(mock_events):
     assert ">EN</div>" in html
     assert "toggleNotifications()" in html
     assert "toggleLang()" in html
+
+
+def test_api_status_keeps_legacy_light_and_exposes_unknown_state():
+    original_status = app.main.state.get("status")
+    original_cache = app.main._api_status_cache
+    app.main.state["status"] = "unknown"
+    app.main._api_status_cache = None
+
+    async def fake_to_thread(func, *args, **kwargs):
+        name = getattr(func, "__name__", "")
+        if name == "get_today_schedule_text":
+            return "schedule"
+        if name == "get_air_raid_alert":
+            return {
+                "type": "clear",
+                "status": "clear",
+                "types": [],
+                "location": "Тривоги немає",
+            }
+        if name == "_read_group_name":
+            return "G1"
+        if name == "_read_schedule_slots":
+            return [True] * 48
+        raise AssertionError(f"Unexpected worker function: {name}")
+
+    def fake_setting(section, key, default=None):
+        if key in {"show_aq", "show_radiation"}:
+            return False
+        return default
+
+    try:
+        with (
+            patch.object(app.main, "load_state", new=AsyncMock()),
+            patch.object(
+                app.main,
+                "get_power_events_data",
+                new=AsyncMock(return_value=("latest", [])),
+            ),
+            patch.object(app.main, "get_advanced_setting", side_effect=fake_setting),
+            patch.object(app.main.asyncio, "to_thread", new=fake_to_thread),
+        ):
+            result = asyncio.run(app.main.api_status(lang="en"))
+    finally:
+        app.main.state["status"] = original_status
+        app.main._api_status_cache = original_cache
+
+    assert result["light"] == "off"
+    assert result["light_state"] == "unknown"
+    assert result["alert"]["type"] == "clear"

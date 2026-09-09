@@ -291,7 +291,7 @@
             </div>
         </div>
         
-        <div id="alert-card" class="card alert-clear" data-state="clear" role="status" aria-live="polite"><div class="status-row"><div class="status-icon" id="alert-icon">✅ 🛡️</div><div class="status-info"><div class="status-title" id="alert-val">---</div><div class="status-desc" id="alert-status">...</div></div></div></div>
+        <div id="alert-card" class="card alert-unknown" data-state="unknown" role="status" aria-live="polite"><div class="status-row"><div class="status-icon" id="alert-icon">❔</div><div class="status-info"><div class="status-title" id="alert-val">---</div><div class="status-desc" id="alert-status">...</div></div></div></div>
         <div class="card" style="padding: 0; height: 320px; border: none; background: #000;"><iframe id="alert-map" src="https://alerts.in.ua/?minimal=true" width="100%" height="100%" frameborder="0" style="border:0;" allowfullscreen></iframe></div>
         
         <div id="aq-block">
@@ -736,7 +736,8 @@
                       alertData.status === 'active' ? 'red'
                       : alertData.status === 'warning' ? 'yellow'
                       : alertData.status === 'unknown' ? 'unknown'
-                      : 'clear'
+                      : alertData.status === 'clear' ? 'clear'
+                      : 'unknown'
                   );
                   const alertLocationValue = alertData.location || '';
                   const alertLocation = currentLang === 'en' && alertLocationValue === 'м. Київ'

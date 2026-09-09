@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 
 
@@ -72,6 +73,8 @@ def get_aqi_color(value, unknown_color: str = UNKNOWN_DARK) -> str:
     try:
         aqi_value = float(value)
     except (TypeError, ValueError):
+        return unknown_color
+    if not math.isfinite(aqi_value):
         return unknown_color
 
     if aqi_value <= 50:

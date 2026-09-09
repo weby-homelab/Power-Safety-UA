@@ -78,6 +78,8 @@ def test_plan_outage_uses_hatch_and_normal_plan_uses_neutral_track():
 
 
 def test_aqi_thresholds_do_not_reuse_air_alert_red():
+    assert get_aqi_color(None) == UNKNOWN_DARK
+    assert get_aqi_color(float("nan")) == UNKNOWN_DARK
     assert get_aqi_color(50) == AQI_GOOD
     assert get_aqi_color(51) == AQI_MODERATE
     assert get_aqi_color(100) == AQI_MODERATE
@@ -115,9 +117,11 @@ def test_dashboard_uses_non_color_state_identity_and_quiet_alerts():
     assert "lightUnknown" in template
     assert "alert-clear" in template
     assert "alert-unknown" in template
+    assert 'class="card alert-unknown"' in template
     assert "alertData.status === 'active'" in template
     assert "alertData.status === 'warning'" in template
     assert "alertData.status === 'unknown'" in template
+    assert "alertData.status === 'clear'" in template
     assert "Kyiv" in template
     assert "var(--alert-warning)" in template
     assert "var(--alert-critical)" in template
