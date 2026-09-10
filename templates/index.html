@@ -679,12 +679,18 @@
             }
         }
 
-        function getAqiColorToken(value) {
+        function normalizeAqiValue(value) {
             if (value === null || value === undefined || value === '' || typeof value === 'boolean') {
-                return 'var(--state-unknown)';
+                return null;
             }
             const numericValue = Number(value);
-            if (!Number.isFinite(numericValue) || numericValue < 0) return 'var(--state-unknown)';
+            if (!Number.isFinite(numericValue) || numericValue < 0) return null;
+            return numericValue;
+        }
+
+        function getAqiColorToken(value) {
+            const numericValue = normalizeAqiValue(value);
+            if (numericValue === null) return 'var(--state-unknown)';
             if (numericValue > 100) return 'var(--aqi-unhealthy)';
             if (numericValue > 50) return 'var(--aqi-moderate)';
             return 'var(--aqi-good)';
@@ -819,20 +825,21 @@
                 const aqBlock = document.getElementById('aq-block');
                 if (aqBlock) {
                     if (data.aqi) {
+                        const normalizedAqi = normalizeAqiValue(data.aqi.aqi);
                         aqBlock.style.display = 'block';
                         const aqiNum = document.getElementById('aqi-num');
                         if (aqiNum) {
-                            aqiNum.innerText = data.aqi.aqi;
+                            aqiNum.innerText = normalizedAqi === null ? '--' : normalizedAqi;
                             aqiNum.style.color = getAqiColorToken(data.aqi.aqi);
                         }
                         const aqiText = document.getElementById('aqi-text');
                         if (aqiText) {
-                            aqiText.innerText = data.aqi.text;
+                            aqiText.innerText = normalizedAqi === null ? '--' : (data.aqi.text || '--');
                             aqiText.style.color = getAqiColorToken(data.aqi.aqi);
                         }
                         const aqiBar = document.getElementById('aqi-bar');
                         if (aqiBar) {
-                            const barWidth = Math.min((data.aqi.aqi / 300) * 100, 100);
+                            const barWidth = normalizedAqi === null ? 0 : Math.min((normalizedAqi / 300) * 100, 100);
                             aqiBar.style.width = barWidth + '%';
                             aqiBar.style.backgroundColor = getAqiColorToken(data.aqi.aqi);
                         }
@@ -919,12 +926,18 @@
                         chartArea.innerHTML = '';
                     }
 
-                    const maxVal = Math.max(100, ...data.aqi.history_hourly);
-                    
-                    data.aqi.history_hourly.forEach((val, idx) => {
-                        const h = Math.max(4, (val / maxVal) * 44);
-                        const color = getAqiColorToken(val);
-                        const timeStr = data.aqi.history_times ? data.aqi.history_times[idx] : '';
+                    const numericHistory = data.aqi.history_hourly
+                         .map(normalizeAqiValue)
+                         .filter((value) => value !== null);
+                     const maxVal = Math.max(100, ...numericHistory);
+
+                     data.aqi.history_hourly.forEach((val, idx) => {
+                         const normalizedValue = normalizeAqiValue(val);
+                         const h = normalizedValue === null
+                             ? 4
+                             : Math.max(4, (normalizedValue / maxVal) * 44);
+                         const color = getAqiColorToken(normalizedValue);
+                         const timeStr = data.aqi.history_times ? data.aqi.history_times[idx] : '';
 
                         const barWrap = document.createElement('div');
                         barWrap.style.width = '5px';

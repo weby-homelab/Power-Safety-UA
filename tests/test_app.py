@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 import datetime
 import asyncio
+import json
 from unittest.mock import AsyncMock, patch
 
 # Mock some dependencies before importing app
@@ -301,3 +302,43 @@ def test_power_events_data_marks_unavailable_schedule_as_unknown():
 
     assert "Графік невідомий" in ua_text
     assert "Schedule unknown" in en_text
+
+
+def test_power_events_data_does_not_infer_outage_from_unknown_state():
+    original_status = app.main.state.get("status")
+    app.main.state["status"] = "unknown"
+    try:
+        with (
+            patch.object(
+                app.main,
+                "get_schedule_context",
+                return_value=(True, "24:00", "відключення не плануються", None, False),
+            ),
+            patch.object(
+                app.main,
+                "_read_event_log_raw",
+                return_value=[{"timestamp": 1, "event": "down"}],
+            ),
+            patch.object(app.main, "load_state", new=AsyncMock()),
+        ):
+            ua_text, events = asyncio.run(app.main.get_power_events_data(lang="ua"))
+    finally:
+        app.main.state["status"] = original_status
+
+    assert "Стан світла невідомий" in ua_text
+    assert events[0]["icon"] == "⚡️"
+
+
+def test_schedule_reader_rejects_partial_and_string_slots(tmp_path):
+    date_key = datetime.datetime.now(app.main.KYIV_TZ).strftime("%Y-%m-%d")
+    payload = {
+        "github": {"G1": {date_key: {"slots": [True, "false"] * 24}}},
+        "yasno": {"G1": {date_key: {"slots": [True, False]}}},
+    }
+    (tmp_path / "last_schedules.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with patch.object(app.main, "DATA_DIR", str(tmp_path)):
+        slots, schedule_known = app.main._read_schedule_slots_with_status()
+
+    assert slots == [True] * 48
+    assert schedule_known is False

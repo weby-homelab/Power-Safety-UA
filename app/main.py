@@ -525,13 +525,22 @@ async def get_power_events_data(limit=5, lang="ua"):
                 dur_sec = log.get("duration_prev")
 
                 dt_str = datetime.fromtimestamp(ts).strftime("%d.%m %H:%M")
-                icon = POWER_UP_ICON if evt == "up" else POWER_DOWN_ICON
-                if lang == "en":
-                    text = "Power restored" if evt == "up" else "Power outage"
-                    pre_text = "offline" if evt == "up" else "online"
+                if evt == "up":
+                    icon = POWER_UP_ICON
+                    text = "Power restored" if lang == "en" else "Світло з'явилося"
+                    pre_text = "offline" if lang == "en" else "не було"
+                elif evt == "down":
+                    icon = POWER_DOWN_ICON
+                    text = "Power outage" if lang == "en" else "Світло зникло"
+                    pre_text = "online" if lang == "en" else "було"
                 else:
-                    text = "Світло з'явилося" if evt == "up" else "Світло зникло"
-                    pre_text = "не було" if evt == "up" else "було"
+                    icon = UNKNOWN_ICON
+                    text = (
+                        "Power status unknown"
+                        if lang == "en"
+                        else "Стан світла невідомий"
+                    )
+                    pre_text = ""
 
                 dur_str = format_duration(dur_sec, lang=lang) if dur_sec else ""
 
@@ -547,6 +556,14 @@ async def get_power_events_data(limit=5, lang="ua"):
             # Construct current status text
             await load_state()
             status = state.get("status", "unknown")
+
+            if status not in {"up", "down"}:
+                latest_event_text = (
+                    f"• {UNKNOWN_ICON} Power status unknown"
+                    if lang == "en"
+                    else f"• {UNKNOWN_ICON} Стан світла невідомий"
+                )
+                return latest_event_text, recent_events
 
             target_evt = "up" if status == "up" else "down"
 
@@ -1369,6 +1386,14 @@ def _read_group_name() -> str:
     return "---"
 
 
+def _valid_schedule_slots(value) -> bool:
+    return (
+        isinstance(value, list)
+        and len(value) == 48
+        and all(isinstance(slot, bool) for slot in value)
+    )
+
+
 def _read_schedule_slots_with_status() -> tuple[list, bool]:
     """Sync: read current day schedule slots from last_schedules.json."""
     now = datetime.now(KYIV_TZ)
@@ -1387,7 +1412,7 @@ def _read_schedule_slots_with_status() -> tuple[list, bool]:
                         continue
                     g_key = list(s.keys())[0]
                     day_data = s.get(g_key, {}).get(date_str, {}).get("slots")
-                    if day_data:
+                    if _valid_schedule_slots(day_data):
                         if merged is None:
                             merged = list(day_data)
                         else:
