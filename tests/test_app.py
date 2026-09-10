@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 import datetime
-from unittest.mock import patch
+import asyncio
+import json
+from unittest.mock import AsyncMock, patch
 
 # Mock some dependencies before importing app
 with patch("scripts.bootstrap.perform_cold_start_if_needed"):
@@ -70,7 +72,7 @@ def test_get_wind_label_localization():
 
 
 def test_render_day_schedule_html_localization():
-    slots = [True] * 48
+    slots = [True] * 24 + [False] * 24
     date_obj = datetime.date(2026, 6, 5)
 
     html_ua = app.main.render_day_schedule_html(slots, date_obj, lang="ua")
@@ -79,6 +81,8 @@ def test_render_day_schedule_html_localization():
     assert "Червня" in html_ua
     assert "June" in html_en
     assert "Power ON" in html_en
+    assert "Power ON 💡" in html_en
+    assert "Power OFF ⚡️" in html_en
     assert "Увімкнення" in html_ua
 
 
@@ -223,3 +227,118 @@ def test_index_html_buttons_and_lang(mock_events):
     assert ">EN</div>" in html
     assert "toggleNotifications()" in html
     assert "toggleLang()" in html
+
+
+def test_api_status_keeps_legacy_light_and_exposes_unknown_state():
+    original_status = app.main.state.get("status")
+    original_cache = app.main._api_status_cache
+    app.main.state["status"] = "unknown"
+    app.main._api_status_cache = None
+
+    async def fake_to_thread(func, *args, **kwargs):
+        name = getattr(func, "__name__", "")
+        if name == "get_today_schedule_text":
+            return "schedule"
+        if name == "get_air_raid_alert":
+            return {
+                "type": "clear",
+                "status": "clear",
+                "types": [],
+                "location": "Тривоги немає",
+            }
+        if name == "_read_group_name":
+            return "G1"
+        if name == "_read_schedule_slots":
+            return [True] * 48
+        if name == "_read_schedule_slots_with_status":
+            return [True] * 48, False
+        raise AssertionError(f"Unexpected worker function: {name}")
+
+    def fake_setting(section, key, default=None):
+        if key in {"show_aq", "show_radiation"}:
+            return False
+        return default
+
+    try:
+        with (
+            patch.object(app.main, "load_state", new=AsyncMock()),
+            patch.object(
+                app.main,
+                "get_power_events_data",
+                new=AsyncMock(return_value=("latest", [])),
+            ),
+            patch.object(app.main, "get_advanced_setting", side_effect=fake_setting),
+            patch.object(app.main.asyncio, "to_thread", new=fake_to_thread),
+        ):
+            result = asyncio.run(app.main.api_status(lang="en"))
+    finally:
+        app.main.state["status"] = original_status
+        app.main._api_status_cache = original_cache
+
+    assert result["light"] == "off"
+    assert result["light_state"] == "unknown"
+    assert result["alert"]["type"] == "clear"
+
+
+def test_schedule_reader_keeps_legacy_slots_and_reports_missing_data():
+    with patch("app.main.os.path.exists", return_value=False):
+        slots, schedule_known = app.main._read_schedule_slots_with_status()
+
+    assert slots == [True] * 48
+    assert schedule_known is False
+
+
+def test_power_events_data_marks_unavailable_schedule_as_unknown():
+    with (
+        patch.object(
+            app.main,
+            "get_schedule_context",
+            return_value=(None, None, "Невідомо", None, False),
+        ),
+        patch.object(app.main, "_read_event_log_raw", return_value=[]),
+    ):
+        ua_text, _ = asyncio.run(app.main.get_power_events_data(lang="ua"))
+        en_text, _ = asyncio.run(app.main.get_power_events_data(lang="en"))
+
+    assert "Графік невідомий" in ua_text
+    assert "Schedule unknown" in en_text
+
+
+def test_power_events_data_does_not_infer_outage_from_unknown_state():
+    original_status = app.main.state.get("status")
+    app.main.state["status"] = "unknown"
+    try:
+        with (
+            patch.object(
+                app.main,
+                "get_schedule_context",
+                return_value=(True, "24:00", "відключення не плануються", None, False),
+            ),
+            patch.object(
+                app.main,
+                "_read_event_log_raw",
+                return_value=[{"timestamp": 1, "event": "down"}],
+            ),
+            patch.object(app.main, "load_state", new=AsyncMock()),
+        ):
+            ua_text, events = asyncio.run(app.main.get_power_events_data(lang="ua"))
+    finally:
+        app.main.state["status"] = original_status
+
+    assert "Стан світла невідомий" in ua_text
+    assert events[0]["icon"] == "⚡️"
+
+
+def test_schedule_reader_rejects_partial_and_string_slots(tmp_path):
+    date_key = datetime.datetime.now(app.main.KYIV_TZ).strftime("%Y-%m-%d")
+    payload = {
+        "github": {"G1": {date_key: {"slots": [True, "false"] * 24}}},
+        "yasno": {"G1": {date_key: {"slots": [True, False]}}},
+    }
+    (tmp_path / "last_schedules.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with patch.object(app.main, "DATA_DIR", str(tmp_path)):
+        slots, schedule_known = app.main._read_schedule_slots_with_status()
+
+    assert slots == [True] * 48
+    assert schedule_known is False

@@ -33,7 +33,7 @@
 
 Ця гілка (`main`) містить **Docker Edition** проєкту, призначену для швидкого, портативного та ізольованого розгортання в будь-якому середовищі. Це повністю контейнеризована версія, яка є стандартом для сучасних серверів.
 
-> **Статус проєкту:** Stable v3.9.18 (Оновлено: 09.2026)
+> **Статус проєкту:** Stable v3.9.21 (Оновлено: 09.2026)
 > **Архітектура:** FastAPI + Docker Compose + JSON Flat-DB & SQLite WAL
 > **Бренд:** Weby Homelab
 
@@ -70,6 +70,15 @@
 *   🟢 **Відбій (Clear):** Автоматична фіксація відбою окремих рівнів або повної відміни небезпеки з точним розрахунком тривалості.
 *   🛡 **Мультиджерельна стійкість:** Інтелектуальне опитування Alerts.in.ua v3 з автоматичною швидкою крос-перевіркою через державний JAAM API та Ubilling API.
 *   🧹 **Фільтр застарілих фантомів (Stale Ghost Alerts Filter):** Автоматичне відсікання старих записів (> 12 годин), що запобігає зависанню хибних тривог при збоях сторонніх скраперів.
+
+### 🎨 Єдина мова подій (Event Visual Grammar)
+Графічні звіти та live dashboard використовують чотири незалежні канали:
+* **Факт** — суцільна смуга; стан світла: teal «є» та rose «немає».
+* **План** — нейтральний трек, а планове відключення позначене indigo і hatch-патерном.
+* **Тривога** — спокійний dotted-трек для clear, amber для warning, red для critical.
+* **Невідомо** — slate + `?`/патерн; **AQI** — тонка environmental-смуга.
+
+> **Сумісність:** report statistics зберігають legacy fallback розкладу без metadata, щоб не змінювати історичну математику; live dashboard показує `Невідомо`, якщо `schedule_known` відсутній або false.
 
 ### 🔔 Сповіщення Web Push & Мовний перемикач
 *   **Дзвіночок сповіщень (`🔕` ➔ `🔔`):** Миттєвий відгук інтерфейсу після надання дозволу браузера, стійке кешування ресурсів Service Worker та безпечна підписка на Web Push з таймаутом.
@@ -215,7 +224,7 @@ description: All-in-one real-time monitoring. Power-Safety-UA — autonomous pow
 applicationCategory: DashboardApplication
 applicationSubCategory: PowerMonitoring
 operatingSystem: Linux
-softwareVersion: 3.9.18
+softwareVersion: 3.9.21
 keywords: power-monitoring, air-raid-alerts, ukraine, fastapi, dashboard, iot, monitoring, blackout, electricity, aqi, air-quality, pwa, real-time, telegram-bot, kyiv, radiation, analytics, automation
 author: Weby Homelab (https://github.com/weby-homelab)
 codeRepository: https://github.com/weby-homelab/Power-Safety-UA

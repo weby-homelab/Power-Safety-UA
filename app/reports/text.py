@@ -7,6 +7,7 @@ import hashlib
 import sys
 from dotenv import load_dotenv
 from app.reports.daily import delete_telegram_message
+from app.reports.visual import PLAN_ICON, POWER_DOWN_ICON, POWER_UP_ICON
 
 # Load environment variables
 load_dotenv()
@@ -125,8 +126,8 @@ def generate_day_block(is_today, intervals, cfg):
         start_str = format_slot_time(disp_start, is_end=False)
         end_str = format_slot_time(disp_end, is_end=True)
 
-        icon = cfg.get("ui", {}).get("icons", {}).get("on", "🔆")
-        off_icon = cfg.get("ui", {}).get("icons", {}).get("off", "✖️")
+        icon = cfg.get("ui", {}).get("icons", {}).get("on", POWER_UP_ICON)
+        off_icon = cfg.get("ui", {}).get("icons", {}).get("off", POWER_DOWN_ICON)
         icon_to_use = icon if inv["state"] else off_icon
 
         duration_text = f"({format_duration(disp_dur)})"
@@ -138,8 +139,8 @@ def generate_day_block(is_today, intervals, cfg):
     lines.extend(day_intervals)
     lines.append("---")
 
-    on_icon = cfg.get("ui", {}).get("icons", {}).get("on", "🔆")
-    off_icon = cfg.get("ui", {}).get("icons", {}).get("off", "✖️")
+    on_icon = cfg.get("ui", {}).get("icons", {}).get("on", POWER_UP_ICON)
+    off_icon = cfg.get("ui", {}).get("icons", {}).get("off", POWER_DOWN_ICON)
     lines.append(f"{on_icon} Світло є: {format_duration(total_on)} год.")
     lines.append(f"{off_icon} Світла нема: {format_duration(total_off)} год.")
     lines.append("---")
@@ -218,16 +219,15 @@ def generate_holiday_report(today_str, tomorrow_str, data, group, icons):
     t_dt = datetime.datetime.strptime(today_str, "%Y-%m-%d")
 
     header = "Світла смуга триває! 🕊️💡"
+    on_icon = icons.get("on", POWER_UP_ICON)
 
     if today_all_on and tomorrow_all_on and tomorrow_str:
         tm_dt = datetime.datetime.strptime(tomorrow_str, "%Y-%m-%d")
         desc = "Сусіди, графіки на сьогодні та завтра нарешті «відпочивають». Маємо повні 48 годин світла без жодних перерв."
-        days_info = f"{t_dt.strftime('%d.%m')} ({DAYS_UA[t_dt.weekday()]}): Світло є 24 год. 🔆\n{tm_dt.strftime('%d.%m')} ({DAYS_UA[tm_dt.weekday()]}): Світло є 24 год. 🔆"
+        days_info = f"{t_dt.strftime('%d.%m')} ({DAYS_UA[t_dt.weekday()]}): Світло є 24 год. {on_icon}\n{tm_dt.strftime('%d.%m')} ({DAYS_UA[tm_dt.weekday()]}): Світло є 24 год. {on_icon}"
     elif today_all_on:
         desc = "Сусіди, графік на сьогодні «відпочиває». Маємо повні 24 години світла без жодних перерв."
-        days_info = (
-            f"{t_dt.strftime('%d.%m')} ({DAYS_UA[t_dt.weekday()]}): Світло є 24 год. 🔆"
-        )
+        days_info = f"{t_dt.strftime('%d.%m')} ({DAYS_UA[t_dt.weekday()]}): Світло є 24 год. {on_icon}"
     else:  # only tomorrow
         return None  # Fallback to standard for mixed days if today has outages
 
@@ -280,7 +280,13 @@ def main():
     groups = cfg.get("settings", {}).get("groups", ["GPV36.1"])
     group = groups[0] if groups else "GPV36.1"
     icons = cfg.get("ui", {}).get(
-        "icons", {"calendar": "📆", "on": "🔆", "off": "✖️", "clock": "🕐"}
+        "icons",
+        {
+            "calendar": PLAN_ICON,
+            "on": POWER_UP_ICON,
+            "off": POWER_DOWN_ICON,
+            "clock": "🕐",
+        },
     )
 
     today_str = now.strftime("%Y-%m-%d")
@@ -374,7 +380,7 @@ def main():
         if not source_blocks:
             continue
 
-        day_title = f"{icons.get('calendar', '📆')}  {dt.strftime('%d.%m')} ({DAYS_UA[dt.weekday()]})"
+        day_title = f"{icons.get('calendar', PLAN_ICON)}  {dt.strftime('%d.%m')} ({DAYS_UA[dt.weekday()]})"
         if len(source_blocks) == 2 and source_blocks[0][1] == source_blocks[1][1]:
             sources_label = f"[{source_blocks[0][0]}, {source_blocks[1][0]}]"
             day_content = f"{day_title}\n{sources_label}\n{source_blocks[0][1]}"

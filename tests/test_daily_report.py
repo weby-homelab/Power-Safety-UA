@@ -21,7 +21,9 @@ def test_build_report_caption_today():
     )
 
     assert "📊 <b>Звіт за 05.03.2026</b>" in caption
-    assert "📉 <b>План vs Факт:</b>" in caption
+    assert "🗓️ <b>План vs Факт:</b>" in caption
+    assert "💡 Факт" in caption
+    assert "🗓️ План" in caption
     assert "На цю хвилину" in caption
     assert "Світла 100% від плану" in caption
 

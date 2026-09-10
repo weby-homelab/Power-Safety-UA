@@ -109,7 +109,7 @@ Database files on the host system (if using bind mounts) are typically located i
 
 1. **Container not starting:** Check if port 5050 is occupied by another service (`netstat -tulpn | grep 5050`).
 2. **Errors in logs:** Run `docker compose logs power-safety-ua-worker` to see parsing or Telegram connection errors.
-3. **Image Version:** Ensure you are using the `latest` tag or a specific version (e.g., `v3.9.18`).
+3. **Image Version:** Ensure you are using the `latest` tag or a specific version (e.g., `3.9.21`).
 
 ---
 ✦ 2026 Weby Homelab ✦ — modern solutions for energy security.

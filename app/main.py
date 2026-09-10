@@ -66,6 +66,9 @@ from app.light_service import (  # noqa: E402
     get_telegram_token,
     get_telegram_channel_id_cfg,
     KYIV_TZ,
+    PLAN_ICON,
+    POWER_DOWN_ICON,
+    POWER_UP_ICON,
 )
 
 from app.push_service import (  # noqa: E402
@@ -74,6 +77,7 @@ from app.push_service import (  # noqa: E402
     send_push_notification,
     VAPID_PUBLIC_KEY,
 )
+from app.reports.visual import UNKNOWN_ICON  # noqa: E402
 from app.storage import StorageUtils  # noqa: E402
 from app.models import (  # noqa: E402
     AdminConfigRequest,
@@ -474,20 +478,31 @@ async def get_power_events_data(limit=5, lang="ua"):
             else "• можливі аварійні відключення ⚠️"
         )
     elif (
-        "не плануються" in next_range.lower()
-        or "невідомий час" in next_range.lower()
+        "невідомий час" in next_range.lower()
         or "час невідомий" in next_range.lower()
         or "час очікується" in next_range.lower()
-        or "no outages" in next_range.lower()
+        or "no schedule" in next_range.lower()
+        or "графік відсутній" in next_range.lower()
+        or "невідомо" in next_range.lower()
         or "unknown" in next_range.lower()
     ):
         latest_event_text = (
-            "• No outages scheduled 🔆"
+            f"• {UNKNOWN_ICON} Schedule unknown"
             if lang == "en"
-            else "• Відключення не плануються 🔆"
+            else f"• {UNKNOWN_ICON} Графік невідомий"
+        )
+    elif "не плануються" in next_range.lower() or "no outages" in next_range.lower():
+        latest_event_text = (
+            f"• {PLAN_ICON} No outages scheduled {POWER_UP_ICON}"
+            if lang == "en"
+            else f"• {PLAN_ICON} Відключення не плануються {POWER_UP_ICON}"
         )
     else:
-        prefix = "• Next scheduled: " if lang == "en" else "• Наступне планове: "
+        prefix = (
+            f"• {PLAN_ICON} Next scheduled: "
+            if lang == "en"
+            else f"• {PLAN_ICON} Наступне планове: "
+        )
         latest_event_text = f"{prefix}{next_range}"
 
     try:
@@ -510,13 +525,22 @@ async def get_power_events_data(limit=5, lang="ua"):
                 dur_sec = log.get("duration_prev")
 
                 dt_str = datetime.fromtimestamp(ts).strftime("%d.%m %H:%M")
-                icon = "🟢" if evt == "up" else "🔴"
-                if lang == "en":
-                    text = "Power restored" if evt == "up" else "Power outage"
-                    pre_text = "offline" if evt == "up" else "online"
+                if evt == "up":
+                    icon = POWER_UP_ICON
+                    text = "Power restored" if lang == "en" else "Світло з'явилося"
+                    pre_text = "offline" if lang == "en" else "не було"
+                elif evt == "down":
+                    icon = POWER_DOWN_ICON
+                    text = "Power outage" if lang == "en" else "Світло зникло"
+                    pre_text = "online" if lang == "en" else "було"
                 else:
-                    text = "Світло з'явилося" if evt == "up" else "Світло зникло"
-                    pre_text = "не було" if evt == "up" else "було"
+                    icon = UNKNOWN_ICON
+                    text = (
+                        "Power status unknown"
+                        if lang == "en"
+                        else "Стан світла невідомий"
+                    )
+                    pre_text = ""
 
                 dur_str = format_duration(dur_sec, lang=lang) if dur_sec else ""
 
@@ -532,6 +556,14 @@ async def get_power_events_data(limit=5, lang="ua"):
             # Construct current status text
             await load_state()
             status = state.get("status", "unknown")
+
+            if status not in {"up", "down"}:
+                latest_event_text = (
+                    f"• {UNKNOWN_ICON} Power status unknown"
+                    if lang == "en"
+                    else f"• {UNKNOWN_ICON} Стан світла невідомий"
+                )
+                return latest_event_text, recent_events
 
             target_evt = "up" if status == "up" else "down"
 
@@ -624,21 +656,33 @@ async def get_power_events_data(limit=5, lang="ua"):
             elif wait_line:
                 latest_event_text = f"{wait_line}"
             elif (
-                "не плануються" in next_range.lower()
-                or "невідомий час" in next_range.lower()
+                "невідомий час" in next_range.lower()
                 or "час невідомий" in next_range.lower()
                 or "час очікується" in next_range.lower()
-                or "no outages" in next_range.lower()
+                or "no schedule" in next_range.lower()
+                or "графік відсутній" in next_range.lower()
+                or "невідомо" in next_range.lower()
                 or "unknown" in next_range.lower()
             ):
                 latest_event_text = (
-                    "• No outages scheduled 🔆"
+                    f"• {UNKNOWN_ICON} Schedule unknown"
                     if lang == "en"
-                    else "• Відключення не плануються 🔆"
+                    else f"• {UNKNOWN_ICON} Графік невідомий"
+                )
+            elif (
+                "не плануються" in next_range.lower()
+                or "no outages" in next_range.lower()
+            ):
+                latest_event_text = (
+                    f"• {PLAN_ICON} No outages scheduled {POWER_UP_ICON}"
+                    if lang == "en"
+                    else f"• {PLAN_ICON} Відключення не плануються {POWER_UP_ICON}"
                 )
             else:
                 prefix = (
-                    "• Next scheduled: " if lang == "en" else "• Наступне планове: "
+                    f"• {PLAN_ICON} Next scheduled: "
+                    if lang == "en"
+                    else f"• {PLAN_ICON} Наступне планове: "
                 )
                 latest_event_text = f"{prefix}{next_range}"
 
@@ -758,7 +802,9 @@ def render_day_schedule_html(slots, date_obj, lang="ua"):
     res.append("<div class='schedule-columns'>")
 
     # Column ON
-    on_header = "Power ON 🔆 " if lang == "en" else "Увімкнення 🔆 "
+    on_header = (
+        f"Power ON {POWER_UP_ICON} " if lang == "en" else f"Увімкнення {POWER_UP_ICON} "
+    )
     res.append("<div class='schedule-col'>")
     res.append(f"<div class='col-header on'>{on_header}{fmt_dur(total_on)}</div>")
     for inv in intervals_on:
@@ -768,7 +814,11 @@ def render_day_schedule_html(slots, date_obj, lang="ua"):
     res.append("</div>")
 
     # Column OFF
-    off_header = "Power OFF ✖️ " if lang == "en" else "Вимкнення ✖️ "
+    off_header = (
+        f"Power OFF {POWER_DOWN_ICON} "
+        if lang == "en"
+        else f"Вимкнення {POWER_DOWN_ICON} "
+    )
     res.append("<div class='schedule-col'>")
     res.append(f"<div class='col-header off'>{off_header}{fmt_dur(total_off)}</div>")
     for inv in intervals_off:
@@ -859,8 +909,8 @@ def get_today_schedule_text(lang="ua"):
 
         if today_slots is None and not emergency_sources:
             if lang == "en":
-                return "🟢 <b>No schedule</b><br><br>No outages scheduled (or data is not updated yet)."
-            return "🟢 <b>Графік відсутній</b><br><br>Відключень не передбачається (або дані ще не оновлено)."
+                return f"{UNKNOWN_ICON} <b>No schedule</b><br><br>Schedule data is unavailable or not updated yet."
+            return f"{UNKNOWN_ICON} <b>Графік відсутній</b><br><br>Дані графіка недоступні або ще не оновлені."
 
         output = []
 
@@ -1336,11 +1386,20 @@ def _read_group_name() -> str:
     return "---"
 
 
-def _read_schedule_slots() -> list:
+def _valid_schedule_slots(value) -> bool:
+    return (
+        isinstance(value, list)
+        and len(value) == 48
+        and all(isinstance(slot, bool) for slot in value)
+    )
+
+
+def _read_schedule_slots_with_status() -> tuple[list, bool]:
     """Sync: read current day schedule slots from last_schedules.json."""
     now = datetime.now(KYIV_TZ)
     date_str = now.strftime("%Y-%m-%d")
     slots = [True] * 48
+    schedule_known = False
     sched_file = os.path.join(DATA_DIR, "last_schedules.json")
     if os.path.exists(sched_file):
         try:
@@ -1353,17 +1412,24 @@ def _read_schedule_slots() -> list:
                         continue
                     g_key = list(s.keys())[0]
                     day_data = s.get(g_key, {}).get(date_str, {}).get("slots")
-                    if day_data:
+                    if _valid_schedule_slots(day_data):
                         if merged is None:
                             merged = list(day_data)
                         else:
                             for i in range(min(len(merged), len(day_data))):
                                 if day_data[i] is False:
                                     merged[i] = False
-                if merged:
+                if merged is not None:
                     slots = merged
+                    schedule_known = True
         except Exception:
             pass
+    return slots, schedule_known
+
+
+def _read_schedule_slots() -> list:
+    """Return slots only for legacy callers that do not need availability metadata."""
+    slots, _ = _read_schedule_slots_with_status()
     return slots
 
 
@@ -1381,6 +1447,9 @@ async def api_status(lang: str = "ua"):
     current_status = state.get("status", "unknown")
     # Ensure we return strictly "on" or "off" for UI icons
     ui_light_state = "on" if current_status == "up" else "off"
+    light_state = (
+        current_status if current_status in {"up", "down", "unknown"} else "unknown"
+    )
 
     latest_event_text, recent_events = await get_power_events_data(lang=lang)
     schedule_text = await asyncio.to_thread(get_today_schedule_text, lang=lang)
@@ -1399,7 +1468,7 @@ async def api_status(lang: str = "ua"):
     group_name = await asyncio.to_thread(_read_group_name)
 
     # Extra: get raw slots for graph bar
-    slots = await asyncio.to_thread(_read_schedule_slots)
+    slots, schedule_known = await asyncio.to_thread(_read_schedule_slots_with_status)
 
     from app._version import get_version
 
@@ -1407,10 +1476,12 @@ async def api_status(lang: str = "ua"):
 
     result = {
         "light": ui_light_state,
+        "light_state": light_state,
         "light_event": latest_event_text,
         "recent_events": recent_events,
         "schedule_text": schedule_text,
         "schedule_slots": slots,
+        "schedule_known": schedule_known,
         "aqi": aq_data,
         "radiation": rad_data,
         "alert": alert_data,

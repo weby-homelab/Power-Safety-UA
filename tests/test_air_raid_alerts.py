@@ -22,6 +22,7 @@ from app.reports.common import (
     get_alert_intervals,
     sort_alert_intervals_for_render,
 )
+from app.reports.visual import ALERT_CRITICAL, ALERT_WARNING
 from app.reports.daily import generate_chart as generate_daily_chart
 from app.reports.daily import build_report_caption
 from app.reports.weekly import (
@@ -31,8 +32,8 @@ from app.reports.weekly import (
 
 
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
-YELLOW_ALERT_COLOR = "#facc15"
-RED_ALERT_COLOR = "#ef4444"
+YELLOW_ALERT_COLOR = ALERT_WARNING
+RED_ALERT_COLOR = ALERT_CRITICAL
 
 
 def _timestamp(hour, minute=0):
@@ -275,7 +276,7 @@ def test_alert_bars_keep_the_full_strip_geometry():
     weekly_source = inspect.getsource(generate_weekly_chart)
 
     assert "(alert_y, alert_h)" in daily_source
-    assert "(y_pos - 0.18, 0.36)" in weekly_source
+    assert "(y_pos - 0.18, WEEKLY_MAIN_STRIP_HEIGHT)" in weekly_source
     assert "alert_lanes" not in daily_source
     assert "alert_lanes" not in weekly_source
 
@@ -285,6 +286,8 @@ def test_telegram_alert_messages_include_level():
     clear_message = format_air_raid_clear_message({"red", "yellow"}, "13:00")
 
     assert "ЧЕРВОНИЙ РІВЕНЬ НЕБЕЗПЕКИ" in red_message
+    assert "🔴 🚨" in red_message
+    assert "✅ 🛡️" in clear_message
     assert "жовтий рівень" in clear_message
     assert "червоний рівень" in clear_message
 
@@ -345,6 +348,7 @@ def test_alert_downgrade_from_red_to_yellow_message(
     mock_send_tg.assert_called_once()
     sent_msg = mock_send_tg.call_args[0][0]
     assert "ВІДБІЙ ТРИВОГИ (червоний рівень)" in sent_msg
+    assert "🟡 ⚠️" in sent_msg
     assert "Залишається жовтий рівень попередження" in sent_msg
     assert state["alert_type"] == "yellow"
     assert state["alert_types"] == ["yellow"]

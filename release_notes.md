@@ -1,3 +1,20 @@
+# Release v3.9.21
+
+**Event & State Visual Identity**
+
+## What's New
+- Unified semantic visual tokens across daily and weekly reports, the live dashboard, and Telegram messages.
+- Solid Fact bars distinguish measured power states; indigo hatch identifies planned outages; clear alerts use a quiet dotted track.
+- Unknown power, schedule, alert, and AQI states are explicit and non-ambiguous instead of borrowing confirmed-state colors.
+- Warning and critical alert levels retain amber/red identity, while AQI uses a thinner environmental strip.
+- UA/EN and dark/light report variants keep their existing filenames and the dashboard image contract.
+
+## Compatibility
+- No storage schema, alert classification, Kyiv isolation, source URL, authentication, CSP, retention, or notification-routing changes are included.
+- Legacy report statistics and Telegram icon overrides remain supported.
+
+---
+
 # Release v3.9.18
 
 **Fix Stale Ghost Air Raid Alerts, JAAM Key Compatibility & Alert Cross-Validation**

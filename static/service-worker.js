@@ -1,4 +1,4 @@
-const CACHE_NAME = 'power-safety-v3.9.18';
+const CACHE_NAME = 'power-safety-v3.9.21';
 const ASSETS = [
     '/',
     '/manifest.json',
