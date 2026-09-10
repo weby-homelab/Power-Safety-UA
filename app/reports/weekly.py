@@ -458,10 +458,7 @@ def generate_weekly_chart(end_date, daily_data, theme="dark", lang="ua"):
                     if val is None:
                         color = report_palette.unknown
                     else:
-                        aqi_val = int(val)
-                        color = get_aqi_color(
-                            aqi_val, unknown_color=report_palette.unknown
-                        )
+                        color = get_aqi_color(val, unknown_color=report_palette.unknown)
 
                     end_t = s_date + datetime.timedelta(hours=1)
                     if end_t > now_kyiv:

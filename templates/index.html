@@ -683,6 +683,12 @@
             if (value === null || value === undefined || value === '' || typeof value === 'boolean') {
                 return null;
             }
+            if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
+                return null;
+            }
+            if (typeof value === 'string' && value.trim() === '') {
+                return null;
+            }
             const numericValue = Number(value);
             if (!Number.isFinite(numericValue) || numericValue < 0) return null;
             return numericValue;
@@ -1070,6 +1076,9 @@
                 const grid = document.getElementById('schedule-grid');
                  const scheduleKnown = data.schedule_known === true;
                  if (grid) {
+                     grid.setAttribute('aria-label', scheduleKnown
+                         ? translations[currentLang].scheduleGridLabel
+                         : (currentLang === 'ua' ? 'Графік невідомий' : 'Schedule unknown'));
                      grid.innerHTML = '';
                      // 48 slots -> 24 cells (1 hour each). Invalid data stays unknown.
                      for (let h = 0; h < 24; h++) {

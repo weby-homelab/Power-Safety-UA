@@ -87,6 +87,7 @@ def test_aqi_thresholds_do_not_reuse_air_alert_red():
     assert get_aqi_color(None) == UNKNOWN_DARK
     assert get_aqi_color(True) == UNKNOWN_DARK
     assert get_aqi_color(-1) == UNKNOWN_DARK
+    assert get_aqi_color("bad") == UNKNOWN_DARK
     assert get_aqi_color(float("nan")) == UNKNOWN_DARK
     assert get_aqi_color(50) == AQI_GOOD
     assert get_aqi_color(51) == AQI_MODERATE
@@ -143,6 +144,9 @@ def test_dashboard_uses_non_color_state_identity_and_quiet_alerts():
     assert "document.documentElement.lang" in template
     assert "value === null" in template
     assert "value === ''" in template
+    assert "Array.isArray(value)" in template
+    assert "value.trim() === ''" in template
+    assert "Schedule unknown" in template
     assert "numericValue < 0" in template
     assert "schedule_known === true" in template
     assert "var(--alert-warning)" in template
