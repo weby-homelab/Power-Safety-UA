@@ -33,7 +33,7 @@
 
 This branch (`main`) contains the **Docker Edition** of the project, designed for fast, portable, and isolated deployment in any environment. It is a fully containerized version, which is the industry standard for modern server deployments.
 
-> **Project Status:** Stable v3.9.18 (Updated: 09.2026)
+> **Project Status:** Stable v3.9.21 (Updated: 09.2026)
 > **Architecture:** FastAPI + Docker Compose + JSON Flat-DB & SQLite WAL
 > **Brand:** Weby Homelab
 
@@ -227,7 +227,7 @@ description: All-in-one real-time monitoring. Power-Safety-UA — autonomous pow
 applicationCategory: DashboardApplication
 applicationSubCategory: PowerMonitoring
 operatingSystem: Linux
-softwareVersion: 3.9.18
+softwareVersion: 3.9.21
 keywords: power-monitoring, air-raid-alerts, ukraine, fastapi, dashboard, iot, monitoring, blackout, electricity, aqi, air-quality, pwa, real-time, telegram-bot, kyiv, radiation, analytics, automation
 author: Weby Homelab (https://github.com/weby-homelab)
 codeRepository: https://github.com/weby-homelab/Power-Safety-UA

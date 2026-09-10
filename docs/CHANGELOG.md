@@ -1,5 +1,9 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.21] - 2026-09-10
+- **Єдина візуальна мова подій (Event & State Visual Identity):** Узгоджено solid Fact, hatched Plan, quiet Clear, explicit Unknown, amber Warning, critical Red і тонку AQI-смугу в daily/weekly reports та live dashboard. / Unified the event grammar across reports and the live dashboard.
+- **Сумісність:** Збережено filenames звітів, legacy report statistics, Telegram overrides, PWA behavior і storage/API contracts; додано лише availability metadata для явного Unknown. / Preserved report filenames, legacy statistics, Telegram overrides, PWA behavior, and storage/API compatibility.
+
 ## [v3.9.20] - 2026-09-09
 - **Класифікація загрози БПЛА як жовтого рівня (Drone Threats Yellow Level Classification):** Виправлено класифікацію загроз: маркери БПЛА (`"бпла"`, `"дрон"`, `"шахед"`) тепер відносяться до жовтого рівня попередження (`ALERT_TYPE_YELLOW`), а не до червоного. Усунено конфлікт, коли одночасне надходження запису загрози БПЛА та жовтого рівня тривоги помилково підвищувало загальний статус міста до червоного рівня. / Reclassified drone threats as yellow warning level instead of red, eliminating false red alerts when yellow UAV warnings are active.
 - **Регресійні тести:** Додано перевірки для автономних та комбінованих повідомлень про загрозу БПЛА. / Added regression test coverage for UAV alert levels.
