@@ -2,6 +2,7 @@ import structlog
 import json
 import os
 import datetime
+import fcntl
 import shutil
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -43,6 +44,16 @@ if "PYTEST_CURRENT_TEST" in os.environ:
     CHAT_ID = ""
 EVENT_LOG_FILE = os.path.join(DATA_DIR, "event_log.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "schedule_history.json")
+
+
+def acquire_weekly_report_lock(lock_path=None):
+    """Serialize every weekly report flow sharing the data directory."""
+    if lock_path is None:
+        lock_path = os.path.join(DATA_DIR, "weekly_report.lock")
+    os.makedirs(os.path.dirname(os.path.abspath(lock_path)), exist_ok=True)
+    handle = open(lock_path, "a+", encoding="utf-8")
+    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+    return handle
 
 
 from app.reports.common import (  # noqa: E402
@@ -650,6 +661,7 @@ def send_telegram_photo(photo_path, caption):
 
 
 if __name__ == "__main__":
+    _weekly_report_lock_handle = acquire_weekly_report_lock()
     import argparse
 
     parser = argparse.ArgumentParser()
