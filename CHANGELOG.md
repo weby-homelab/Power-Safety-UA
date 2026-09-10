@@ -8,8 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Unified the event visual grammar across reports, the live dashboard, and Telegram: solid fact strips, hatched planned outages, quiet clear states, explicit unknown states, amber warnings, critical red alerts, and thin AQI strips.
+- Unified the event visual grammar across reports, the live dashboard, and Telegram: solid fact strips, hatched planned outages, quiet clear states, explicit unknown states where availability is known, amber warnings, critical red alerts, and thin AQI strips.
 - Preserved alert classification, report statistics, Telegram overrides, PWA behavior, and all existing report filenames.
+
+### Compatibility
+- Report statistics retain the legacy schedule fallback when availability metadata is absent; the live dashboard renders that unavailable schedule as `Unknown` instead of presenting it as a confirmed plan.
 
 ## [3.9.20] - 2026-09-09
 

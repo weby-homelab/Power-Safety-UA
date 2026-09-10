@@ -78,6 +78,8 @@ Graphical reports and the live dashboard use four independent channels:
 * **Alert** — a quiet dotted track for clear, amber for warning, and red for critical.
 * **Unknown** — slate + `?`/pattern; **AQI** — a thin environmental strip.
 
+> **Compatibility:** report statistics retain the legacy schedule fallback when metadata is unavailable, so historical math does not change; the live dashboard shows `Unknown` when `schedule_known` is missing or false.
+
 ### 🔔 Web Push Notifications & Language Switcher
 *   **Notification Bell (`🔕` ➔ `🔔`):** Instant interface feedback upon browser permission grant, resilient Service Worker resource caching, and fail-safe Web Push subscription with timeout.
 *   **Bilingual Switcher:** The switcher button clearly displays the action to transition to the next language (`UA` when viewing English, `EN` when viewing Ukrainian) with localized tooltips.
