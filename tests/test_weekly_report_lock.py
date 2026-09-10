@@ -27,9 +27,9 @@ def test_weekly_report_lock_serializes_processes(tmp_path):
     )
 
     first.start()
-    second.start()
     try:
         assert first_acquired.wait(20)
+        second.start()
         assert not second_acquired.wait(1)
         first_release.set()
         assert second_acquired.wait(20)
