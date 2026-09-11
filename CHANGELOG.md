@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.25] - 2026-09-11
+
+### Security & UX
+- **Dedicated Admin Login Card:** Implemented mobile-first, rounded auth card matching system dark/light aesthetics with password field, visibility toggle, inline error messages, and hint guidance.
+- **Session-Only Storage & URL Sanitization:** Stored admin tokens strictly in `sessionStorage`. Supported `#t=` fragment and `?t=`/`?token=` query parameters on initial entry with instantaneous URL sanitization via `history.replaceState`.
+- **Central 403 Interceptor & Graceful Recovery:** Replaced DOM-wiping "Access Denied" error with polite non-blocking re-authentication prompt and seamless return to login card.
+- **Header-Based Admin Authentication:** Updated `check_admin_token` to accept `X-Admin-Token` and `Authorization: Bearer <token>` headers; query parameters are deprecated with structured warning logging.
+- **Payload & Console Secret Hygiene:** Removed raw `admin_token` from `/api/admin/data` response (returning masked token, boolean flag, and SHA-256 fingerprint); stopped printing raw token/link to console during first run.
+- **CI Least Privilege & Release Hardening:** Restricted GitHub Actions top-level workflow permissions to `contents: read`, scoped `contents: write` and `security-events: write` to the build job, removed unnecessary `actions: write`, and made SBOM asset upload idempotent.
+
+## [3.9.24] - 2026-09-11
+
+### Reliability & Integrity
+- **Delivery Persistence Transaction Gate:** Added `delivery_state_lock` with file-based locking (`fcntl.flock`) for cross-process synchronization between web app and background worker.
+- **Atomic Rolling Message Deletion:** Gated deletion of superseded rolling messages strictly on confirmed delivery of final daily and scheduled weekly graphic reports.
+- **Granular Air Raid Alert Durations:** Implemented independent per-level alert start times (`alert_start_times` dict) and simultaneous multi-threat clear notifications with backwards-compatible state recovery.
+- **Process-Start Reconciliation State Machine:** Added 180-second outage threshold evaluation on service startup. Preserved active state on rapid reboots; transitioned stale restarts (>180s) to unknown status without false outage or restoration alerts.
+- **Quality-Aware Power Duration Formatting:** Replaced `abs()` duration math with strict monotonic event time ordering, structured rollback warnings, and "невідомо" fallback on clock skew.
+- **Automated Default Icon Migration:** Migrated exact legacy icons (`🟢`/`🔴`) to official lightbulb/lightning symbols (`💡`/`⚡️`) in runtime and bootstrap configs while preserving custom user icons.
+- **Weekly Report Period Semantics:** Locked weekly report delivery to completed previous week during Monday 00:00–02:00 window, introduced `--completed-week` CLI flag, and enforced mid-week dry-run safeguards.
+- **Telegram Bot Token Sanitization:** Stripped bot tokens and raw API URLs from error messages and logs in Telegram client.
+
 ## [3.9.23] - 2026-09-11
 
 ### Security & CI/CD

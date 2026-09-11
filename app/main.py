@@ -16,6 +16,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 import secrets
+import hashlib
 
 from fastapi import (
     FastAPI,
@@ -1938,15 +1939,35 @@ async def tg_webhook(
 # --- Admin APIs ---
 
 
-def check_admin_token(request: Request):
-    t = request.headers.get("X-Admin-Token")
+def check_admin_token(request: Request) -> bool:
     admin_token = state.get("admin_token")
-    if not t or not admin_token or not secrets.compare_digest(t, admin_token):
+    if not admin_token:
+        return False
+
+    t = request.headers.get("X-Admin-Token")
+    if not t:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            t = auth_header[7:].strip()
+
+    if not t:
+        query_token = request.query_params.get("token") or request.query_params.get("t")
+        if query_token:
+            t = query_token
+            logger.warning(
+                "query_param_admin_auth_deprecated",
+                path=request.url.path,
+                msg="Admin authentication via query parameter is deprecated. Use X-Admin-Token or Authorization: Bearer header instead.",
+            )
+
+    if not t or not secrets.compare_digest(t, admin_token):
         return False
     return True
 
 
 def _mask_token(token: str) -> str:
+    if not token:
+        return "***"
     if len(token) <= 8:
         return "***"
     return token[:4] + "****" + token[-4:]
@@ -1979,6 +2000,13 @@ async def admin_data(request: Request):
 
     version = get_version()
 
+    admin_token = state.get("admin_token", "")
+    token_fingerprint = ""
+    if admin_token:
+        token_fingerprint = (
+            f"sha256:{hashlib.sha256(admin_token.encode('utf-8')).hexdigest()[:16]}"
+        )
+
     safe_state = {k: v for k, v in state.items() if k not in ("admin_token",)}
     return {
         "config": config,
@@ -1988,8 +2016,9 @@ async def admin_data(request: Request):
         "env": {
             "telegram_bot_token_masked": _mask_token(get_telegram_token()),
             "telegram_channel_id": get_telegram_channel_id_cfg(),
-            "admin_token_masked": _mask_token(state.get("admin_token", "")),
-            "admin_token": state.get("admin_token", ""),
+            "admin_token_masked": _mask_token(admin_token),
+            "has_admin_token": bool(admin_token),
+            "token_fingerprint": token_fingerprint,
         },
     }
 
