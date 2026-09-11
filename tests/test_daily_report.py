@@ -21,11 +21,15 @@ def test_build_report_caption_today():
     )
 
     assert "📊 <b>Звіт за 05.03.2026</b>" in caption
-    assert "🗓️ <b>План vs Факт:</b>" in caption
-    assert "💡 Факт" in caption
-    assert "🗓️ План" in caption
-    assert "На цю хвилину" in caption
-    assert "Світла 100% від плану" in caption
+    assert "💡 Світло було: 12 г" in caption
+    assert "⚡ Світла не було: 0 хв" in caption
+    assert "🗓️ <b>План vs факт</b>" in caption
+    assert "План на добу: 12 г" in caption
+    assert "Факт: 12 г" in caption
+    assert "Виконання плану: 100%" in caption
+    assert "Оновлено: 12:00" in caption
+    assert "👉" not in caption
+    assert "🕐" not in caption
 
 
 def test_build_report_caption_past_day():
@@ -43,5 +47,12 @@ def test_build_report_caption_past_day():
     )
 
     assert "📊 <b>Звіт за 04.03.2026</b>" in caption
-    assert "На кінець доби" in caption
-    assert "Світла 117% від плану" in caption
+    assert "💡 Світло було: 24 г" in caption
+    assert "⚡ Світла не було: 0 хв" in caption
+    assert "🗓️ <b>План vs факт</b>" in caption
+    assert "План на добу: 20 г 30 хв" in caption
+    assert "Факт: 24 г" in caption
+    assert "Виконання плану: 117%" in caption
+    assert "Оновлено: 12:00" in caption
+    assert "👉" not in caption
+    assert "🕐" not in caption

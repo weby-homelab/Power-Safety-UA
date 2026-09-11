@@ -182,11 +182,13 @@ def test_dashboard_keeps_report_image_contract_and_localized_alert_labels():
 def test_weekly_caption_uses_domain_icons_and_keeps_alert_breakdown():
     source = (ROOT / "app" / "reports" / "weekly.py").read_text(encoding="utf-8")
 
-    assert "🗓️ <b>План vs Факт:</b>" in source
-    assert "💡 <b>Факт" in source
-    assert "🚨 <b>Повітряні тривоги" in source
-    assert "Жовтий рівень" in source
-    assert "Червоний рівень" in source
+    assert "🗓️ <b>План vs факт</b>" in source
+    assert "💡 Світло було:" in source
+    assert "⚡ Відключення:" in source
+    assert "🚨 Тривоги без подвійного рахунку:" in source
+    assert "За рівнями:" in source
+    for obsolete_icon in ("📅", "🌤", "🌩", "🏆", "🧟", "📝"):
+        assert obsolete_icon not in source
 
 
 def test_text_schedule_report_uses_domain_icons_without_breaking_overrides():

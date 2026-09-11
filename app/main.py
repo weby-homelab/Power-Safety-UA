@@ -497,9 +497,9 @@ async def get_power_events_data(limit=5, lang="ua"):
         )
     elif "не плануються" in next_range.lower() or "no outages" in next_range.lower():
         latest_event_text = (
-            f"• {PLAN_ICON} No outages scheduled {POWER_UP_ICON}"
+            f"• {PLAN_ICON} No outages scheduled"
             if lang == "en"
-            else f"• {PLAN_ICON} Відключення не плануються {POWER_UP_ICON}"
+            else f"• {PLAN_ICON} Відключення не плануються"
         )
     else:
         prefix = (
@@ -678,9 +678,9 @@ async def get_power_events_data(limit=5, lang="ua"):
                 or "no outages" in next_range.lower()
             ):
                 latest_event_text = (
-                    f"• {PLAN_ICON} No outages scheduled {POWER_UP_ICON}"
+                    f"• {PLAN_ICON} No outages scheduled"
                     if lang == "en"
-                    else f"• {PLAN_ICON} Відключення не плануються {POWER_UP_ICON}"
+                    else f"• {PLAN_ICON} Відключення не плануються"
                 )
             else:
                 prefix = (
@@ -807,7 +807,7 @@ def render_day_schedule_html(slots, date_obj, lang="ua"):
 
     # Column ON
     on_header = (
-        f"Power ON {POWER_UP_ICON} " if lang == "en" else f"Увімкнення {POWER_UP_ICON} "
+        f"{POWER_UP_ICON} Power ON " if lang == "en" else f"{POWER_UP_ICON} Увімкнення "
     )
     res.append("<div class='schedule-col'>")
     res.append(f"<div class='col-header on'>{on_header}{fmt_dur(total_on)}</div>")
@@ -819,9 +819,9 @@ def render_day_schedule_html(slots, date_obj, lang="ua"):
 
     # Column OFF
     off_header = (
-        f"Power OFF {POWER_DOWN_ICON} "
+        f"{POWER_DOWN_ICON} Power OFF "
         if lang == "en"
-        else f"Вимкнення {POWER_DOWN_ICON} "
+        else f"{POWER_DOWN_ICON} Вимкнення "
     )
     res.append("<div class='schedule-col'>")
     res.append(f"<div class='col-header off'>{off_header}{fmt_dur(total_off)}</div>")
@@ -1619,7 +1619,7 @@ async def confirm_outage_api(action: str, key: str, background_tasks: Background
             background_tasks.add_task(_safe_send_telegram, msg)
             background_tasks.add_task(
                 _safe_send_push_notification,
-                "🔴 Відключення підтверджено",
+                "⚡ Відключення підтверджено",
                 msg.split("\n")[0] if msg else "Електропостачання відсутнє",
             )
             background_tasks.add_task(broadcast_state_update)
@@ -1666,7 +1666,7 @@ async def down_api(
             background_tasks.add_task(_safe_send_telegram, msg)
             background_tasks.add_task(
                 _safe_send_push_notification,
-                "🔴 Світло зникло!",
+                "⚡ Світло зникло!",
                 msg.split("\n")[0] if msg else "Електропостачання відсутнє",
             )
             background_tasks.add_task(broadcast_state_update)
@@ -1730,7 +1730,7 @@ async def tg_webhook(
             background_tasks.add_task(
                 _async_telegram_post,
                 f"https://api.telegram.org/bot{get_telegram_token()}/answerCallbackQuery",
-                {"callback_query_id": cb["id"], "text": "🔴 Підтверджено"},
+                {"callback_query_id": cb["id"], "text": "⚡ Підтверджено"},
             )
             background_tasks.add_task(
                 _async_telegram_post,
@@ -1738,7 +1738,7 @@ async def tg_webhook(
                 {
                     "chat_id": chat_id,
                     "message_id": msg_id,
-                    "text": "🔴 Світло зникло (Підтверджено)",
+                    "text": "⚡ Світло зникло (Підтверджено)",
                 },
             )
 
@@ -1751,7 +1751,7 @@ async def tg_webhook(
             background_tasks.add_task(
                 _async_telegram_post,
                 f"https://api.telegram.org/bot{get_telegram_token()}/answerCallbackQuery",
-                {"callback_query_id": cb["id"], "text": "🟢 Ігноровано"},
+                {"callback_query_id": cb["id"], "text": "Ігноровано"},
             )
             background_tasks.add_task(
                 _async_telegram_post,
@@ -1846,7 +1846,7 @@ async def tg_webhook(
             background_tasks.add_task(
                 _async_telegram_post,
                 f"https://api.telegram.org/bot{get_telegram_token()}/answerCallbackQuery",
-                {"callback_query_id": cb["id"], "text": "🤷‍♂️ Чекаємо 3 хв"},
+                {"callback_query_id": cb["id"], "text": "Чекаємо 3 хв"},
             )
             background_tasks.add_task(
                 _async_telegram_post,
@@ -1854,7 +1854,7 @@ async def tg_webhook(
                 {
                     "chat_id": chat_id,
                     "message_id": msg_id,
-                    "text": "🤷‍♂️ Невідомо. Чекаємо стандартний таймаут 3 хвилини.",
+                    "text": "Невідомо. Чекаємо стандартний таймаут 3 хвилини.",
                 },
             )
 
@@ -1883,7 +1883,7 @@ async def tg_webhook(
             background_tasks.add_task(
                 _async_telegram_post,
                 f"https://api.telegram.org/bot{get_telegram_token()}/answerCallbackQuery",
-                {"callback_query_id": cb["id"], "text": "🔴 Підтверджено зникнення"},
+                {"callback_query_id": cb["id"], "text": "⚡ Підтверджено зникнення"},
             )
             background_tasks.add_task(
                 _async_telegram_post,
@@ -1891,7 +1891,7 @@ async def tg_webhook(
                 {
                     "chat_id": chat_id,
                     "message_id": msg_id,
-                    "text": "🔴 Світло зникло (Підтверджено адміном)",
+                    "text": "⚡ Світло зникло (Підтверджено адміном)",
                 },
             )
 
@@ -1909,17 +1909,17 @@ async def tg_webhook(
                         "inline_keyboard": [
                             [
                                 {
-                                    "text": "🔴 Світло зникло?",
+                                    "text": "⚡ Світло зникло?",
                                     "callback_data": f"sn_down_{timestamp}",
                                 },
                                 {
-                                    "text": "🛠 Технічний збій?",
+                                    "text": "Технічний збій?",
                                     "callback_data": f"sn_tech_{timestamp}",
                                 },
                             ],
                             [
                                 {
-                                    "text": "🤷‍♂️ Не знаю!",
+                                    "text": "Не знаю!",
                                     "callback_data": f"sn_dontknow_{timestamp}",
                                 }
                             ],

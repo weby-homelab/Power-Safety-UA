@@ -25,7 +25,8 @@ def test_format_event_message_very_soon_outage():
             msg = format_event_message(True, event_time, prev_event_time)
 
             assert "🗓️ Вимкнення через ~ менше хвилини" in msg
-            assert "🗓 (19:30-22:00)" in msg
+            assert "(19:30-22:00)" in msg
+            assert "🗓 (" not in msg
 
 
 def test_short_duration_formatting():

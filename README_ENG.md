@@ -126,7 +126,7 @@ flowchart BT
         direction TB
         Energy["⚡ Yasno / DTEK API<br>Outage Schedules"]:::external
         Alerts["🚨 Alerts.in.ua / JAAM / Ubilling<br>Air Raid Alerts (Yellow/Red)"]:::external
-        Meteo["🌤️ OpenMeteo + SaveEcoBot<br>Weather & AQI"]:::external
+        Meteo["OpenMeteo + SaveEcoBot<br>Weather & AQI"]:::external
     end
 
     %% ====================== CENTER: CORE PIPELINE ======================
@@ -205,7 +205,7 @@ This project is licensed under the terms of the **GNU General Public License v3.
 ## 📖 Additional Documentation:
 * [🌐 Website Documentation (MkDocs)](https://weby-homelab.github.io/Power-Safety-UA/)
 * [⚙️ Telegram & IoT Setup](docs/INSTRUCTIONS_ENG.md)
-* [📝 Change History (CHANGELOG.md)](docs/CHANGELOG.md)
+* [Change History (CHANGELOG.md)](docs/CHANGELOG.md)
 * [🔒 Security Policy (SECURITY.md)](SECURITY.md)
 
 ---

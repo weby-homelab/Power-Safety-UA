@@ -81,9 +81,9 @@ def test_render_day_schedule_html_localization():
     assert "Червня" in html_ua
     assert "June" in html_en
     assert "Power ON" in html_en
-    assert "Power ON 💡" in html_en
-    assert "Power OFF ⚡️" in html_en
-    assert "Увімкнення" in html_ua
+    assert "💡 Power ON" in html_en
+    assert "⚡️ Power OFF" in html_en
+    assert "💡 Увімкнення" in html_ua
 
 
 def test_webhook_no_secret_rejected():

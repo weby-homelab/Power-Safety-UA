@@ -123,7 +123,7 @@ flowchart BT
         direction TB
         Energy["⚡ Yasno / DTEK API<br>Розклади відключень"]:::external
         Alerts["🚨 Alerts.in.ua / JAAM / Ubilling<br>Повітряні тривоги (Yellow/Red)"]:::external
-        Meteo["🌤️ OpenMeteo + SaveEcoBot<br>Погода та AQI"]:::external
+        Meteo["OpenMeteo + SaveEcoBot<br>Погода та AQI"]:::external
     end
 
     %% ====================== ЦЕНТР: CORE PIPELINE ======================
@@ -202,7 +202,7 @@ flowchart BT
 ## 📖 Додаткова документація:
 * [🌐 Документація сайту (MkDocs)](https://weby-homelab.github.io/Power-Safety-UA/)
 * [⚙️ Налаштування Telegram та IoT](docs/INSTRUCTIONS.md)
-* [📝 Історія змін (CHANGELOG.md)](docs/CHANGELOG.md)
+* [Історія змін (CHANGELOG.md)](docs/CHANGELOG.md)
 * [🔒 Політика безпеки (SECURITY.md)](SECURITY.md)
 
 ---

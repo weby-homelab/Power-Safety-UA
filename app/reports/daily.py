@@ -32,7 +32,6 @@ from app.reports.visual import (
     PLAN_OUTAGE,
     POWER_DOWN,
     POWER_UP,
-    PLAN_ICON,
     REPORT_AQI_STRIP_HEIGHT,
     REPORT_MAIN_STRIP_HEIGHT,
     get_aqi_color,
@@ -757,8 +756,8 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
 
     caption = (
         f"📊 <b>{title_prefix} за {target_date.strftime('%d.%m.%Y')}</b>\n\n"
-        f"💡 Факт: Світло було: {format_duration(t_up)}\n"
-        f"⚡️ Факт: Світла не було: {format_duration(t_down)}"
+        f"💡 Світло було: {format_duration(t_up)}\n"
+        f"⚡ Світла не було: {format_duration(t_down)}"
     )
 
     alert_intervals = get_alert_intervals(target_date)
@@ -768,17 +767,15 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
         total_alert_sec = merged_alert_duration(alert_intervals)
         type_parts = []
         for alert_type, label in (
-            (ALERT_TYPE_YELLOW, "Жовтий рівень"),
-            (ALERT_TYPE_RED, "Червоний рівень"),
+            (ALERT_TYPE_YELLOW, "Жовтий"),
+            (ALERT_TYPE_RED, "Червоний"),
         ):
             details = alert_summary[alert_type]
             if details["count"]:
-                type_parts.append(
-                    f"{label}: {details['count']} ({format_duration(details['duration_sec'])})"
-                )
+                type_parts.append(f"{label} {format_duration(details['duration_sec'])}")
         caption += (
-            f"\n🚨 Час тривог без подвійного рахунку: {format_duration(total_alert_sec)}\n"
-            f"   • За рівнями (можуть перекриватися): " + "; ".join(type_parts)
+            f"\n🚨 Тривоги без подвійного рахунку: {format_duration(total_alert_sec)}\n"
+            f"   За рівнями: " + "; ".join(type_parts)
         )
 
     plan_up_sec_formatted = "0 хв"
@@ -818,18 +815,18 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
                 elif slot_start < calc_end_time:
                     plan_up_sec_now += (calc_end_time - slot_start).total_seconds()
 
-        caption += "\n\n🗓️ <b>План vs Факт:</b>\n"
-        caption += f"🗓️ За планом на добу:  {plan_up_sec_formatted}\n"
+        caption += "\n\n🗓️ <b>План vs факт</b>\n"
+        caption += f"План на добу: {plan_up_sec_formatted}\n"
+        caption += f"Факт: {format_duration(t_up)}\n"
 
         compliance_pct_now = (
             (t_up / plan_up_sec_now * 100) if plan_up_sec_now > 0 else 0
         )
-        time_label = "На цю хвилину" if is_today else "На кінець доби"
-        caption += f"{PLAN_ICON} {time_label}:\n"
-        caption += f"💡 Факт {format_duration(t_up)} 🗓️ План {format_duration(plan_up_sec_now)}\n"
-        caption += f"👉 Світла {compliance_pct_now:.0f}% від плану\n"
-        caption += "---\n"
-        caption += f"🕐 Оновлено: {now_time.strftime('%H:%M')}"
+        compliance_val = (
+            compliance_pct_now if (is_today and plan_up_sec_now > 0) else compliance_pct
+        )
+        caption += f"Виконання плану: {compliance_val:.0f}%\n\n"
+        caption += f"Оновлено: {now_time.strftime('%H:%M')}"
 
     return caption, plan_up_sec_formatted, diff_hours, compliance_pct
 

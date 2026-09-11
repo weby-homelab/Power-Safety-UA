@@ -766,7 +766,7 @@ def format_event_message(is_up, event_time, prev_event_time):
                 prev_event_time=prev_event_time,
                 diff_sec=event_time - prev_event_time,
             )
-    dur_line = f"🕓 {duration_prefix} {dur_str}"
+    dur_line = f"{duration_prefix} {dur_str}"
 
     # 3. Next event and Interval
     next_info = get_next_scheduled_event(event_time, look_for_light)
@@ -780,12 +780,12 @@ def format_event_message(is_up, event_time, prev_event_time):
             wait_dur = format_duration(wait_sec)
 
         wait_line = f"{wait_prefix} ~ {wait_dur}"
-        interval_line = f"🗓 ({next_info['interval']})"
+        interval_line = f"({next_info['interval']})"
     else:
         if is_up:
-            wait_line = f"{PLAN_ICON} Відключення не плануються {POWER_UP_ICON}"
+            wait_line = f"{PLAN_ICON} Відключення не плануються"
         else:
-            wait_line = f"{wait_prefix} невідомий час 🤷‍♂️"
+            wait_line = f"{wait_prefix} невідомий час"
 
     msg = f"{header}\n"
     if dev_line:
@@ -860,16 +860,10 @@ def get_schedule_context(lang="ua"):
         def format_idx_to_time(idx):
             if idx >= 96:
                 if lang == "en":
-                    return (
-                        "no outages scheduled 🔆"
-                        if has_tomorrow
-                        else "unknown time 🤷‍♂️"
-                    )
+                    return "no outages scheduled" if has_tomorrow else "unknown time"
                 else:
                     return (
-                        "відключення не плануються 🔆"
-                        if has_tomorrow
-                        else "невідомий час 🤷‍♂️"
+                        "відключення не плануються" if has_tomorrow else "невідомий час"
                     )
             day_offset = idx // 48
             rem_idx = idx % 48
@@ -892,7 +886,7 @@ def get_schedule_context(lang="ua"):
 
         if next_start_idx < len(slots):
             if next_start_idx >= 48 and not has_tomorrow:
-                next_range = "unknown time 🤷‍♂️" if lang == "en" else "невідомий час 🤷‍♂️"
+                next_range = "unknown time" if lang == "en" else "невідомий час"
             else:
                 next_end_idx = len(slots)
                 for i in range(next_start_idx + 1, len(slots)):
@@ -907,15 +901,13 @@ def get_schedule_context(lang="ua"):
                 ):
                     if lang == "en":
                         next_range = (
-                            "no outages scheduled 🔆"
-                            if has_tomorrow
-                            else "unknown time 🤷‍♂️"
+                            "no outages scheduled" if has_tomorrow else "unknown time"
                         )
                     else:
                         next_range = (
-                            "відключення не плануються 🔆"
+                            "відключення не плануються"
                             if has_tomorrow
-                            else "невідомий час 🤷‍♂️"
+                            else "невідомий час"
                         )
                 else:
                     next_range = f"{ns_t} - {ne_t}"
@@ -926,14 +918,10 @@ def get_schedule_context(lang="ua"):
                     next_duration = next_duration.replace(".", ",")
         else:
             if lang == "en":
-                next_range = (
-                    "no outages scheduled 🔆" if has_tomorrow else "unknown time 🤷‍♂️"
-                )
+                next_range = "no outages scheduled" if has_tomorrow else "unknown time"
             else:
                 next_range = (
-                    "відключення не плануються 🔆"
-                    if has_tomorrow
-                    else "невідомий час 🤷‍♂️"
+                    "відключення не плануються" if has_tomorrow else "невідомий час"
                 )
 
         return (is_light_now, t_end, next_range, next_duration, is_emergency)
@@ -982,11 +970,11 @@ def send_admin_confirmation(timestamp):
             "inline_keyboard": [
                 [
                     {
-                        "text": "🔴 Світло зникло",
+                        "text": "⚡ Світло зникло",
                         "callback_data": f"confirm_down_{timestamp}",
                     },
                     {
-                        "text": "🟢 Збій / Роботи",
+                        "text": "Збій / Роботи",
                         "callback_data": f"ignore_down_{timestamp}",
                     },
                 ]
@@ -1011,15 +999,15 @@ def send_safety_net_admin(timestamp):
             "inline_keyboard": [
                 [
                     {
-                        "text": "🔴 Світло зникло?",
+                        "text": "⚡ Світло зникло?",
                         "callback_data": f"sn_down_{timestamp}",
                     },
                     {
-                        "text": "🛠 Технічний збій?",
+                        "text": "Технічний збій?",
                         "callback_data": f"sn_tech_{timestamp}",
                     },
                 ],
-                [{"text": "🤷‍♂️ Не знаю!", "callback_data": f"sn_dontknow_{timestamp}"}],
+                [{"text": "Не знаю!", "callback_data": f"sn_dontknow_{timestamp}"}],
             ]
         },
     }

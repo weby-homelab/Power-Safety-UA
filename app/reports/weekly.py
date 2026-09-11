@@ -876,10 +876,11 @@ if __name__ == "__main__":
         compliance_pct = (up_h / plan_up_h * 100) if plan_up_h > 0 else 0
 
         plan_section = f"""
-🗓️ <b>План vs Факт:</b>
- • 🗓️ <b>План:</b> {int(plan_up_h)}г
- • 💡 <b>Факт:</b> {int(up_h)}г
- • Відхилення: <b>{diff_formatted}</b> (Світла {compliance_pct:.0f}% від плану)
+🗓️ <b>План vs факт</b>
+План: {int(plan_up_h)} г
+Факт: {int(up_h)} г
+Відхилення: {diff_formatted}
+Світла: {compliance_pct:.0f}% від плану
 """
         if easiest and hardest and easiest != hardest:
             e_name = day_names[easiest["date"].weekday()]
@@ -890,7 +891,7 @@ if __name__ == "__main__":
             e_sign = "+" if e_diff > 0 else "-" if e_diff < 0 else ""
             h_sign = "+" if h_diff > 0 else "-" if h_diff < 0 else ""
 
-            plan_section += f"\n🌤 <b>Легше ніж очікувалось:</b> {e_name} ({e_sign}{format_duration_h(abs(e_diff))} понад план)\n🌩 <b>Важче ніж очікувалось:</b> {h_name} ({h_sign}{format_duration_h(abs(h_diff))} від плану)"
+            plan_section += f"\nЛегше ніж очікувалось: {e_name} ({e_sign}{format_duration_h(abs(e_diff))} понад план)\nВажче ніж очікувалось: {h_name} ({h_sign}{format_duration_h(abs(h_diff))} від плану)\n"
 
     alerts_count, alerts_dur_sec, alerts_pct = get_weekly_alerts_stats(monday, sunday)
     alert_breakdown = get_weekly_alerts_breakdown(monday, sunday)
@@ -899,32 +900,29 @@ if __name__ == "__main__":
     alerts_m_int = int((alerts_h % 1) * 60)
     alert_type_parts = []
     for alert_type, label in (
-        (ALERT_TYPE_YELLOW, "Жовтий рівень"),
-        (ALERT_TYPE_RED, "Червоний рівень"),
+        (ALERT_TYPE_YELLOW, "Жовтий"),
+        (ALERT_TYPE_RED, "Червоний"),
     ):
         details = alert_breakdown[alert_type]
         if details["count"]:
             alert_type_parts.append(
-                f"{label}: {details['count']} "
-                f"({format_alert_duration(details['duration_sec'])})"
+                f"{label} {format_alert_duration(details['duration_sec'])}"
             )
     alert_type_summary = "; ".join(alert_type_parts) or "немає"
 
-    caption = f"""📅 <b>Енергетичний тиждень ({monday.strftime("%d.%m")} - {sunday.strftime("%d.%m")})</b>
+    caption = f"""📊 <b>Енергетичний тиждень ({monday.strftime("%d.%m")}–{sunday.strftime("%d.%m")})</b>
 
-📊 <b>Загальні підсумки:</b>
- • 💡 Факт: Світло було <b>{int(up_h)}г {int((up_h % 1) * 60)}хв</b> ({int(up_pct)}%)
- • ⚡️ Факт: Відключення <b>{int(down_h)}г {int((down_h % 1) * 60)}хв</b>
- • В середньому без світла: <b>{int(down_h / 7)}г {int(((down_h / 7) % 1) * 60)}хв</b> на добу
- • 🚨 <b>Повітряні тривоги (без подвійного рахунку):</b> {alerts_count} за тиждень (сумарно <b>{alerts_h_int}г {alerts_m_int}хв</b>, або <b>{alerts_pct:.1f}%</b> від усього часу)
- • За рівнями (можуть перекриватися): <b>{alert_type_summary}</b>
+💡 Світло було: {int(up_h)} г {int((up_h % 1) * 60)} хв ({int(up_pct)}%)
+⚡ Відключення: {int(down_h)} г {int((down_h % 1) * 60)} хв
+Середнє відключення на добу: {int(down_h / 7)} г {int(((down_h / 7) % 1) * 60)} хв
 
-{plan_section}
+🚨 Тривоги без подвійного рахунку: {alerts_h_int} г {alerts_m_int} хв ({alerts_pct:.1f}%)
+За рівнями: {alert_type_summary}
+{plan_section if plan_section else chr(10)}
+Найменше відключень: {day_names[best_day["date"].weekday()]}
+Найбільше відключень: {day_names[worst_day["date"].weekday()]}
 
-🏆 <b>Найменше відключень:</b> {day_names[best_day["date"].weekday()]}
-🧟 <b>Найбільше відключень:</b> {day_names[worst_day["date"].weekday()]}
-
-📝 <b>Аналіз:</b>
+<b>Аналіз</b>
 {verdict}
 
 #тиждень #статистика_світла"""
