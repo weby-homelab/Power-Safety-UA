@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.23] - 2026-09-11
+
+### Security & CI/CD
+- **PR Candidate Image Scanning:** Hardened CI pipeline to build and scan candidate images locally (`power-safety-ua:ci-${{ github.sha }}`) instead of scanning previous release images.
+- **Hard Vulnerability Gate:** Enforced blocking failure gate (`exit-code: 1`) on unfixed HIGH or CRITICAL vulnerabilities in both filesystem and container image Trivy scans.
+- **Immutable Release Digest Scanning:** Added release workflow digest resolution to scan exact published multi-arch digests (`webyhomelab/power-safety-ua@sha256:...`).
+- **Software Supply-Chain Attestation (SBOM & Provenance):** Enabled buildx SLSA provenance attestation and automated generation/upload of downloadable SPDX JSON SBOM assets to GitHub Releases.
+- **Immutable Compose Image Parameter:** Parameterized `docker-compose.yml` with `${POWER_SAFETY_IMAGE:-webyhomelab/power-safety-ua:latest}` across both app and worker services for deterministic digest pinning.
+- **Repository Protection Ruleset:** Configured active GitHub ruleset on `main` branch enforcing required pull requests, passing CI status checks, and blocking force pushes/deletions.
+
 ## [3.9.22] - 2026-09-11
 
 ### Fixed

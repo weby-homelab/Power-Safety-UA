@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   actions: write
   security-events: write
 
@@ -86,20 +86,44 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Build and push
+      - name: Build PR candidate image
+        if: github.event_name == 'pull_request'
+        id: build_pr
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: power-safety-ua:ci-${{ github.sha }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push release image
+        if: github.event_name != 'pull_request'
+        id: build_release
         uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: true
-          sbom: false
+          sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Run Trivy vulnerability scanner
+      - name: Determine scan target image
+        id: scan_target
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "image=power-safety-ua:ci-${{ github.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "image=webyhomelab/power-safety-ua@${{ steps.build_release.outputs.digest }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Trivy vulnerability scanner (FS)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
@@ -107,16 +131,19 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
+          exit-code: 1
           trivyignores: .trivyignore
 
-      - name: Run Trivy image scanner
+      - name: Run Trivy image scanner (Hard vulnerability gate)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: webyhomelab/power-safety-ua:latest
+          scan-type: image
+          image-ref: ${{ steps.scan_target.outputs.image }}
           format: sarif
           output: trivy-image-results.sarif
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          exit-code: 1
           trivyignores: .trivyignore
 
       - name: Upload Trivy FS SARIF
@@ -132,3 +159,19 @@ jobs:
         with:
           sarif_file: trivy-image-results.sarif
           category: trivy-image
+
+      - name: Generate SBOM (SPDX JSON)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: webyhomelab/power-safety-ua@${{ steps.build_release.outputs.digest }}
+          format: spdx-json
+          output: power-safety-ua-${{ github.ref_name }}-sbom.spdx.json
+
+      - name: Upload SBOM to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          gh release upload "${{ github.ref_name }}" "power-safety-ua-${{ github.ref_name }}-sbom.spdx.json" --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
