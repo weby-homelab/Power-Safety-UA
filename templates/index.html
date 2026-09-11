@@ -291,8 +291,8 @@
         <div id="safety-net-card" class="safety-net-block">
             <div class="safety-net-title">⚠️ Світло зникло? Підтвердіть статус:</div>
             <div class="safety-btns">
-                <button class="safety-btn btn-confirm" onclick="confirmOutage('confirm')">🔴 Вимкнули</button>
-                <button class="safety-btn btn-ignore" onclick="confirmOutage('ignore')">🛠 Збій / Не знаю</button>
+                <button class="safety-btn btn-confirm" onclick="confirmOutage('confirm')">⚡ Вимкнули</button>
+                <button class="safety-btn btn-ignore" onclick="confirmOutage('ignore')">Збій / Не знаю</button>
             </div>
         </div>
         
@@ -350,13 +350,23 @@
         let currentLang = storedLang === 'en' ? 'en' : 'ua';
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Light "ding"
 
+        const ICONS = {
+            powerUp: '💡',
+            powerDown: '⚡️',
+            plan: '🗓️',
+            warning: '⚠️',
+            critical: '🚨',
+            clear: '🛡️',
+            unknown: '❔'
+        };
+
         const translations = {
             ua: {
                 title: "Power-Safety-UA | СВІТЛО⚡БЕЗПЕКА — Моніторинг світла та тривог",
                 logo: "СВІТЛО<span>⚡</span>БЕЗПЕКА",
                 safetyTitle: "⚠️ Світло зникло? Підтвердіть статус:",
-                btnConfirm: "🔴 Вимкнули",
-                btnIgnore: "🛠 Збій / Не знаю",
+                btnConfirm: "⚡ Вимкнули",
+                btnIgnore: "Збій / Не знаю",
                 tempLabel: "Температура",
                 humLabel: "Вологість",
                 headerToday: "Аналітика за сьогодні",
@@ -368,7 +378,7 @@
                 toastNotificationsOn: "Сповіщення увімкнено",
                 toastNotificationsOff: "Сповіщення вимкнено",
                 alertNotificationsBrowser: "Будь ласка, дозвольте сповіщення у налаштуваннях браузера",
-                lightOn: "Світло Є!",
+                lightOn: "Світло є!",
                 lightOff: "Світло зникло!",
                 lightLoading: "Завантаження",
                 lightUnknown: "Стан невідомий",
@@ -376,16 +386,16 @@
                 lightStatusOn: "Світло з'явилося!",
                 lightStatusOff: "Світло зникло!",
                 pushTitleLight: "⚡ СВІТЛО⚡БЕЗПЕКА",
-                 alertActive: "ТРИВОГА",
-                 alertQuiet: "СПОКІЙНО",
-                 alertRed: "ЧЕРВОНИЙ РІВЕНЬ",
-                 alertYellow: "ЖОВТИЙ РІВЕНЬ",
-                 alertRedDesc: "Безпосередня небезпека. Негайно пройдіть в укриття.",
-                 alertYellowDesc: "Попередній рівень загрози. Підвищте пильність та стежте за оновленнями.",
-                 alertUnknown: "СТАН НЕВІДОМИЙ",
-                 alertUnknownDesc: "Не вдалося отримати актуальний рівень загрози.",
-                 alertActiveDesc: "Київ. Пройдіть в укриття!",
-                alertQuietDesc: "Київ. Тривоги немає",
+                alertActive: "ТРИВОГА",
+                alertQuiet: "СПОКІЙНО",
+                alertRed: "ЧЕРВОНИЙ РІВЕНЬ",
+                alertYellow: "ЖОВТИЙ РІВЕНЬ",
+                alertRedDesc: "Безпосередня небезпека. Негайно пройдіть в укриття.",
+                alertYellowDesc: "Попередній рівень загрози. Підвищте пильність та стежте за оновленнями.",
+                alertUnknown: "СТАН НЕВІДОМИЙ",
+                alertUnknownDesc: "Не вдалося отримати актуальний рівень загрози.",
+                alertActiveDesc: "Київ. Пройдіть в укриття!",
+                alertQuietDesc: "Київ · Тривоги немає",
                 pushTitleAlert: "🚨 ПОВІТРЯНА ТРИВОГА",
                 alertPushStart: "Початок повітряної тривоги!",
                 alertPushEnd: "Відбій тривоги",
@@ -394,7 +404,8 @@
                 scheduleGridLabel: "Планові відключення",
                 airLabel: "Повітря",
                 airQualityLabel: "Якість повітря",
-                                windUnit: "км/год",
+                windLabel: "Вітер: ",
+                windUnit: "км/год",
                 radUnit: "мкЗв/год",
                 radNormal: "(норма)"
             },
@@ -402,8 +413,8 @@
                 title: "Power-Safety-UA | POWER⚡SAFETY — Power and Alert Monitoring",
                 logo: "POWER<span>⚡</span>SAFETY",
                 safetyTitle: "⚠️ Power lost? Confirm status:",
-                btnConfirm: "🔴 Outage",
-                btnIgnore: "🛠 Glitch / Don't know",
+                btnConfirm: "⚡ Outage",
+                btnIgnore: "Glitch / Don't know",
                 tempLabel: "Temperature",
                 humLabel: "Humidity",
                 headerToday: "Today's Analytics",
@@ -423,16 +434,16 @@
                 lightStatusOn: "Power restored!",
                 lightStatusOff: "Power outage!",
                 pushTitleLight: "⚡ POWER⚡SAFETY",
-                 alertActive: "AIR RAID",
-                 alertQuiet: "CALM",
-                 alertRed: "RED LEVEL",
-                 alertYellow: "YELLOW LEVEL",
-                 alertRedDesc: "Immediate danger. Go to a shelter now.",
-                 alertYellowDesc: "Preliminary threat level. Stay alert and follow updates.",
-                 alertUnknown: "STATUS UNKNOWN",
-                 alertUnknownDesc: "The current threat level could not be retrieved.",
-                 alertActiveDesc: "Kyiv. Proceed to shelter!",
-                alertQuietDesc: "Kyiv. No active alerts",
+                alertActive: "AIR RAID",
+                alertQuiet: "CALM",
+                alertRed: "RED LEVEL",
+                alertYellow: "YELLOW LEVEL",
+                alertRedDesc: "Immediate danger. Go to a shelter now.",
+                alertYellowDesc: "Preliminary threat level. Stay alert and follow updates.",
+                alertUnknown: "STATUS UNKNOWN",
+                alertUnknownDesc: "The current threat level could not be retrieved.",
+                alertActiveDesc: "Kyiv. Proceed to shelter!",
+                alertQuietDesc: "Kyiv · No active alerts",
                 pushTitleAlert: "🚨 AIR RAID ALERT",
                 alertPushStart: "Air raid alert started!",
                 alertPushEnd: "Alert cleared",
@@ -441,6 +452,7 @@
                 scheduleGridLabel: "Planned outage schedule",
                 airLabel: "Air",
                 airQualityLabel: "Air Quality",
+                windLabel: "Wind: ",
                 windUnit: "km/h",
                 radUnit: "µSv/h",
                 radNormal: "(normal)"
@@ -714,17 +726,17 @@
                     if (currentLight === 'up') {
                         lCard.className = 'card status-on';
                         lCard.dataset.state = 'up';
-                        document.getElementById('light-icon').innerText = '💡';
+                        document.getElementById('light-icon').innerText = ICONS.powerUp;
                         document.getElementById('light-text').innerText = translations[currentLang].lightOn;
                     } else if (currentLight === 'down') {
                         lCard.className = 'card status-off';
                         lCard.dataset.state = 'down';
-                        document.getElementById('light-icon').innerText = '⚡️';
+                        document.getElementById('light-icon').innerText = ICONS.powerDown;
                         document.getElementById('light-text').innerText = translations[currentLang].lightOff;
                     } else {
                         lCard.className = 'card status-unknown';
                         lCard.dataset.state = 'unknown';
-                        document.getElementById('light-icon').innerText = '❔';
+                        document.getElementById('light-icon').innerText = ICONS.unknown;
                         document.getElementById('light-text').innerText = translations[currentLang].lightUnknown;
                     }
                 }
@@ -782,25 +794,25 @@
                      if (alertType === 'red') {
                          aCard.className = 'card alert-red';
                          aCard.dataset.state = 'red';
-                         document.getElementById('alert-icon').innerText = '🔴 🚨';
+                         document.getElementById('alert-icon').innerText = ICONS.critical;
                          document.getElementById('alert-val').innerText = translations[currentLang].alertRed;
                          document.getElementById('alert-status').innerText = translations[currentLang].alertRedDesc + alertLocation;
                      } else if (alertType === 'yellow') {
                          aCard.className = 'card alert-yellow';
                          aCard.dataset.state = 'yellow';
-                         document.getElementById('alert-icon').innerText = '🟡 ⚠️';
+                         document.getElementById('alert-icon').innerText = ICONS.warning;
                          document.getElementById('alert-val').innerText = translations[currentLang].alertYellow;
                          document.getElementById('alert-status').innerText = translations[currentLang].alertYellowDesc + alertLocation;
                      } else if (alertType === 'unknown') {
                          aCard.className = 'card alert-unknown';
                          aCard.dataset.state = 'unknown';
-                         document.getElementById('alert-icon').innerText = '❔';
+                         document.getElementById('alert-icon').innerText = ICONS.unknown;
                          document.getElementById('alert-val').innerText = translations[currentLang].alertUnknown;
                          document.getElementById('alert-status').innerText = translations[currentLang].alertUnknownDesc;
                      } else {
                          aCard.className = 'card alert-clear';
                          aCard.dataset.state = 'clear';
-                         document.getElementById('alert-icon').innerText = '✅ 🛡️';
+                         document.getElementById('alert-icon').innerText = ICONS.clear;
                          document.getElementById('alert-val').innerText = translations[currentLang].alertQuiet;
                          document.getElementById('alert-status').innerText = translations[currentLang].alertQuietDesc;
                      }
@@ -861,8 +873,6 @@
                         const humGraph = document.getElementById('hum-graph');
                         if (tempGraph) tempGraph.style.display = data.show_graphs ? 'flex' : 'none';
                         if (humGraph) humGraph.style.display = data.show_graphs ? 'flex' : 'none';
-
-                        document.getElementById('wind-status').innerText = data.aqi.wind_speed ? `${data.aqi.wind_speed} ${currentLang === 'ua' ? 'м/с' : 'm/s'}, ${data.aqi.wind_dir}` : '---';
                     } else {
                         aqBlock.style.display = 'none';
                     }
@@ -1066,7 +1076,12 @@
                     renderMiniGraph('hum-graph', data.aqi.hum_history, 'var(--power-up)', '%');
                     
                     const windStatus = document.getElementById('wind-status');
-                    if (windStatus) windStatus.innerText = '💨 ' + (data.aqi.wind_dir || '--') + ', ' + (data.aqi.wind_speed || '--') + ' ' + translations[currentLang].windUnit;
+                    if (windStatus) {
+                        const windDir = data.aqi.wind_dir || '--';
+                        const windSpd = (data.aqi.wind_speed !== undefined && data.aqi.wind_speed !== null) ? data.aqi.wind_speed : '--';
+                        const windPrefix = translations[currentLang].windLabel;
+                        windStatus.innerText = (windDir === '--' && windSpd === '--') ? '---' : `${windPrefix}${windDir}, ${windSpd} ${translations[currentLang].windUnit}`;
+                    }
                     
                     const radVal = document.getElementById('rad-val');
                     if (radVal) radVal.innerText = (data.radiation && data.radiation.level) || '--';

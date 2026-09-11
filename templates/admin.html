@@ -517,9 +517,9 @@
                     <label style="color: #fbbf24; font-weight: 800; display: block; margin-bottom: 10px;">ПІДТВЕРДІТЬ ВІДКЛЮЧЕННЯ! ⏳</label>
                     <p style="font-size: 0.85rem; margin-bottom: 12px; opacity: 0.9;">Режим "Тиші" активний. Чи справді світло зникло?</p>
                     <div class="sn-actions">
-                        <button class="sn-btn" onclick="confirmOutage('confirm')" style="border-color: #f43f5e; color: #f43f5e; font-weight: 700;">🔴 Вимкнули</button>
-                        <button class="sn-btn" onclick="confirmOutage('confirm_emergency')" style="border-color: #f43f5e; background: #f43f5e; color: white;">‼️ Аварія</button>
-                        <button class="sn-btn" onclick="confirmOutage('ignore')" style="border-color: #475569;">🤷‍♂️ Не знаю</button>
+                        <button class="sn-btn" onclick="confirmOutage('confirm')" style="border-color: #f43f5e; color: #f43f5e; font-weight: 700;">⚡ Вимкнули</button>
+                        <button class="sn-btn" onclick="confirmOutage('confirm_emergency')" style="border-color: #f43f5e; background: #f43f5e; color: white;">Аварія</button>
+                        <button class="sn-btn" onclick="confirmOutage('ignore')" style="border-color: #475569;">Не знаю</button>
                     </div>
                 </div>
 
@@ -742,8 +742,8 @@
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Тип події</label>
                         <select id="log-add-event">
-                            <option value="up">🟢 Світло з'явилося</option>
-                            <option value="down">🔴 Світло зникло</option>
+                            <option value="up">💡 Світло з'явилося</option>
+                            <option value="down">⚡ Світло зникло</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
@@ -1195,18 +1195,18 @@
                 const txt = ui.text || {};
                 const icons = ui.icons || {};
 
-                setVal('ui-txt-up', txt.event_up, "🟢 <b>{time} Світло з'явилося</b>");
-                setVal('ui-txt-down', txt.event_down, "🔴 <b>{time} Світло зникло</b>");
+                setVal('ui-txt-up', txt.event_up, "💡 <b>{time} Світло з'явилося</b>");
+                setVal('ui-txt-down', txt.event_down, "⚡ <b>{time} Світло зникло</b>");
                 setVal('ui-txt-dur-up', txt.dur_prefix_up, "Воно було");
                 setVal('ui-txt-dur-down', txt.dur_prefix_down, "Не було");
-                setVal('ui-txt-next-up', txt.next_prefix_up, "💡 Очікуємо через");
-                setVal('ui-txt-next-down', txt.next_prefix_down, "❌ Вимкнення через");
+                setVal('ui-txt-next-up', txt.next_prefix_up, "🗓️ Очікуємо через");
+                setVal('ui-txt-next-down', txt.next_prefix_down, "🗓️ Вимкнення через");
                 setVal('ui-txt-on-full', txt.on_full, "Є СВІТЛО");
                 setVal('ui-txt-off-full', txt.off_full, "НЕМАЄ СВІТЛА");
                 setVal('ui-txt-emergency', txt.emergency, "Аварійне Відключення!");
                 
-                setVal('ui-ico-on', icons.on, "⚡️");
-                setVal('ui-ico-off', icons.off, "🌑");
+                setVal('ui-ico-on', icons.on, "💡");
+                setVal('ui-ico-off', icons.off, "⚡");
 
             } catch(e) { console.error('Render config error:', e); }
         }

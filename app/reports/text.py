@@ -218,7 +218,7 @@ def generate_holiday_report(today_str, tomorrow_str, data, group, icons):
     _ = datetime.datetime.now(KYIV_TZ)
     t_dt = datetime.datetime.strptime(today_str, "%Y-%m-%d")
 
-    header = "Світла смуга триває! 🕊️💡"
+    header = "Світла смуга триває! 💡"
     on_icon = icons.get("on", POWER_UP_ICON)
 
     if today_all_on and tomorrow_all_on and tomorrow_str:
@@ -231,7 +231,9 @@ def generate_holiday_report(today_str, tomorrow_str, data, group, icons):
     else:  # only tomorrow
         return None  # Fallback to standard for mixed days if today has outages
 
-    footer = "Дякуємо енергетикам і бажаємо всім максимально продуктивних та яскравих днів! 👋✨"
+    footer = (
+        "Дякуємо енергетикам і бажаємо всім максимально продуктивних та яскравих днів!"
+    )
 
     full_text = f"<b>{header}</b>\n\n{desc}\n\n{days_info}\n\n{footer}"
     return full_text
@@ -285,7 +287,6 @@ def main():
             "calendar": PLAN_ICON,
             "on": POWER_UP_ICON,
             "off": POWER_DOWN_ICON,
-            "clock": "🕐",
         },
     )
 
@@ -409,12 +410,12 @@ def main():
         return
 
     combined_content = "\n\n".join(all_day_contents)
-    base_text = f"📈 <b>Графік групи {group_display}</b>\n\n{combined_content}"
+    base_text = f"<b>Графік групи {group_display}</b>\n\n{combined_content}"
 
     content_hash = hashlib.md5(base_text.encode(), usedforsecurity=False).hexdigest()
 
     updated_text = cfg.get("ui", {}).get("text", {}).get("updated", "Оновлено")
-    footer = f"🕐 {updated_text}: {now.strftime('%H:%M')}"
+    footer = f"{updated_text}: {now.strftime('%H:%M')}"
     full_text = f"{base_text}\n\n{footer}"
 
     last_id = today_state.get(f"{target_slot}_id") if not force_new else None
