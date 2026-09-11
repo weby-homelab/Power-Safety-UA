@@ -1,5 +1,10 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.22] - 2026-09-11
+- **Доставка графічних звітів у Telegram (Telegram Graphic Report Delivery Hotfix):** Відновлено доставку фінальних щоденних та запланованих щопонеділкових тижневих графічних звітів при активному Режимі Спокою (Quiet Mode). Додано явні конфігураційні перемикачі `telegram_daily_reports` та `telegram_weekly_reports` (типово `true`). / Restored scheduled daily final and weekly graphic report delivery in Telegram even during Quiet Mode.
+- **Транзакційність та стійкість відправки (Transactional Delivery & Retries):** Усунено передчасне видалення старих звітів до підтвердження прийому нових фото від Telegram API. Впроваджено обмежені повторні спроби (bounded retries), обробку 429 rate limits, 5xx помилок та безпечне логування без токенів. / Made report replacement transactional and hardened Telegram transport with bounded retries and 429 backoff.
+- **Персистентний delivery state та захист від дублікатів (Deduplication & Retry Windows):** Додано файл стану доставки `data/report_delivery_state.json` та вікна повторних спроб (00:01–00:10 для добового, 00:15–00:25 для тижневого), що запобігає дублюванню при перезапуску воркера. / Added persistent delivery state and bounded retry windows preventing duplicates across worker restarts.
+
 ## [v3.9.21] - 2026-09-10
 - **Єдина візуальна мова подій (Event & State Visual Identity):** Узгоджено solid Fact, hatched Plan, quiet Clear, explicit Unknown, amber Warning, critical Red і тонку AQI-смугу в daily/weekly reports та live dashboard. / Unified the event grammar across reports and the live dashboard.
 - **Сумісність:** Збережено filenames звітів, legacy report statistics, Telegram overrides, PWA behavior і storage/API contracts; додано лише availability metadata для явного Unknown. / Preserved report filenames, legacy statistics, Telegram overrides, PWA behavior, and storage/API compatibility.

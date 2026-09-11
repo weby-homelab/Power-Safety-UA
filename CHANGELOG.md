@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.22] - 2026-09-11
+
+### Fixed
+- Restored Telegram delivery of final daily and scheduled weekly graphic reports during Quiet Mode (`telegram_daily_reports` and `telegram_weekly_reports`).
+- Prevented Quiet Mode transition from deleting finalized daily/weekly graphic summaries.
+- Made daily final report replacement fully transactional: new report must be delivered before superseding rolling message is deleted.
+- Hardened Telegram client with bounded retries, 429 rate limit backoff, transient 5xx handling, and token-safe logging.
+- Unified weekly report delivery onto `TelegramClient` and ensured web generation (`--output` / `--no-send`) is strictly send-free.
+- Added persistent delivery state tracking (`data/report_delivery_state.json`) with retry windows for daily final (00:01–00:10) and weekly (00:15–00:25) reports, preventing duplicate sends on worker restart.
+- Added user configuration toggles in Admin UI and Pydantic models with safe defaults (`true`).
+
 ## [3.9.21] - 2026-09-10
 
 ### Changed

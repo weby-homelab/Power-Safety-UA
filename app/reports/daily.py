@@ -712,6 +712,7 @@ def save_report_id(message_id, target_date):
 
 
 from app.telegram_client import TelegramClient  # noqa: E402
+from app.reports.delivery_state import mark_daily_final_delivered  # noqa: E402
 
 
 def get_telegram_client():
@@ -739,6 +740,7 @@ def send_telegram_photo(photo_path, caption, target_date):
         logger.info("Report sent successfully.")
     else:
         logger.error("Failed to send report.")
+    return msg_id
 
 
 def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
@@ -939,18 +941,88 @@ if __name__ == "__main__":
     is_cleanup = "--cleanup" in sys.argv
     quiet_status = get_quiet_status()
 
+    def _cleanup_temp_files():
+        for f in [filename, filename_light, filename_en, filename_light_en]:
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
+
     if is_cleanup:
         logger.info("Cleanup mode: Removing daily reports from Telegram...")
-        # Clean up today and yesterday
-        yesterday_date = target_date - datetime.timedelta(days=1)
-        for d in [target_date, yesterday_date]:
-            last_id = get_last_report_id(d)
-            if last_id:
-                logger.info("Deleting report", date=d, message_id=last_id)
-                delete_telegram_message(last_id)
-                save_report_id(None, d)
+        # Clean up target_date only (never delete finalized yesterday's summary)
+        last_id = get_last_report_id(target_date)
+        if last_id:
+            logger.info("Deleting report", date=target_date, message_id=last_id)
+            delete_telegram_message(last_id)
+            save_report_id(None, target_date)
+        _cleanup_temp_files()
         sys.exit(0)
 
+    from app.config_runtime import get_config
+
+    cfg = get_config()
+    daily_reports_enabled = (
+        cfg.get("advanced", {})
+        .get("notifications", {})
+        .get("telegram_daily_reports", True)
+    )
+
+    if "--no-send" in sys.argv:
+        logger.info("Telegram sending skipped (--no-send).")
+        _cleanup_temp_files()
+        sys.exit(0)
+
+    if not daily_reports_enabled:
+        logger.info("Telegram daily report is disabled in configuration.")
+        _cleanup_temp_files()
+        sys.exit(0)
+
+    if is_final:
+        # Final daily summary: IGNORE Quiet Mode, send once if enabled
+        logger.info("Finalizing daily report", target_date=target_date)
+        last_id = get_last_report_id(target_date)
+        new_msg_id = send_telegram_photo(filename, caption, target_date)
+        if new_msg_id:
+            logger.info(
+                "Final daily report delivered",
+                message_id=new_msg_id,
+                target_date=target_date,
+            )
+            mark_daily_final_delivered(target_date.strftime("%Y-%m-%d"), new_msg_id)
+            # Transactional replacement: delete superseded rolling message ONLY after new photo confirmed
+            if last_id and last_id != new_msg_id:
+                logger.info(
+                    "Deleting superseded rolling report message",
+                    message_id=last_id,
+                )
+                delete_telegram_message(last_id)
+            _cleanup_temp_files()
+            sys.exit(0)
+        else:
+            logger.error(
+                "Failed to send final daily report to Telegram",
+                target_date=target_date,
+            )
+            _cleanup_temp_files()
+            sys.exit(1)
+
+    # Reactive / live daily update
+    if quiet_status == "quiet":
+        last_id = get_last_report_id(target_date)
+        if last_id:
+            logger.info(
+                "Quiet mode active, but updating existing report to keep it live",
+                message_id=last_id,
+            )
+            update_telegram_photo(last_id, filename, caption)
+        else:
+            logger.info("Quiet mode active: Skipping Telegram update (not final).")
+        _cleanup_temp_files()
+        sys.exit(0)
+
+    # Active mode
     is_all_on_day = False
     if slots and len(slots) >= 48:
         # Check for light outage OR air raid alerts
@@ -959,89 +1031,25 @@ if __name__ == "__main__":
             all(s is True for s in slots) and (t_down == 0) and not alert_intervals
         )
 
-    if quiet_status == "quiet" and "--no-send" not in sys.argv:
-        if is_final:
-            logger.info(
-                "Quiet mode active. Skipping special text summary as per request."
-            )
-            # Delete old message if exists (keeping it clean)
-            last_id = get_last_report_id(target_date)
-            if last_id:
-                logger.info(
-                    "Deleting yesterday's old report message during quiet finalization",
-                    message_id=last_id,
-                )
-                delete_telegram_message(last_id)
-        else:
-            last_id = get_last_report_id(target_date)
-            if last_id:
-                logger.info(
-                    "Quiet mode active, but updating existing report to keep it live",
-                    message_id=last_id,
-                )
-                update_telegram_photo(last_id, filename, caption)
-            else:
-                logger.info("Quiet mode active: Skipping Telegram update (not final).")
-
-        if os.path.exists(filename):
-            os.remove(filename)
-        if os.path.exists(filename_light):
-            os.remove(filename_light)
-        if os.path.exists(filename_en):
-            os.remove(filename_en)
-        if os.path.exists(filename_light_en):
-            os.remove(filename_light_en)
+    last_id = get_last_report_id(target_date)
+    if is_all_on_day and not last_id:
+        logger.info(
+            "Active mode but all-light day: Skipping new graphic report to avoid spam."
+        )
+        _cleanup_temp_files()
         sys.exit(0)
 
-    if is_all_on_day and quiet_status != "quiet" and "--no-send" not in sys.argv:
-        last_id = get_last_report_id(target_date)
-        if not last_id:
+    if last_id:
+        logger.info("Updating existing report", message_id=last_id)
+        sent = update_telegram_photo(last_id, filename, caption)
+        if not sent:
             logger.info(
-                "Active mode but all-light day: Skipping new graphic report to avoid spam."
+                "Update failed (likely message deleted). Sending a NEW message instead..."
             )
-            if os.path.exists(filename):
-                os.remove(filename)
-            if os.path.exists(filename_light):
-                os.remove(filename_light)
-            if os.path.exists(filename_en):
-                os.remove(filename_en)
-            if os.path.exists(filename_light_en):
-                os.remove(filename_light_en)
-            sys.exit(0)
-        else:
-            # If last_id exists, we update it normally (don't delete it). We just let it fall through to the normal logic!
-            pass
-
-    if "--no-send" not in sys.argv:
-        # Check if we can update an existing message
-        last_id = get_last_report_id(target_date)
-        if last_id and not is_final:
-            logger.info("Updating existing report", message_id=last_id)
-            sent = update_telegram_photo(last_id, filename, caption)
-            if not sent:
-                logger.info(
-                    "Update failed (likely message deleted). Sending a NEW message instead..."
-                )
-                send_telegram_photo(filename, caption, target_date)
-        else:
-            if is_final:
-                logger.info("Finalizing report", target_date=target_date)
-                if last_id:
-                    logger.info(
-                        "Deleting yesterday's old report message", message_id=last_id
-                    )
-                    delete_telegram_message(last_id)
-            else:
-                logger.info("No report ID for today. Sending new report...")
             send_telegram_photo(filename, caption, target_date)
     else:
-        logger.info("Telegram sending skipped (--no-send).")
+        logger.info("No report ID for today. Sending new report...")
+        send_telegram_photo(filename, caption, target_date)
 
-    if os.path.exists(filename):
-        os.remove(filename)
-    if os.path.exists(filename_light):
-        os.remove(filename_light)
-    if os.path.exists(filename_en):
-        os.remove(filename_en)
-    if os.path.exists(filename_light_en):
-        os.remove(filename_light_en)
+    _cleanup_temp_files()
+    sys.exit(0)

@@ -37,6 +37,10 @@ from app.metrics import (
     air_raid_alerts_total,
     report_generation_errors,
 )
+from app.reports.delivery_state import (
+    is_daily_final_delivered,
+    is_weekly_delivered,
+)
 
 # Load environment variables
 load_dotenv()
@@ -287,7 +291,7 @@ state = {
 }
 
 
-def trigger_daily_report_update(is_final=False):
+def trigger_daily_report_update(is_final=False, date_str=None):
     """
     Triggers the generation and update of the daily report chart.
     Runs asynchronously to not block the main thread.
@@ -314,19 +318,18 @@ def trigger_daily_report_update(is_final=False):
                 except Exception:
                     pass
 
-            logger.info(f"Triggering daily report update (is_final={is_final})...")
+            logger.info(
+                f"Triggering daily report update (is_final={is_final}, date_str={date_str})..."
+            )
             # Use absolute paths
             base_dir = os.path.dirname(os.path.abspath(__file__))
             python_exec = sys.executable
-            script_path = "-m"
 
-            # Run with --final if requested
-            args = [python_exec, script_path]
+            args = [python_exec, "-m", "app.generate_daily_report"]
             if is_final:
                 args.append("--final")
-
-            args[1] = "-m"
-            args.insert(2, "app.generate_daily_report")
+            if date_str:
+                args.append(date_str)
 
             subprocess.run(
                 args,
@@ -334,8 +337,14 @@ def trigger_daily_report_update(is_final=False):
                 cwd=os.path.dirname(base_dir),
             )
 
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to trigger daily report (exit {e.returncode}): {e}")
+            if is_final:
+                report_generation_errors.labels(report_type="daily_final").inc()
         except Exception as e:
             logger.error(f"Failed to trigger daily report: {e}")
+            if is_final:
+                report_generation_errors.labels(report_type="daily_final").inc()
         finally:
             # Note: We don't necessarily delete the lock file to keep it as a cooldown marker
             pass
@@ -418,6 +427,7 @@ def trigger_weekly_report_update():
                     "app.generate_weekly_report",
                     "--output",
                     output_path,
+                    "--no-send",
                 ],
                 check=True,
                 cwd=os.path.dirname(base_dir),
@@ -1447,15 +1457,6 @@ async def update_quiet_status():
                             [
                                 python_exec,
                                 "-m",
-                                "app.generate_daily_report",
-                                "--cleanup",
-                            ],
-                            cwd=os.path.dirname(base_dir),
-                        )
-                        subprocess.run(
-                            [
-                                python_exec,
-                                "-m",
                                 "app.generate_text_report",
                                 "--cleanup",
                             ],
@@ -2016,15 +2017,16 @@ async def schedule_loop():
         now = datetime.datetime.now(KYIV_TZ)
         now_str = now.strftime("%H:%M")
         today_date = now.strftime("%Y-%m-%d")
+        yesterday_date = (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
-        if now.hour == 0 and now.minute == 1:
-            trigger_daily_report_update(is_final=True)
+        # Daily Final Retry Window: 00:01 - 00:10 Europe/Kyiv
+        if now.hour == 0 and 1 <= now.minute <= 10:
+            if not is_daily_final_delivered(yesterday_date):
+                trigger_daily_report_update(is_final=True, date_str=yesterday_date)
             if last_prune_date != today_date:
                 prune_old_data()
                 create_backup("daily_auto")
                 last_prune_date = today_date
-            await asyncio.sleep(65)
-            return
 
         cfg = get_config()
         report_times = (
@@ -2033,8 +2035,6 @@ async def schedule_loop():
         if now_str in report_times:
             logger.info(f"Triggering scheduled report at {now_str}...")
             trigger_daily_report_update(is_final=False)
-            await asyncio.sleep(65)
-            return
 
         if now.minute % 10 == 0:
             await sync_schedules()
@@ -2043,8 +2043,12 @@ async def schedule_loop():
             trigger_text_report_update()
             await update_quiet_status()
 
-        if now.weekday() == 0 and now.hour == 0 and 15 <= now.minute < 25:
-            if weekly_sent_date != today_date:
+        # Weekly Report Retry Window: Monday 00:15 - 00:25 Europe/Kyiv
+        if now.weekday() == 0 and now.hour == 0 and 15 <= now.minute <= 25:
+            completed_week_target = (now - datetime.timedelta(days=1)).strftime(
+                "%Y-%m-%d"
+            )
+            if not is_weekly_delivered(completed_week_target):
                 try:
                     base_dir = os.path.dirname(os.path.abspath(__file__))
                     subprocess.run(
@@ -2053,14 +2057,24 @@ async def schedule_loop():
                             "-m",
                             "app.generate_weekly_report",
                             "--date",
-                            (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+                            completed_week_target,
                         ],
                         check=True,
                         cwd=os.path.dirname(base_dir),
                     )
                     weekly_sent_date = today_date
-                except Exception:
-                    pass
+                except subprocess.CalledProcessError as e:
+                    logger.error(
+                        "Weekly report delivery failed with non-zero exit code",
+                        error=str(e),
+                        returncode=e.returncode,
+                    )
+                    report_generation_errors.labels(report_type="weekly").inc()
+                except Exception as e:
+                    logger.error(
+                        "Weekly report process invocation failed", error=str(e)
+                    )
+                    report_generation_errors.labels(report_type="weekly").inc()
 
     await run_loop_with_backoff("schedule", _schedule_iteration, interval=60.0)
 

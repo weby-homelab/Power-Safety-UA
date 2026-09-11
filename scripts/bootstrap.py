@@ -116,7 +116,9 @@ def perform_cold_start_if_needed():
                             "notifications": {
                                 "report_times": ["06:00", "20:00"],
                                 "mute_during_night": False,
-                                "telegram_air_raid_alerts": True
+                                "telegram_air_raid_alerts": True,
+                                "telegram_daily_reports": True,
+                                "telegram_weekly_reports": True
                             },
                             "retention": {
                                 "event_log_days": 7,

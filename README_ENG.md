@@ -85,7 +85,7 @@ Graphical reports and the live dashboard use four independent channels:
 *   **Bilingual Switcher:** The switcher button clearly displays the action to transition to the next language (`UA` when viewing English, `EN` when viewing Ukrainian) with localized tooltips.
 
 ### 🤫 «Quiet Mode» (Information Calm)
-A unique algorithm that minimizes "information noise." The system automatically enters a calm state if no outages occurred in the last 24 hours and no restrictions are planned for the upcoming day.
+A unique algorithm that minimizes "information noise." The system automatically enters a calm state if no outages occurred in the last 24 hours and no restrictions are planned for the upcoming day. Quiet Mode suppresses reactive live updates while guaranteeing delivery of the final daily summary and weekly graphic reports (configured via `telegram_daily_reports` and `telegram_weekly_reports`).
 
 ### ⚖️ «False Always Wins» Logic
 A hybrid schedule processing system. If at least one source indicates an outage, the system prioritizes it. Historical records are never overwritten by "clean" plans.
