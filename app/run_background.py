@@ -24,6 +24,9 @@ logger = structlog.get_logger(__name__)
 async def main():
     logger.info("Starting Power-Safety-UA Background Services (Async)...")
     await load_state()
+    from app.light_service import reconcile_startup_state
+
+    await reconcile_startup_state()
 
     from app.light_service import get_air_raid_alert, state
 

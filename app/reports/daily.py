@@ -713,6 +713,7 @@ def save_report_id(message_id, target_date):
 
 from app.telegram_client import TelegramClient  # noqa: E402
 from app.reports.delivery_state import mark_daily_final_delivered  # noqa: E402
+from app.metrics import report_generation_errors  # noqa: E402
 
 
 def get_telegram_client():
@@ -776,9 +777,8 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
                     f"{label}: {details['count']} ({format_duration(details['duration_sec'])})"
                 )
         caption += (
-            f"\n🚨 Повітряні тривоги: {alerts_count} "
-            f"(загалом {format_duration(total_alert_sec)})\n"
-            f"   • " + "; ".join(type_parts)
+            f"\n🚨 Час тривог без подвійного рахунку: {format_duration(total_alert_sec)}\n"
+            f"   • За рівнями (можуть перекриватися): " + "; ".join(type_parts)
         )
 
     plan_up_sec_formatted = "0 хв"
@@ -990,21 +990,34 @@ if __name__ == "__main__":
                 message_id=new_msg_id,
                 target_date=target_date,
             )
-            mark_daily_final_delivered(target_date.strftime("%Y-%m-%d"), new_msg_id)
-            # Transactional replacement: delete superseded rolling message ONLY after new photo confirmed
-            if last_id and last_id != new_msg_id:
-                logger.info(
-                    "Deleting superseded rolling report message",
-                    message_id=last_id,
+            persisted = mark_daily_final_delivered(
+                target_date.strftime("%Y-%m-%d"), new_msg_id
+            )
+            if persisted:
+                # Transactional replacement: delete superseded rolling message ONLY after new photo confirmed AND delivery-state persistence succeeds
+                if last_id and last_id != new_msg_id:
+                    logger.info(
+                        "Deleting superseded rolling report message",
+                        message_id=last_id,
+                    )
+                    delete_telegram_message(last_id)
+                _cleanup_temp_files()
+                sys.exit(0)
+            else:
+                logger.error(
+                    "Failed to persist daily final delivery state. Preserving rolling report for retry eligibility.",
+                    target_date=target_date,
+                    message_id=new_msg_id,
                 )
-                delete_telegram_message(last_id)
-            _cleanup_temp_files()
-            sys.exit(0)
+                report_generation_errors.labels(report_type="daily_final").inc()
+                _cleanup_temp_files()
+                sys.exit(1)
         else:
             logger.error(
                 "Failed to send final daily report to Telegram",
                 target_date=target_date,
             )
+            report_generation_errors.labels(report_type="daily_final").inc()
             _cleanup_temp_files()
             sys.exit(1)
 

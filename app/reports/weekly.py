@@ -38,6 +38,7 @@ def get_telegram_config():
 
 from app.telegram_client import TelegramClient  # noqa: E402
 from app.reports.delivery_state import mark_weekly_delivered  # noqa: E402
+from app.metrics import report_generation_errors  # noqa: E402
 
 
 def get_telegram_client():
@@ -658,6 +659,63 @@ def send_telegram_photo(photo_path, caption):
     return client.send_photo(photo_path, caption)
 
 
+def resolve_weekly_report_period(
+    now: datetime.datetime,
+    date_str: str | None = None,
+    completed_week: bool = False,
+    force_send: bool = False,
+    no_send: bool = False,
+    has_output: bool = False,
+) -> tuple[datetime.date, datetime.date, datetime.date, bool]:
+    """Resolves (monday, sunday, target_date, effective_no_send) for weekly report.
+    - scheduled run (Monday 00:00–02:00 window): previous completed calendar week.
+    - --completed-week: previous completed Monday-Sunday week.
+    - --date YYYY-MM-DD: full week containing target date.
+    - mid-week without flags: defaults to dry-run (effective_no_send=True) to prevent sending partial week.
+    - --force-send: overrides dry-run safeguard for mid-week runs.
+    """
+    if date_str:
+        target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+        monday = target_date - datetime.timedelta(days=target_date.weekday())
+        sunday = monday + datetime.timedelta(days=6)
+        effective_no_send = no_send or has_output
+        return monday, sunday, target_date, effective_no_send
+
+    if completed_week:
+        current_monday = now.date() - datetime.timedelta(days=now.weekday())
+        monday = current_monday - datetime.timedelta(days=7)
+        sunday = monday + datetime.timedelta(days=6)
+        target_date = sunday
+        effective_no_send = no_send or has_output
+        return monday, sunday, target_date, effective_no_send
+
+    # Check if scheduled Monday delivery window (00:00 - 02:00)
+    is_scheduled_monday_window = now.weekday() == 0 and 0 <= now.hour < 2
+    if is_scheduled_monday_window:
+        current_monday = now.date() - datetime.timedelta(days=now.weekday())
+        monday = current_monday - datetime.timedelta(days=7)
+        sunday = monday + datetime.timedelta(days=6)
+        target_date = sunday
+        effective_no_send = no_send or has_output
+        return monday, sunday, target_date, effective_no_send
+
+    # Mid-week invocation without --date or --completed-week:
+    target_date = now.date()
+    monday = target_date - datetime.timedelta(days=target_date.weekday())
+    sunday = monday + datetime.timedelta(days=6)
+
+    if not force_send and not no_send and not has_output:
+        logger.warning(
+            "Mid-week weekly report run without --completed-week or --date will not deliver to Telegram. "
+            "Defaulting to dry-run mode (--no-send). Pass --completed-week for previous week or --force-send to override."
+        )
+        effective_no_send = True
+    else:
+        effective_no_send = no_send or has_output
+
+    return monday, sunday, target_date, effective_no_send
+
+
 if __name__ == "__main__":
     _weekly_report_lock_handle = acquire_weekly_report_lock()
     import argparse
@@ -668,16 +726,28 @@ if __name__ == "__main__":
     parser.add_argument(
         "--no-send", action="store_true", help="Do not send to Telegram"
     )
+    parser.add_argument(
+        "--completed-week",
+        action="store_true",
+        help="Generate report for the previous completed calendar week",
+    )
+    parser.add_argument(
+        "--force-send",
+        action="store_true",
+        help="Force delivery to Telegram even for partial in-progress week",
+    )
     args = parser.parse_args()
 
     now = get_now()
-    if args.date:
-        target_date = datetime.datetime.strptime(args.date, "%Y-%m-%d").date()
-    else:
-        target_date = now.date()
-
-    monday = target_date - datetime.timedelta(days=target_date.weekday())
-    sunday = monday + datetime.timedelta(days=6)
+    monday, sunday, target_date, effective_no_send = resolve_weekly_report_period(
+        now=now,
+        date_str=args.date,
+        completed_week=args.completed_week,
+        force_send=args.force_send,
+        no_send=args.no_send,
+        has_output=bool(args.output),
+    )
+    args.no_send = effective_no_send
 
     logger.info(f"Generating weekly report for: {monday} to {sunday}...")
 
@@ -846,8 +916,9 @@ if __name__ == "__main__":
  • 💡 Факт: Світло було <b>{int(up_h)}г {int((up_h % 1) * 60)}хв</b> ({int(up_pct)}%)
  • ⚡️ Факт: Відключення <b>{int(down_h)}г {int((down_h % 1) * 60)}хв</b>
  • В середньому без світла: <b>{int(down_h / 7)}г {int(((down_h / 7) % 1) * 60)}хв</b> на добу
- • 🚨 <b>Повітряні тривоги:</b> {alerts_count} за тиждень (сумарно <b>{alerts_h_int}г {alerts_m_int}хв</b>, або <b>{alerts_pct:.1f}%</b> від усього часу)
- • Рівні тривог: <b>{alert_type_summary}</b>
+ • 🚨 <b>Повітряні тривоги (без подвійного рахунку):</b> {alerts_count} за тиждень (сумарно <b>{alerts_h_int}г {alerts_m_int}хв</b>, або <b>{alerts_pct:.1f}%</b> від усього часу)
+ • За рівнями (можуть перекриватися): <b>{alert_type_summary}</b>
+
 {plan_section}
 
 🏆 <b>Найменше відключень:</b> {day_names[best_day["date"].weekday()]}
@@ -878,9 +949,20 @@ if __name__ == "__main__":
         msg_id = send_telegram_photo(filename, caption)
         if msg_id:
             logger.info("Weekly report sent successfully.", message_id=msg_id)
-            mark_weekly_delivered(target_date.strftime("%Y-%m-%d"), msg_id)
+            persisted = mark_weekly_delivered(target_date.strftime("%Y-%m-%d"), msg_id)
+            if not persisted:
+                logger.error(
+                    "Failed to persist weekly delivery state. Preserving retry eligibility.",
+                    target_date=target_date,
+                    message_id=msg_id,
+                )
+                report_generation_errors.labels(report_type="weekly").inc()
+                exit_code = 1
+            else:
+                exit_code = 0
         else:
             logger.error("Failed to send weekly report to Telegram.")
+            report_generation_errors.labels(report_type="weekly").inc()
             exit_code = 1
 
     if os.path.exists(filename):

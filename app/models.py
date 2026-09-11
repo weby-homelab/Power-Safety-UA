@@ -103,6 +103,7 @@ class AppState(BaseModel):
     admin_token: Optional[str] = None
     last_schedule_hash: Optional[str] = None
     alert_start_time: Optional[float] = None
+    alert_start_times: Dict[str, float] = Field(default_factory=dict)
 
 
 class ScheduleDay(BaseModel):
