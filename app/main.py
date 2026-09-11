@@ -137,6 +137,9 @@ async def lifespan(app: FastAPI):
             "Set SECRET_KEY in .env or docker secrets."
         )
     await load_state()
+    from app.light_service import reconcile_startup_state
+
+    await reconcile_startup_state()
     yield
     await http_client.aclose()
     logger.info("application_shutdown")
@@ -1524,6 +1527,7 @@ async def push_unsubscribe(request: Request, data: dict = Body(...)):
 
 
 @app.get("/api/push/{key}")
+@app.get("/api/ping/{key}")
 async def push_api(
     key: str,
     background_tasks: BackgroundTasks,
@@ -1571,15 +1575,16 @@ async def push_api(
                     msg.split("\n")[0] if msg else "Електропостачання відновлено",
                 )
             background_tasks.add_task(broadcast_state_update)
-        elif previous_status == "unknown":
+        elif previous_status in ("unknown", "startup_reconciliation"):
             logger.info(
                 "push_api_status_change",
                 prev=previous_status,
                 new="up",
-                msg="Cold start, no telegram alert",
+                msg="Cold start or stale restart reconciliation, no telegram alert",
             )
             state["status"] = "up"
             state["came_up_at"] = current_time
+            state.pop("startup_reconciliation", None)
             # Only log event internally, don't spam telegram on system restart
             await log_event("up", current_time)
             background_tasks.add_task(broadcast_state_update)

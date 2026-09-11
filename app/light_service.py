@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 import json
 import asyncio
+from typing import Optional
 from app.models import AppState
 import os
 import secrets
@@ -750,11 +751,22 @@ def format_event_message(is_up, event_time, prev_event_time):
             dev_line = txt.get("dev_exact", "⚡️ Точно за графіком")
 
     # 2. Previous Duration
-    if prev_event_time > 0:
-        dur_sec = abs(event_time - prev_event_time)
+    if (
+        prev_event_time is not None
+        and prev_event_time > 0
+        and prev_event_time <= event_time
+    ):
+        dur_sec = max(0, int(event_time - prev_event_time))
         dur_str = format_duration(dur_sec)
     else:
         dur_str = "невідомо"
+        if prev_event_time is not None and prev_event_time > event_time:
+            logger.warning(
+                "invalid_event_duration",
+                event_time=event_time,
+                prev_event_time=prev_event_time,
+                diff_sec=event_time - prev_event_time,
+            )
     dur_line = f"🕓 {duration_prefix} {dur_str}"
 
     # 3. Next event and Interval
@@ -1428,6 +1440,50 @@ def _typed_alert_history_sync_types(active_types, last_events):
     }
 
 
+def _get_or_recover_alert_start_time(alert_type, state_dict, log_data):
+    """
+    Recover start time for a specific alert level.
+    Priority:
+    1. latest unmatched typed `active` event for that level in air_raid_log.json;
+    2. safe legacy field only when its meaning is unambiguous;
+    3. unknown duration (None) if the true per-level start cannot be proven.
+    """
+    start_times = state_dict.get("alert_start_times")
+    if isinstance(start_times, dict):
+        st = start_times.get(alert_type)
+        if isinstance(st, (int, float)) and st > 0:
+            return float(st)
+
+    # 1. Search air_raid_log.json backwards
+    if isinstance(log_data, list):
+        for item in reversed(log_data):
+            if not isinstance(item, dict):
+                continue
+            if item.get("alert_type") == alert_type:
+                ev = item.get("event")
+                if ev == "active":
+                    ts = item.get("timestamp")
+                    if isinstance(ts, (int, float)) and ts > 0:
+                        return float(ts)
+                elif ev == "clear":
+                    # Latest event for this level was clear, so no unmatched active event
+                    break
+
+    # 2. Check legacy field state["alert_start_time"]
+    legacy_start = state_dict.get("alert_start_time")
+    if isinstance(legacy_start, (int, float)) and legacy_start > 0:
+        stored_types = state_dict.get("alert_types", [])
+        if isinstance(stored_types, str):
+            stored_types = [stored_types]
+        if stored_types == [alert_type] or (
+            not stored_types and state_dict.get("alert_type") == alert_type
+        ):
+            return float(legacy_start)
+
+    # 3. Cannot be proven
+    return None
+
+
 async def update_quiet_status():
     async with state_mgr:
         q_mode = state.get("quiet_mode", "auto")
@@ -1509,6 +1565,55 @@ async def _check_safety_net_trigger(current_time, last_seen):
                 send_safety_net_admin,
                 current_time,
             )
+
+
+OUTAGE_THRESHOLD_SEC = 180
+_startup_reconciled = False
+
+
+async def reconcile_startup_state(current_time: Optional[float] = None) -> bool:
+    """Process-start reconciliation state machine for power monitor.
+    Ensures service/worker restart does not create artificial outage or fake restoration events.
+    """
+    global _startup_reconciled
+    if _startup_reconciled:
+        return False
+    _startup_reconciled = True
+
+    async with state_mgr:
+        await load_state()
+        now = get_current_time() if current_time is None else current_time
+        last_seen = state.get("last_seen", 0.0)
+        status = state.get("status", "unknown")
+
+        if status == "up" and (now - last_seen) > OUTAGE_THRESHOLD_SEC:
+            logger.info(
+                "startup_reconciliation_stale_power",
+                prev_status=status,
+                last_seen=last_seen,
+                current_time=now,
+                diff=now - last_seen,
+                action="transition_to_unknown",
+            )
+            state["status"] = "unknown"
+            state["safety_net_pending"] = False
+            state["went_down_at"] = 0.0
+            state["startup_reconciliation"] = True
+            await save_state()
+            return True
+        elif status == "down":
+            logger.info(
+                "startup_reconciliation_confirmed_down",
+                status="down",
+                went_down_at=state.get("went_down_at", 0.0),
+            )
+        elif status == "up":
+            logger.info(
+                "startup_reconciliation_rapid_reboot",
+                diff=now - last_seen,
+                status="up",
+            )
+    return False
 
 
 async def _check_safety_net_timeout(current_time):
@@ -1639,6 +1744,9 @@ async def run_loop_with_backoff(loop_name: str, coro_func, interval: float = 5.0
 
 
 async def _monitor_loop_iteration():
+    global _startup_reconciled
+    if not _startup_reconciled:
+        await reconcile_startup_state()
     await load_state()
     async with state_mgr:
         current_time = get_current_time()
@@ -1753,58 +1861,157 @@ async def _alerts_loop_iteration():
                 logger.error("air_raid_history_save_failed")
                 return
 
-        if new_type in (ALERT_TYPE_YELLOW, ALERT_TYPE_RED) and new_type != old_type:
-            if old_type == "clear":
-                state["alert_start_time"] = now_dt.timestamp()
-            if can_notify:
-                if old_type == ALERT_TYPE_RED and new_type == ALERT_TYPE_YELLOW:
-                    start_ts = state.get("alert_start_time")
+        # Maintain per-level alert start times
+        if "alert_start_times" not in state or not isinstance(
+            state.get("alert_start_times"), dict
+        ):
+            state["alert_start_times"] = {}
+        alert_start_times = state["alert_start_times"]
+
+        now_ts = now_dt.timestamp()
+        started_types = new_types.difference(old_types)
+        cleared_types = old_types.difference(new_types)
+
+        # Set start times for newly active levels
+        for alert_type in (ALERT_TYPE_YELLOW, ALERT_TYPE_RED):
+            if alert_type in new_types:
+                if alert_type in started_types:
+                    alert_start_times[alert_type] = now_ts
+                elif alert_type not in alert_start_times:
+                    rec_ts = _get_or_recover_alert_start_time(
+                        alert_type, state, log_data
+                    )
+                    if rec_ts is not None:
+                        alert_start_times[alert_type] = rec_ts
+
+        # Calculate duration and clear start times for cleared levels
+        cleared_durations = {}
+        for alert_type in cleared_types:
+            start_ts = alert_start_times.get(alert_type)
+            if not start_ts:
+                start_ts = _get_or_recover_alert_start_time(alert_type, state, log_data)
+            if (
+                start_ts
+                and isinstance(start_ts, (int, float))
+                and 0 <= (now_ts - start_ts) <= 24 * 3600
+            ):
+                cleared_durations[alert_type] = int(now_ts - start_ts)
+            else:
+                cleared_durations[alert_type] = None
+            alert_start_times.pop(alert_type, None)
+
+        if can_notify:
+            if cleared_types and new_types:
+                # Transition where some level(s) cleared while others remain or started
+                if (
+                    ALERT_TYPE_RED in cleared_types
+                    and ALERT_TYPE_YELLOW in new_types
+                    and ALERT_TYPE_RED not in new_types
+                ):
+                    # Red cleared, Yellow remains
+                    dur_sec = cleared_durations.get(ALERT_TYPE_RED)
                     duration_str = ""
-                    if start_ts:
-                        duration_sec = int(now_dt.timestamp() - start_ts)
-                        if 0 <= duration_sec <= 12 * 3600:
-                            hours, mins = (
-                                duration_sec // 3600,
-                                (duration_sec % 3600) // 60,
-                            )
-                            duration_str = (
-                                f"\nяка тривала {hours} год {mins} хв"
-                                if hours > 0
-                                else f"\nяка тривала {mins} хв"
-                            )
+                    if dur_sec is not None:
+                        hours, mins = dur_sec // 3600, (dur_sec % 3600) // 60
+                        duration_str = (
+                            f"\nяка тривала {hours} год {mins} хв"
+                            if hours > 0
+                            else f"\nяка тривала {mins} хв"
+                        )
                     pending_message = (
                         f"{ALERT_CLEAR_ICON} <b>{time_str} ВІДБІЙ ТРИВОГИ (червоний рівень)</b>{duration_str}\n"
                         f"{ALERT_WARNING_ICON} Залишається жовтий рівень попередження"
                     )
-                else:
+                    pending_metric_status = "clear_red"
+                elif (
+                    ALERT_TYPE_YELLOW in cleared_types
+                    and ALERT_TYPE_RED in new_types
+                    and ALERT_TYPE_YELLOW not in new_types
+                ):
+                    # Yellow cleared, Red remains
+                    dur_sec = cleared_durations.get(ALERT_TYPE_YELLOW)
+                    duration_str = ""
+                    if dur_sec is not None:
+                        hours, mins = dur_sec // 3600, (dur_sec % 3600) // 60
+                        duration_str = (
+                            f"\nяка тривала {hours} год {mins} хв"
+                            if hours > 0
+                            else f"\nяка тривала {mins} хв"
+                        )
+                    pending_message = (
+                        f"{ALERT_CLEAR_ICON} <b>{time_str} ВІДБІЙ ПОПЕРЕДЖЕННЯ (жовтий рівень)</b>{duration_str}\n"
+                        f"{ALERT_CRITICAL_ICON} Залишається червоний рівень небезпеки"
+                    )
+                    pending_metric_status = "clear_yellow"
+                elif started_types:
+                    top_new = (
+                        ALERT_TYPE_RED
+                        if ALERT_TYPE_RED in started_types
+                        else ALERT_TYPE_YELLOW
+                    )
                     pending_message = format_air_raid_start_message(
-                        new_type,
+                        top_new,
                         time_str,
                         current_alert.get("location", "Київ"),
                     )
-                    cleared_types = old_types.difference(new_types)
-                    if cleared_types:
-                        cleared_label = format_level_names(cleared_types)
-                        if cleared_label:
-                            pending_message += f"\n↘️ Відбій: {cleared_label}"
-                pending_metric_status = new_type
-        elif new_type == "clear" and old_type != "clear":
-            start_ts = state.get("alert_start_time")
-            duration_str = ""
-            if start_ts:
-                duration_sec = int(now_dt.timestamp() - start_ts)
-                if 0 <= duration_sec <= 12 * 3600:
-                    hours, mins = duration_sec // 3600, (duration_sec % 3600) // 60
-                    duration_str = (
-                        f"\nяка тривала {hours} год {mins} хв"
-                        if hours > 0
-                        else f"\nяка тривала {mins} хв"
+                    cleared_label = format_level_names(cleared_types)
+                    if cleared_label:
+                        pending_message += f"\n↘️ Відбій: {cleared_label}"
+                    pending_metric_status = top_new
+            elif cleared_types and not new_types:
+                # ALL levels cleared
+                if len(cleared_types) == 1:
+                    lvl = list(cleared_types)[0]
+                    dur_sec = cleared_durations.get(lvl)
+                    duration_str = ""
+                    if dur_sec is not None:
+                        hours, mins = dur_sec // 3600, (dur_sec % 3600) // 60
+                        duration_str = (
+                            f"\nяка тривала {hours} год {mins} хв"
+                            if hours > 0
+                            else f"\nяка тривала {mins} хв"
+                        )
+                    pending_message = format_air_raid_clear_message(
+                        old_types, time_str, duration_str
                     )
-            if can_notify:
-                pending_message = format_air_raid_clear_message(
-                    old_types, time_str, duration_str
-                )
+                else:
+                    # Multiple levels clearing simultaneously: format independent durations
+                    dur_parts = []
+                    for lvl, lbl in [
+                        (ALERT_TYPE_YELLOW, "жовтий рівень"),
+                        (ALERT_TYPE_RED, "червоний рівень"),
+                    ]:
+                        if lvl in cleared_types:
+                            d_sec = cleared_durations.get(lvl)
+                            if d_sec is not None:
+                                h, m = d_sec // 3600, (d_sec % 3600) // 60
+                                dur_text = f"{h} год {m} хв" if h > 0 else f"{m} хв"
+                                dur_parts.append(f"• {lbl} — тривала {dur_text}")
+                            else:
+                                dur_parts.append(f"• {lbl} — тривалість невідома")
+                    dur_block = ("\n" + "\n".join(dur_parts)) if dur_parts else ""
+                    pending_message = f"{ALERT_CLEAR_ICON} <b>{time_str} ВІДБІЙ ТРИВОГИ</b>\n(відбій для всіх рівнів){dur_block}"
                 pending_metric_status = "clear"
+            elif started_types and not cleared_types:
+                # Level(s) started
+                top_started = (
+                    ALERT_TYPE_RED
+                    if ALERT_TYPE_RED in started_types
+                    else ALERT_TYPE_YELLOW
+                )
+                pending_message = format_air_raid_start_message(
+                    top_started,
+                    time_str,
+                    current_alert.get("location", "Київ"),
+                )
+                pending_metric_status = top_started
+
+        # Backward-compatible sync for legacy alert_start_time
+        if ALERT_TYPE_RED in new_types:
+            state["alert_start_time"] = alert_start_times.get(ALERT_TYPE_RED)
+        elif ALERT_TYPE_YELLOW in new_types:
+            state["alert_start_time"] = alert_start_times.get(ALERT_TYPE_YELLOW)
+        else:
             state["alert_start_time"] = None
 
         state["alert_status"] = (

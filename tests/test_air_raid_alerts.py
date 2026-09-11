@@ -638,3 +638,268 @@ def test_alerts_loop_does_not_notify_telegram_on_region_only_alert(
     assert state["alert_status"] == "clear"
     assert state["alert_type"] == "clear"
     assert state["alert_types"] == []
+
+
+def test_alert_duration_yellow_then_red_then_red_clear_uses_red_start():
+    import asyncio
+    from app.light_service import _alerts_loop_iteration, state
+
+    t_yellow = datetime.datetime(2026, 4, 6, 9, 10, tzinfo=KYIV_TZ).timestamp()
+    t_red = datetime.datetime(2026, 4, 6, 9, 45, tzinfo=KYIV_TZ).timestamp()
+    t_clear_red = datetime.datetime(2026, 4, 6, 11, 10, tzinfo=KYIV_TZ).timestamp()
+
+    class FakeDateTime(datetime.datetime):
+        _mock_now = None
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls._mock_now or super().now(tz=tz)
+
+    state.clear()
+    state.update(
+        {
+            "status": "up",
+            "last_seen": t_yellow,
+            "alert_status": "clear",
+            "alert_type": "clear",
+            "alert_types": [],
+            "alert_start_times": {},
+        }
+    )
+
+    captured_messages = []
+
+    async def mock_load_json(path, default=None):
+        if "state" in path:
+            return dict(state)
+        return []
+
+    # 1. Yellow active
+    FakeDateTime._mock_now = datetime.datetime.fromtimestamp(t_yellow, tz=KYIV_TZ)
+    with (
+        patch(
+            "app.light_service.get_air_raid_alert",
+            return_value={
+                "city": True,
+                "type": "yellow",
+                "types": ["yellow"],
+                "location": "Київ",
+            },
+        ),
+        patch("app.light_service.datetime.datetime", FakeDateTime),
+        patch(
+            "app.light_service.StorageUtils.load_json_async", side_effect=mock_load_json
+        ),
+        patch("app.light_service.StorageUtils.save_json_async", return_value=True),
+        patch("app.light_service.save_state", return_value=True),
+        patch(
+            "app.light_service.send_telegram",
+            side_effect=lambda msg: captured_messages.append(msg),
+        ),
+        patch("app.light_service.load_state", return_value=None),
+        patch(
+            "app.light_service.get_config",
+            return_value={
+                "advanced": {"notifications": {"telegram_air_raid_alerts": True}}
+            },
+        ),
+    ):
+        asyncio.run(_alerts_loop_iteration())
+
+    assert state["alert_start_times"]["yellow"] == t_yellow
+    assert "red" not in state["alert_start_times"]
+
+    # 2. Red starts at 09:45
+    FakeDateTime._mock_now = datetime.datetime.fromtimestamp(t_red, tz=KYIV_TZ)
+    with (
+        patch(
+            "app.light_service.get_air_raid_alert",
+            return_value={
+                "city": True,
+                "type": "red",
+                "types": ["yellow", "red"],
+                "location": "Київ",
+            },
+        ),
+        patch("app.light_service.datetime.datetime", FakeDateTime),
+        patch(
+            "app.light_service.StorageUtils.load_json_async", side_effect=mock_load_json
+        ),
+        patch("app.light_service.StorageUtils.save_json_async", return_value=True),
+        patch("app.light_service.save_state", return_value=True),
+        patch(
+            "app.light_service.send_telegram",
+            side_effect=lambda msg: captured_messages.append(msg),
+        ),
+        patch("app.light_service.load_state", return_value=None),
+        patch(
+            "app.light_service.get_config",
+            return_value={
+                "advanced": {"notifications": {"telegram_air_raid_alerts": True}}
+            },
+        ),
+    ):
+        asyncio.run(_alerts_loop_iteration())
+
+    assert state["alert_start_times"]["yellow"] == t_yellow
+    assert state["alert_start_times"]["red"] == t_red
+
+    # 3. Red clears at 11:10 (Yellow remains)
+    FakeDateTime._mock_now = datetime.datetime.fromtimestamp(t_clear_red, tz=KYIV_TZ)
+    with (
+        patch(
+            "app.light_service.get_air_raid_alert",
+            return_value={
+                "city": True,
+                "type": "yellow",
+                "types": ["yellow"],
+                "location": "Київ",
+            },
+        ),
+        patch("app.light_service.datetime.datetime", FakeDateTime),
+        patch(
+            "app.light_service.StorageUtils.load_json_async", side_effect=mock_load_json
+        ),
+        patch("app.light_service.StorageUtils.save_json_async", return_value=True),
+        patch("app.light_service.save_state", return_value=True),
+        patch(
+            "app.light_service.send_telegram",
+            side_effect=lambda msg: captured_messages.append(msg),
+        ),
+        patch("app.light_service.load_state", return_value=None),
+        patch(
+            "app.light_service.get_config",
+            return_value={
+                "advanced": {"notifications": {"telegram_air_raid_alerts": True}}
+            },
+        ),
+    ):
+        asyncio.run(_alerts_loop_iteration())
+
+    last_msg = captured_messages[-1]
+    assert "ВІДБІЙ ТРИВОГИ (червоний рівень)" in last_msg
+    assert "1 год 25 хв" in last_msg
+    assert "2 год" not in last_msg
+    assert state["alert_start_times"]["yellow"] == t_yellow
+    assert "red" not in state["alert_start_times"]
+
+
+def test_simultaneous_level_clear_formats_independent_durations():
+    import asyncio
+    from app.light_service import _alerts_loop_iteration, state
+
+    t_yellow = datetime.datetime(2026, 4, 6, 9, 10, tzinfo=KYIV_TZ).timestamp()
+    t_red = datetime.datetime(2026, 4, 6, 9, 45, tzinfo=KYIV_TZ).timestamp()
+    t_clear_both = datetime.datetime(2026, 4, 6, 11, 10, tzinfo=KYIV_TZ).timestamp()
+
+    class FakeDateTime(datetime.datetime):
+        _mock_now = None
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls._mock_now or super().now(tz=tz)
+
+    state.clear()
+    state.update(
+        {
+            "status": "up",
+            "alert_status": "active",
+            "alert_type": "red",
+            "alert_types": ["yellow", "red"],
+            "alert_start_times": {"yellow": t_yellow, "red": t_red},
+        }
+    )
+
+    captured_messages = []
+
+    async def mock_load_json(path, default=None):
+        if "state" in path:
+            return dict(state)
+        return []
+
+    FakeDateTime._mock_now = datetime.datetime.fromtimestamp(t_clear_both, tz=KYIV_TZ)
+    with (
+        patch(
+            "app.light_service.get_air_raid_alert",
+            return_value={
+                "city": False,
+                "type": "clear",
+                "types": [],
+                "location": "Тривоги немає",
+            },
+        ),
+        patch("app.light_service.datetime.datetime", FakeDateTime),
+        patch(
+            "app.light_service.StorageUtils.load_json_async", side_effect=mock_load_json
+        ),
+        patch("app.light_service.StorageUtils.save_json_async", return_value=True),
+        patch("app.light_service.save_state", return_value=True),
+        patch(
+            "app.light_service.send_telegram",
+            side_effect=lambda msg: captured_messages.append(msg),
+        ),
+        patch("app.light_service.load_state", return_value=None),
+        patch(
+            "app.light_service.get_config",
+            return_value={
+                "advanced": {"notifications": {"telegram_air_raid_alerts": True}}
+            },
+        ),
+    ):
+        asyncio.run(_alerts_loop_iteration())
+
+    last_msg = captured_messages[-1]
+    assert "ВІДБІЙ ТРИВОГИ" in last_msg
+    assert "жовтий рівень — тривала 2 год 0 хв" in last_msg
+    assert "червоний рівень — тривала 1 год 25 хв" in last_msg
+
+
+def test_recovery_from_typed_log_and_ambiguous_legacy_state():
+    from app.light_service import _get_or_recover_alert_start_time
+
+    # 1. Recover from air_raid_log
+    log_data = [
+        {"event": "active", "alert_type": "yellow", "timestamp": 1000.0},
+        {"event": "active", "alert_type": "red", "timestamp": 2000.0},
+    ]
+    st = {}
+    assert _get_or_recover_alert_start_time("red", st, log_data) == 2000.0
+    assert _get_or_recover_alert_start_time("yellow", st, log_data) == 1000.0
+
+    # 2. Ambiguous legacy state yields None (unknown)
+    st_ambiguous = {
+        "alert_start_time": 1500.0,
+        "alert_types": ["yellow", "red"],
+    }
+    assert _get_or_recover_alert_start_time("red", st_ambiguous, []) is None
+    assert _get_or_recover_alert_start_time("yellow", st_ambiguous, []) is None
+
+    # 3. Unambiguous legacy state yields start time
+    st_single = {
+        "alert_start_time": 1800.0,
+        "alert_types": ["red"],
+    }
+    assert _get_or_recover_alert_start_time("red", st_single, []) == 1800.0
+    assert _get_or_recover_alert_start_time("yellow", st_single, []) is None
+
+
+def test_merged_alert_duration_no_double_counting_with_overlap():
+    from app.reports.common import merged_alert_duration, summarize_alert_intervals
+
+    start_yellow = datetime.datetime(2026, 4, 6, 9, 10, tzinfo=KYIV_TZ)
+    start_red = datetime.datetime(2026, 4, 6, 9, 45, tzinfo=KYIV_TZ)
+    end_both = datetime.datetime(2026, 4, 6, 11, 10, tzinfo=KYIV_TZ)
+
+    intervals = [
+        (start_yellow, end_both, "yellow"),
+        (start_red, end_both, "red"),
+    ]
+
+    # Merged duration: 09:10 to 11:10 = 2 hours (7200 sec)
+    total_sec = merged_alert_duration(intervals)
+    assert total_sec == 7200.0
+
+    # Individual breakdown: Yellow = 7200s, Red = 5100s (overlap exists)
+    summary = summarize_alert_intervals(intervals)
+    assert summary["yellow"]["duration_sec"] == 7200.0
+    assert summary["red"]["duration_sec"] == 5100.0

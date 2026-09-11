@@ -13,6 +13,7 @@ logger = structlog.get_logger(__name__)
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(APP_DIR, "data"))
 
+
 def perform_cold_start_if_needed():
     event_file = os.path.join(DATA_DIR, "event_log.json")
     sched_file = os.path.join(DATA_DIR, "last_schedules.json")
@@ -45,12 +46,13 @@ def perform_cold_start_if_needed():
 
     try:
         logger.info("Cold Start detected! Initializing database for current region...")
-        
+
         # Створюємо потрібні папки
         os.makedirs(os.path.join(DATA_DIR, "static"), exist_ok=True)
 
         # Додаємо шляхи для імпортів
         import sys
+
         root_dir = os.path.dirname(APP_DIR)
         app_dir = os.path.join(root_dir, "app")
         if root_dir not in sys.path:
@@ -62,7 +64,7 @@ def perform_cold_start_if_needed():
         if not os.path.exists(config_file):
             root_config = os.path.join(root_dir, "config.json")
             default_config = os.path.join(APP_DIR, "config.json")
-            
+
             if os.path.exists(root_config):
                 shutil.copy2(root_config, config_file)
                 logger.info("Base config.json copied from project root.")
@@ -73,12 +75,16 @@ def perform_cold_start_if_needed():
                 logger.info("Base config.json not found. Attempting auto-generation...")
                 try:
                     from app.models import AppConfig
+
                     cfg = AppConfig()
                     with open(config_file, "w", encoding="utf-8") as f:
                         f.write(cfg.model_dump_json(indent=2))
                     logger.info("Default config.json auto-generated via AppConfig.")
                 except Exception as e:
-                    logger.error("Failed to import AppConfig, using fallback template", error=str(e))
+                    logger.error(
+                        "Failed to import AppConfig, using fallback template",
+                        error=str(e),
+                    )
                     fallback_config = {
                         "settings": {
                             "timezone": "Europe/Kyiv",
@@ -92,25 +98,22 @@ def perform_cold_start_if_needed():
                             "max_messages": 1,
                             "show_intervals_detail": False,
                             "style": "list",
-                            "table_format": "code_lines"
+                            "table_format": "code_lines",
                         },
                         "sources": {
                             "air_quality": {
                                 "lat": "50.408",
                                 "lon": "30.400",
                                 "seb_station": "24185",
-                                "location_name": "Борщагівка (Симиренка)"
+                                "location_name": "Борщагівка (Симиренка)",
                             },
                             "yasno": {
                                 "enabled": True,
                                 "name": "Yasno",
                                 "dso_id": "902",
-                                "region_id": "25"
+                                "region_id": "25",
                             },
-                            "github": {
-                                "enabled": True,
-                                "name": "ДТЕК"
-                            }
+                            "github": {"enabled": True, "name": "ДТЕК"},
                         },
                         "advanced": {
                             "notifications": {
@@ -118,53 +121,71 @@ def perform_cold_start_if_needed():
                                 "mute_during_night": False,
                                 "telegram_air_raid_alerts": True,
                                 "telegram_daily_reports": True,
-                                "telegram_weekly_reports": True
+                                "telegram_weekly_reports": True,
                             },
                             "retention": {
                                 "event_log_days": 7,
-                                "schedule_history_days": 7
+                                "schedule_history_days": 7,
                             },
                             "data_sources": {
                                 "priority": "github",
                                 "custom_url": "",
                                 "smart_deduplication": True,
-                                "rollover_hour": 1
+                                "rollover_hour": 1,
                             },
                             "dashboard": {
                                 "show_aq": True,
                                 "show_radiation": True,
                                 "show_temp_graph": True,
-                                "show_charts": True
+                                "show_charts": True,
                             },
                             "monitoring": {
                                 "push_timeout": 35,
                                 "push_interval_min": 20,
                                 "push_interval_max": 65,
-                                "safety_net_delay": 5
+                                "safety_net_delay": 5,
                             },
                             "quiet_mode": {
                                 "stability_threshold_h": 24,
-                                "auto_confirm": True
-                            }
+                                "auto_confirm": True,
+                            },
                         },
-                        "ui": {}
+                        "ui": {},
                     }
                     with open(config_file, "w", encoding="utf-8") as f:
                         json.dump(fallback_config, f, indent=2, ensure_ascii=False)
                     logger.info("Default config.json written from fallback template.")
 
+        # Migrate legacy default icons in config.json if present
+        if os.path.exists(config_file):
+            try:
+                from app.config_runtime import migrate_legacy_icons
+                from app.storage import StorageUtils
+
+                cfg_obj = StorageUtils.load_json_sync(config_file, None)
+                if cfg_obj and migrate_legacy_icons(cfg_obj):
+                    StorageUtils.save_json_sync(config_file, cfg_obj)
+                    logger.info("Migrated legacy default icons in config.json.")
+            except Exception as e:
+                logger.error(
+                    "Failed to migrate legacy icons in bootstrap", error=str(e)
+                )
+
         # 2. Створюємо точку відліку (світло є прямо зараз)
         if not os.path.exists(event_file):
             now_ts = time.time()
             from zoneinfo import ZoneInfo
+
             now_dt = datetime.fromtimestamp(now_ts, tz=ZoneInfo("Europe/Kyiv"))
-            
-            start_event = [{
-                "timestamp": now_ts,
-                "event": "up",
-                "date_str": now_dt.strftime("%Y-%m-%d %H:%M:%S"),
-                "note": "Initial Startup"
-            }]
+
+            start_event = [
+                {
+                    "timestamp": now_ts,
+                    "event": "up",
+                    "date_str": now_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    "note": "Initial Startup",
+                }
+            ]
             with open(event_file, "w", encoding="utf-8") as f:
                 json.dump(start_event, f, indent=2, ensure_ascii=False)
             logger.info("event_log.json initialized.")
@@ -179,8 +200,10 @@ def perform_cold_start_if_needed():
         if not os.path.exists(sched_file):
             try:
                 from app.parser_service import update_local_schedules
+
                 logger.info("Loading schedules according to config.json...")
                 import asyncio
+
                 asyncio.run(update_local_schedules(config_file, sched_file))
                 logger.info("last_schedules.json generated successfully!")
             except Exception as e:
@@ -192,8 +215,16 @@ def perform_cold_start_if_needed():
         # 5. Примусово генеруємо картинки та статистику
         logger.info("Generating first dashboards...")
         try:
-            subprocess.run(["python3", "app/generate_daily_report.py", "--no-send"], cwd=root_dir, check=True)
-            subprocess.run(["python3", "app/generate_weekly_report.py", "--no-send"], cwd=root_dir, check=True)
+            subprocess.run(
+                ["python3", "app/generate_daily_report.py", "--no-send"],
+                cwd=root_dir,
+                check=True,
+            )
+            subprocess.run(
+                ["python3", "app/generate_weekly_report.py", "--no-send"],
+                cwd=root_dir,
+                check=True,
+            )
             logger.info("Dashboards generated successfully.")
         except Exception as e:
             logger.error("Error generating initial dashboards", error=str(e))
@@ -208,6 +239,7 @@ def perform_cold_start_if_needed():
                 logger.error("Error removing lock file", error=str(e))
 
     logger.info("Bootstrap initialization complete!")
+
 
 if __name__ == "__main__":
     perform_cold_start_if_needed()

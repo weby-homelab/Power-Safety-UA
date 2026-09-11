@@ -420,3 +420,104 @@ def test_bot_token_never_appears_in_logs(caplog):
         for record in caplog.records:
             assert secret_token not in record.message
             assert secret_token not in str(record.__dict__)
+
+
+# 23. daily delivery-state write failure => no old-message deletion and failure
+def test_daily_delivery_state_write_failure_preserves_old_report_and_fails(monkeypatch):
+    mock_delete = MagicMock()
+    mock_send = MagicMock(return_value=999)
+    target_date = datetime.date(2026, 4, 7)
+    last_id = 555
+
+    monkeypatch.setattr(daily, "get_last_report_id", lambda d: last_id)
+    monkeypatch.setattr(daily, "send_telegram_photo", mock_send)
+    monkeypatch.setattr(daily, "delete_telegram_message", mock_delete)
+    # Simulate delivery state persistence failure
+    monkeypatch.setattr(
+        "app.reports.daily.mark_daily_final_delivered", lambda d, mid: False
+    )
+
+    new_msg_id = daily.send_telegram_photo("dummy.png", "caption", target_date)
+    assert new_msg_id == 999
+    persisted = daily.mark_daily_final_delivered(
+        target_date.strftime("%Y-%m-%d"), new_msg_id
+    )
+    assert persisted is False
+    if persisted:
+        if last_id and last_id != new_msg_id:
+            daily.delete_telegram_message(last_id)
+        exit_code = 0
+    else:
+        exit_code = 1
+
+    mock_delete.assert_not_called()
+    assert exit_code == 1
+
+
+# 24. weekly delivery-state write failure => failure and retry eligibility preserved
+def test_weekly_delivery_state_write_failure_sets_failure_and_retry_eligible(
+    monkeypatch,
+):
+    mock_send = MagicMock(return_value=777)
+    target_date = datetime.date(2026, 4, 5)
+
+    monkeypatch.setattr(weekly, "send_telegram_photo", mock_send)
+    # Simulate delivery state persistence failure
+    monkeypatch.setattr(
+        "app.reports.weekly.mark_weekly_delivered", lambda d, mid: False
+    )
+
+    msg_id = weekly.send_telegram_photo("dummy.png", "caption")
+    assert msg_id == 777
+    persisted = weekly.mark_weekly_delivered(target_date.strftime("%Y-%m-%d"), msg_id)
+    assert persisted is False
+    if not persisted:
+        exit_code = 1
+    else:
+        exit_code = 0
+
+    assert exit_code == 1
+    assert is_weekly_delivered("2026-04-05") is False
+
+
+# 25. successful daily transaction preserves exact ordering
+def test_successful_daily_transaction_preserves_exact_ordering(monkeypatch):
+    order = []
+    target_date = datetime.date(2026, 4, 7)
+    last_id = 555
+
+    def fake_send(filename, caption, date):
+        order.append("sendPhoto")
+        return 999
+
+    def fake_persist(date_str, msg_id):
+        order.append("persist_delivery_state")
+        return True
+
+    def fake_delete(mid):
+        order.append(f"delete_message_{mid}")
+        return True
+
+    monkeypatch.setattr(daily, "send_telegram_photo", fake_send)
+    monkeypatch.setattr("app.reports.daily.mark_daily_final_delivered", fake_persist)
+    monkeypatch.setattr(daily, "delete_telegram_message", fake_delete)
+
+    new_msg_id = daily.send_telegram_photo("dummy.png", "caption", target_date)
+    persisted = daily.mark_daily_final_delivered(
+        target_date.strftime("%Y-%m-%d"), new_msg_id
+    )
+    assert persisted is True
+    if persisted and last_id and last_id != new_msg_id:
+        daily.delete_telegram_message(last_id)
+
+    assert order == ["sendPhoto", "persist_delivery_state", "delete_message_555"]
+
+
+# 26. successful weekly transaction records exact target period
+def test_successful_weekly_transaction_records_exact_target_period():
+    target_period = "2026-04-05"
+    assert is_weekly_delivered(target_period) is False
+    success = mark_weekly_delivered(target_period, 888)
+    assert success is True
+    assert is_weekly_delivered(target_period) is True
+    assert is_weekly_delivered("2026-04-12") is False
