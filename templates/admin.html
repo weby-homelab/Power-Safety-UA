@@ -437,19 +437,57 @@
 </head>
 <body>
     <div class="admin-container">
-        <header>
-            <div>
-                <h1>СВІТЛО⚡️ БЕЗПЕКА</h1>
-                <div class="version-badge">
-                    <span class="value" id="header-version">...</span>
-                </div>
+        <!-- Admin Login Card -->
+        <div id="admin-login-card" style="display: none; max-width: 460px; margin: 40px auto; padding: 36px 28px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 24px; box-shadow: var(--card-shadow); text-align: center; box-sizing: border-box;">
+            <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(59, 130, 246, 0.15); color: var(--accent-color); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; font-size: 1.5rem; border: 1px solid rgba(59, 130, 246, 0.25);">
+                <i class="fas fa-user-shield"></i>
             </div>
-            <button class="btn btn-secondary" onclick="fetchData()" style="width: auto;">
-                <i class="fas fa-sync-alt"></i> Оновити
-            </button>
-        </header>
+            <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.3px;">Авторизація адміністратора</h2>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 24px;">Введіть токен доступу для керування налаштуваннями</p>
 
-        <div class="admin-grid">
+            <div id="login-error-msg" style="display: none; padding: 12px 16px; margin-bottom: 20px; border-radius: 12px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.25); color: #fca5a5; font-size: 0.85rem; text-align: left; line-height: 1.4;"></div>
+
+            <form id="admin-login-form" onsubmit="event.preventDefault(); handleLogin();" style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="form-group" style="margin-bottom: 0; text-align: left;">
+                    <label for="admin-token-input"><i class="fas fa-key"></i> Токен адміністратора</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="password" id="admin-token-input" placeholder="Введіть ваш admin_token" autocomplete="current-password" required style="width: 100%; padding-right: 46px;" />
+                        <button type="button" id="toggle-token-btn" onclick="toggleTokenVisibility()" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 6px; font-size: 1rem;" title="Показати/приховати токен">
+                            <i class="fas fa-eye" id="toggle-token-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" id="admin-login-btn" class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 1rem; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-sign-in-alt"></i> Увійти
+                </button>
+            </form>
+
+            <div style="margin-top: 24px; padding: 12px 14px; border-radius: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); font-size: 0.75rem; color: var(--text-secondary); text-align: left; line-height: 1.45;">
+                <i class="fas fa-info-circle" style="color: var(--accent-color); margin-right: 4px;"></i>
+                <strong>Підказка:</strong> Якщо ви налаштовуєте систему вперше, токен збережено у файлі <code>data/power_monitor_state.json</code> (поле <code>admin_token</code>).
+            </div>
+        </div>
+
+        <!-- Admin Main Content -->
+        <div id="admin-main-content" style="display: none;">
+            <header>
+                <div>
+                    <h1>СВІТЛО⚡️ БЕЗПЕКА</h1>
+                    <div class="version-badge">
+                        <span class="value" id="header-version">...</span>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" onclick="fetchData()" style="width: auto;">
+                        <i class="fas fa-sync-alt"></i> Оновити
+                    </button>
+                    <button class="btn btn-outline" onclick="handleLogout()" style="width: auto; border-color: rgba(239, 68, 68, 0.3); color: #fca5a5;" title="Вийти з адмін-панелі">
+                        <i class="fas fa-sign-out-alt"></i> Вийти
+                    </button>
+                </div>
+            </header>
+
+            <div class="admin-grid">
             <!-- 1. System Status -->
             <div class="admin-section">
                 <div class="section-header"><i class="fas fa-server"></i> Статус системи</div>
@@ -650,16 +688,15 @@
                     <button class="btn btn-danger btn-sm" onclick="regenPushKey()"><i class="fas fa-key"></i> API Ключ <span class="info-icon">i<span class="tooltip">Генерує НОВИЙ секрет для пуш-повідомлень. Потрібно оновити скрипти на моніторах!</span></span></button>
                 </div>
                 <button class="btn btn-danger btn-sm" style="width: 100%; margin-bottom: 15px; background: rgba(239, 68, 68, 0.05);" onclick="regenAdminToken()">
-                    <i class="fas fa-user-shield"></i> Скинути токен адміна <span class="info-icon">i<span class="tooltip">Змінює пароль доступу до цієї панелі. Потребує повторного входу за новим лінком.</span></span>
+                    <i class="fas fa-user-shield"></i> Скинути токен адміна <span class="info-icon">i<span class="tooltip">Змінює токен доступу до цієї панелі. Потребує збереження нового токена.</span></span>
                 </button>
                 <div style="margin-bottom: 15px; padding: 12px; background: rgba(0,0,0,0.15); border: 1px solid var(--glass-border); border-radius: 10px;">
-                    <label style="display: block; margin-bottom: 6px; font-weight: 600;"><i class="fas fa-key"></i> Поточний токен адміна</label>
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600;"><i class="fas fa-key"></i> Токен адміністратора (сесія)</label>
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                         <code id="admin-token-display" style="flex: 1; min-width: 180px; padding: 6px 8px; background: rgba(0,0,0,0.25); border-radius: 6px; word-break: break-all; font-size: 0.8rem;">—</code>
-                        <button class="btn btn-secondary btn-sm" onclick="copyAdminToken(this)"><i class="fas fa-copy"></i> Копіювати</button>
-                        <a id="admin-token-open" class="btn btn-primary btn-sm" target="_self"><i class="fas fa-external-link-alt"></i> Відкрити панель</a>
+                        <button class="btn btn-secondary btn-sm" onclick="copyAdminToken(this)"><i class="fas fa-copy"></i> Копіювати токен</button>
                     </div>
-                    <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 6px;">Лінк для входу в адмінку з будь-якого пристрою чи браузера. Збережіть його у надійному місці.</div>
+                    <div id="admin-token-fp-display" style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 6px;">Відбиток токена: —</div>
                 </div>
                 <div id="backup-list" style="max-height: 100px; overflow-y: auto; background: rgba(0,0,0,0.1); border-radius: 10px; padding: 8px; border: 1px solid var(--glass-border); font-size: 0.75rem;">
                     <div style="text-align: center; color: var(--text-secondary);">Завантаження...</div>
@@ -784,50 +821,195 @@
         </div>
         
         <footer id="footer-info" style="margin-top: 30px; text-align: center; font-size: 0.8rem; color: var(--text-secondary); opacity: 0.7;"></footer>
+        </div>
     </div>
 
     <script nonce="{{ nonce }}">
-        // Strategy: sessionStorage for API calls, ?t= for initial auth + page reload.
-        // Phase 1: On first load, read ?t=, store in sessionStorage, clean URL.
-        // Phase 2: On reload, sessionStorage maintains auth; if ?t= missing, auto-restore via redirect.
+        let token = null;
+        let authHeaders = { 'Content-Type': 'application/json' };
+        let currentConfig = {};
 
-        // 1. Read token: sessionStorage first (fast reload), then ?t= (initial load)
-        let token = sessionStorage.getItem('admin_token');
+        function getAuthHeaders() {
+            const currentToken = sessionStorage.getItem('admin_token') || token;
+            const headers = { 'Content-Type': 'application/json' };
+            if (currentToken) {
+                headers['X-Admin-Token'] = currentToken;
+                headers['Authorization'] = `Bearer ${currentToken}`;
+            }
+            return headers;
+        }
 
-        if (!token) {
-            const params = new URLSearchParams(window.location.search);
-            token = params.get('t');
-            if (token) {
-                sessionStorage.setItem('admin_token', token);
-                // Remove ?t= from URL bar after storing (visual cleanup — page may need reload to re-auth)
-                history.replaceState(null, '', window.location.pathname);
+        async function adminFetch(url, options = {}) {
+            const headers = { ...getAuthHeaders(), ...(options.headers || {}) };
+            const res = await fetch(url, { ...options, headers });
+            if (res.status === 401 || res.status === 403) {
+                handleUnauthorized("Сесія завершена або недійсний токен. Будь ласка, введіть токен знову.");
+                throw new Error("Unauthorized (403/401)");
+            }
+            return res;
+        }
+
+        function showLoginCard(notice) {
+            const loginCard = document.getElementById('admin-login-card');
+            const mainContent = document.getElementById('admin-main-content');
+            if (loginCard) loginCard.style.display = 'block';
+            if (mainContent) mainContent.style.display = 'none';
+            const errEl = document.getElementById('login-error-msg');
+            if (errEl) {
+                if (notice) {
+                    errEl.textContent = notice;
+                    errEl.style.display = 'block';
+                } else {
+                    errEl.style.display = 'none';
+                }
+            }
+            const input = document.getElementById('admin-token-input');
+            if (input) {
+                input.value = '';
+                input.focus();
             }
         }
 
-        // 2. If no token in ?t= but exists in sessionStorage, redirect to re-authenticate with server
-        if (!token && sessionStorage.getItem('admin_token')) {
-            const savedToken = sessionStorage.getItem('admin_token');
-            window.location.href = window.location.pathname + '?t=' + savedToken;
-            throw new Error('Відновлення авторизації...');
+        function showMainContent() {
+            const loginCard = document.getElementById('admin-login-card');
+            const mainContent = document.getElementById('admin-main-content');
+            if (loginCard) loginCard.style.display = 'none';
+            if (mainContent) mainContent.style.display = 'block';
+            const errEl = document.getElementById('login-error-msg');
+            if (errEl) errEl.style.display = 'none';
         }
 
-        if (!token) { document.body.innerHTML = '<h2 style="color:red;text-align:center;margin-top:100px">Access Denied — No Token</h2>'; throw new Error('No token'); }
-        const authHeaders = { 'X-Admin-Token': token, 'Content-Type': 'application/json' };
-        let currentConfig = {};
+        function handleUnauthorized(msg) {
+            sessionStorage.removeItem('admin_token');
+            token = null;
+            authHeaders = { 'Content-Type': 'application/json' };
+            showLoginCard(msg || "Сесія завершена або недійсний токен. Будь ласка, введіть токен знову.");
+        }
 
-        async function fetchData() {
+        function handleLogout() {
+            sessionStorage.removeItem('admin_token');
+            token = null;
+            authHeaders = { 'Content-Type': 'application/json' };
+            showLoginCard("Ви успішно вийшли з панелі керування.");
+        }
+
+        function toggleTokenVisibility() {
+            const input = document.getElementById('admin-token-input');
+            const icon = document.getElementById('toggle-token-icon');
+            if (!input || !icon) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        async function handleLogin() {
+            const input = document.getElementById('admin-token-input');
+            const errEl = document.getElementById('login-error-msg');
+            const loginBtn = document.getElementById('admin-login-btn');
+            if (!input) return;
+            const enteredToken = input.value.trim();
+            if (!enteredToken) {
+                if (errEl) {
+                    errEl.textContent = "Будь ласка, введіть токен.";
+                    errEl.style.display = 'block';
+                }
+                return;
+            }
+
+            if (loginBtn) {
+                loginBtn.disabled = true;
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Перевірка...';
+            }
+            if (errEl) errEl.style.display = 'none';
+
             try {
-                const response = await fetch('/api/admin/data', { headers: authHeaders });
-                if (!response.ok) throw new Error('Помилка завантаження: ' + response.statusText);
-                const data = await response.json();
-                
+                sessionStorage.setItem('admin_token', enteredToken);
+                token = enteredToken;
+                authHeaders = {
+                    'X-Admin-Token': enteredToken,
+                    'Authorization': `Bearer ${enteredToken}`,
+                    'Content-Type': 'application/json'
+                };
+                const res = await fetch('/api/admin/data', {
+                    headers: authHeaders
+                });
+                if (res.status === 401 || res.status === 403) {
+                    sessionStorage.removeItem('admin_token');
+                    token = null;
+                    authHeaders = { 'Content-Type': 'application/json' };
+                    if (errEl) {
+                        errEl.textContent = "Недійсний токен. Перевірте правильність введеного токена.";
+                        errEl.style.display = 'block';
+                    }
+                    input.focus();
+                    return;
+                }
+                if (!res.ok) {
+                    sessionStorage.removeItem('admin_token');
+                    token = null;
+                    authHeaders = { 'Content-Type': 'application/json' };
+                    if (errEl) {
+                        errEl.textContent = "Помилка зв'язку з сервером: " + res.statusText;
+                        errEl.style.display = 'block';
+                    }
+                    return;
+                }
+
+                const data = await res.json();
+                showMainContent();
                 currentConfig = data.config;
                 renderStatus(data.state);
                 renderConfig(data.config, data);
                 renderLogs(data.logs);
                 renderBackups();
                 try {
-                    const obsResp = await fetch('/api/admin/observability', { headers: authHeaders });
+                    const obsResp = await adminFetch('/api/admin/observability');
+                    if (obsResp.ok) renderObservability(await obsResp.json());
+                } catch (obsErr) { console.error('Obs fetch error:', obsErr); }
+
+                if (data.version) {
+                    document.getElementById('header-version').innerText = data.version;
+                }
+                if (data.env) {
+                    updateAdminTokenUI(data.env);
+                }
+                document.getElementById('footer-info').innerHTML = '&copy; 2026 Weby Homelab &bull; ' + new Date().toLocaleTimeString();
+            } catch (e) {
+                sessionStorage.removeItem('admin_token');
+                token = null;
+                authHeaders = { 'Content-Type': 'application/json' };
+                if (errEl) {
+                    errEl.textContent = "Помилка авторизації: " + (e.message || e);
+                    errEl.style.display = 'block';
+                }
+            } finally {
+                if (loginBtn) {
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Увійти';
+                }
+            }
+        }
+
+        async function fetchData() {
+            const curToken = sessionStorage.getItem('admin_token') || token;
+            if (!curToken) return;
+            try {
+                const response = await adminFetch('/api/admin/data');
+                if (!response.ok) return;
+                const data = await response.json();
+                
+                showMainContent();
+                currentConfig = data.config;
+                renderStatus(data.state);
+                renderConfig(data.config, data);
+                renderLogs(data.logs);
+                renderBackups();
+                try {
+                    const obsResp = await adminFetch('/api/admin/observability');
                     if (obsResp.ok) renderObservability(await obsResp.json());
                 } catch (obsErr) { console.error('Obs fetch error:', obsErr); }
 
@@ -835,13 +1017,49 @@
                     document.getElementById('header-version').innerText = data.version;
                 }
 
-                if (data.env && data.env.admin_token) {
-                    updateAdminTokenUI(data.env.admin_token);
+                if (data.env) {
+                    updateAdminTokenUI(data.env);
                 }
 
                 document.getElementById('footer-info').innerHTML = '&copy; 2026 Weby Homelab &bull; ' + new Date().toLocaleTimeString();
             } catch (err) {
                 console.error('Fetch error:', err);
+            }
+        }
+
+        function initAuth() {
+            // 1. Fragment #t= takes top priority
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#t=')) {
+                const hashToken = decodeURIComponent(hash.substring(3));
+                if (hashToken) {
+                    sessionStorage.setItem('admin_token', hashToken);
+                    // Strip fragment from URL without page reload
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
+            }
+
+            // 2. Query param ?token= or ?t= fallback
+            const params = new URLSearchParams(window.location.search);
+            const queryToken = params.get('token') || params.get('t');
+            if (queryToken) {
+                sessionStorage.setItem('admin_token', queryToken);
+                // Strip query param from URL without page reload
+                history.replaceState(null, '', window.location.pathname);
+            }
+
+            // 3. Read from sessionStorage
+            const savedToken = sessionStorage.getItem('admin_token');
+            if (savedToken) {
+                token = savedToken;
+                authHeaders = {
+                    'X-Admin-Token': savedToken,
+                    'Authorization': `Bearer ${savedToken}`,
+                    'Content-Type': 'application/json'
+                };
+                fetchData();
+            } else {
+                showLoginCard();
             }
         }
 
@@ -1087,9 +1305,8 @@
         async function saveQuietMode() {
             const mode = Array.from(document.getElementsByName('quiet_mode')).find(r => r.checked)?.value || 'auto';
             try {
-                const response = await fetch(`/api/admin/quiet/mode`, { 
+                const response = await adminFetch(`/api/admin/quiet/mode`, { 
                     method: 'POST', 
-                    headers: authHeaders, 
                     body: JSON.stringify({mode}) 
                 });
                 if (response.ok) {
@@ -1197,9 +1414,8 @@
             const config = collectAllConfig();
             if (!config) { alert('Помилка збору налаштувань. Перевірте консоль.'); return; }
             try {
-                const response = await fetch(`/api/admin/config`, { 
+                const response = await adminFetch(`/api/admin/config`, { 
                     method: 'POST', 
-                    headers: authHeaders, 
                     body: JSON.stringify(config) 
                 });
                 if (response.ok) {
@@ -1221,9 +1437,8 @@
             if (isNaN(timestamp)) { alert('Некоректний формат дати або часу'); return; }
             
             try {
-                const response = await fetch(`/api/admin/logs/add`, {
+                const response = await adminFetch(`/api/admin/logs/add`, {
                     method: 'POST',
-                    headers: authHeaders,
                     body: JSON.stringify({event, timestamp})
                 });
                 if (response.ok) fetchData();
@@ -1234,7 +1449,7 @@
         async function deleteLog(timestamp) { 
             if (confirm('Видалити цей запис з логів?')) { 
                 try {
-                    const response = await fetch(`/api/admin/logs/${timestamp}`, { method: 'DELETE', headers: authHeaders }); 
+                    const response = await adminFetch(`/api/admin/logs/${timestamp}`, { method: 'DELETE' }); 
                     if (response.ok) fetchData();
                     else alert('Помилка: ' + (await response.json()).msg);
                 } catch (err) { alert('Помилка запиту'); }
@@ -1244,7 +1459,7 @@
         async function restartServices() { 
             if (confirm('Перезапустити сервіси? Це короткочасно перерве моніторинг.')) {
                 try {
-                    const response = await fetch(`/api/admin/service/restart`, { method: 'POST', headers: authHeaders }); 
+                    const response = await adminFetch(`/api/admin/service/restart`, { method: 'POST' }); 
                     if (response.ok) alert('Команду на перезапуск надіслано');
                     else alert('Помилка перезапуску');
                 } catch(err) { alert('Помилка запиту'); }
@@ -1255,9 +1470,8 @@
             let val = action === 'tech' ? prompt('На скільки хвилин пауза?', '30') : null;
             if (action === 'tech' && val === null) return;
             try {
-                const response = await fetch(`/api/admin/safety_net/react`, { 
+                const response = await adminFetch(`/api/admin/safety_net/react`, { 
                     method: 'POST', 
-                    headers: authHeaders, 
                     body: JSON.stringify({action, value: val}) 
                 });
                 if (response.ok) fetchData();
@@ -1269,9 +1483,8 @@
             // Unify confirm_emergency into confirm for now
             const act = action === 'confirm_emergency' ? 'confirm' : action;
             try {
-                const response = await fetch(`/api/admin/safety_net/react`, { 
+                const response = await adminFetch(`/api/admin/safety_net/react`, { 
                     method: 'POST', 
-                    headers: authHeaders, 
                     body: JSON.stringify({action: act}) 
                 });
                 if (response.ok) fetchData();
@@ -1281,9 +1494,8 @@
 
         async function unmuteMonitor() {
             try {
-                const response = await fetch(`/api/admin/quiet/mode`, {
+                const response = await adminFetch(`/api/admin/quiet/mode`, {
                     method: 'POST',
-                    headers: authHeaders,
                     body: JSON.stringify({mode: 'auto', unmute: true})
                 });
                 if (response.ok) fetchData();
@@ -1293,7 +1505,7 @@
 
         async function forceSyncSchedules() {
             try {
-                const response = await fetch(`/api/admin/schedules/sync`, { method: 'POST', headers: authHeaders });
+                const response = await adminFetch(`/api/admin/schedules/sync`, { method: 'POST' });
                 if (response.ok) alert('Запит на синхронізацію надіслано. Оновіть сторінку за кілька секунд.');
                 else alert('Помилка запиту на синхронізацію');
             } catch(err) { alert('Помилка запиту'); }
@@ -1301,7 +1513,7 @@
 
         async function renderBackups() {
             try {
-                const response = await fetch(`/api/admin/backups`, { headers: authHeaders });
+                const response = await adminFetch(`/api/admin/backups`);
                 if (!response.ok) return;
                 const backups = await response.json();
                 const container = document.getElementById('backup-list');
@@ -1328,7 +1540,7 @@
 
         async function createBackup() {
             try {
-                const response = await fetch(`/api/admin/backups/create`, { method: 'POST', headers: authHeaders });
+                const response = await adminFetch(`/api/admin/backups/create`, { method: 'POST' });
                 if (response.ok) {
                     alert('Ручний бекап успішно створено!');
                     renderBackups();
@@ -1339,9 +1551,8 @@
         async function restoreBackup(filename) {
             if (confirm('Ви впевнені? Поточні налаштування будуть замінені на копію від ' + filename)) {
                 try {
-                    const response = await fetch(`/api/admin/backups/restore`, {
+                    const response = await adminFetch(`/api/admin/backups/restore`, {
                         method: 'POST',
-                        headers: authHeaders,
                         body: JSON.stringify({filename})
                     });
                     if (response.ok) {
@@ -1355,7 +1566,7 @@
         async function regenPushKey() {
             if (confirm('УВАГА! Це змінить ваш секретний ключ для API. Вам потрібно буде оновити налаштування на всіх пристроях (PRXMX тощо), що надсилають пуш-повідомлення. Продовжити?')) {
                 try {
-                    const response = await fetch(`/api/admin/security/regen_push_key`, { method: 'POST', headers: authHeaders });
+                    const response = await adminFetch(`/api/admin/security/regen_push_key`, { method: 'POST' });
                     if (response.ok) {
                         const data = await response.json();
                         alert('НОВИЙ API КЛЮЧ: ' + data.new_key + '\n\nЗапишіть його! Сторінка зараз оновиться.');
@@ -1365,20 +1576,26 @@
             }
         }
 
-        function updateAdminTokenUI(token) {
+        function updateAdminTokenUI(envData) {
             const disp = document.getElementById('admin-token-display');
-            const open = document.getElementById('admin-token-open');
-            if (disp) disp.textContent = token;
-            if (open) open.href = window.location.origin + '/admin?t=' + token;
+            const fpDisp = document.getElementById('admin-token-fp-display');
+            if (!disp) return;
+            if (typeof envData === 'string') {
+                disp.textContent = envData;
+                if (fpDisp) fpDisp.textContent = 'Згенеровано новий токен для поточної сесії.';
+            } else if (envData && typeof envData === 'object') {
+                disp.textContent = envData.admin_token_masked || '—';
+                if (fpDisp && envData.token_fingerprint) {
+                    fpDisp.textContent = 'Відбиток токена: ' + envData.token_fingerprint;
+                }
+            }
         }
 
         function copyAdminToken(btn) {
+            const activeToken = sessionStorage.getItem('admin_token');
             const disp = document.getElementById('admin-token-display');
-            if (!disp) return;
-            const token = disp.textContent.trim();
-            if (!token || token === '—') return;
-            const link = window.location.origin + '/admin?t=' + token;
-            const text = link;
+            const text = activeToken || (disp ? disp.textContent.trim() : '');
+            if (!text || text === '—') return;
             const ok = () => { if (btn) { const old = btn.innerHTML; btn.innerHTML = '<i class="fas fa-check"></i> Скопійовано'; setTimeout(() => btn.innerHTML = old, 1500); } };
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(ok, () => fallbackCopy(text));
@@ -1397,27 +1614,21 @@
         }
 
         async function regenAdminToken() {
-            if (confirm('КРИТИЧНО! Ваш токен доступу до цієї адмін-панелі буде змінено. Вас буде негайно розлогінено. Продовжити?')) {
+            if (confirm('КРИТИЧНО! Ваш токен доступу до цієї адмін-панелі буде змінено. Продовжити?')) {
                 try {
-                    const response = await fetch(`/api/admin/security/regen_admin_token`, { method: 'POST', headers: authHeaders });
+                    const response = await adminFetch(`/api/admin/security/regen_admin_token`, { method: 'POST' });
                     if (response.ok) {
                         const data = await response.json();
                         sessionStorage.setItem('admin_token', data.new_token);
+                        token = data.new_token;
+                        authHeaders['X-Admin-Token'] = data.new_token;
+                        authHeaders['Authorization'] = `Bearer ${data.new_token}`;
                         updateAdminTokenUI(data.new_token);
-            const msg = `
-                НОВИЙ ТОКЕН АДМІНА: ${data.new_token}
-
-                ЗБЕРЕЖЕНО В СЕСІЇ БРАУЗЕРА (sessionStorage).
-                Для використання в іншому браузері — скопіюйте токен зараз.
-                Після натискання OK сторінка перезавантажиться з новим токеном.
-
-                СКОПІЮЙТЕ ЦІ ДАНІ ЗАРАЗ!
-            `;
-
-            alert(msg);
-            window.location.href = window.location.origin + window.location.pathname + '?t=' + data.new_token;
-                    } else alert('Помилка регенерації');
-                } catch (err) { alert('Помилка запиту'); }
+                        const msg = `НОВИЙ ТОКЕН АДМІНА:\n\n${data.new_token}\n\nЗБЕРЕЖЕНО В СЕСІЇ БРАУЗЕРА (sessionStorage).\nДля використання в іншому браузері чи на іншому пристрої збережіть цей токен зараз!`;
+                        alert(msg);
+                        fetchData();
+                    } else alert('Помилка регенерації токена');
+                } catch (err) { console.error('regenAdminToken error:', err); }
             }
         }
         document.querySelectorAll('.radio-group').forEach(group => {
@@ -1429,7 +1640,7 @@
             });
         });
 
-        fetchData();
+        initAuth();
         setInterval(fetchData, 60000);
         </script>
         </body>
