@@ -49,6 +49,10 @@ nano .env
 ```env
 TELEGRAM_BOT_TOKEN=123456789:ABCDefgh...
 TELEGRAM_CHANNEL_ID=-100123456789
+
+# Необов'язково: фіксація точного образу або іммутабельного digest для підвищеної безпеки
+# POWER_SAFETY_IMAGE=webyhomelab/power-safety-ua:latest
+# POWER_SAFETY_IMAGE=webyhomelab/power-safety-ua@sha256:...
 ```
 
 Після створення файлу перезапустіть контейнери:

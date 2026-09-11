@@ -49,6 +49,10 @@ Add the following:
 ```env
 TELEGRAM_BOT_TOKEN=123456789:ABCDefgh...
 TELEGRAM_CHANNEL_ID=-100123456789
+
+# Optional: Pin specific image tag or immutable sha256 digest for supply-chain security
+# POWER_SAFETY_IMAGE=webyhomelab/power-safety-ua:latest
+# POWER_SAFETY_IMAGE=webyhomelab/power-safety-ua@sha256:...
 ```
 
 After creating the file, restart the containers:

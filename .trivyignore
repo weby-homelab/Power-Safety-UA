@@ -1,5 +1,18 @@
-# Base python image layer includes pip which vendored setuptools 70.3.0 and msgpack in lower layer
-# Not used at runtime (FastAPI / uvicorn / power-safety services run with upgraded packages)
+# Trivy Vulnerability Ignores for Power-Safety-UA
+# Review Date: 2026-09-11
+# Policy: Every ignore must have package name, CVE/GHSA ID, rationale, and review date.
+
+# Package: pip/setuptools (vendored in python:3.12-slim base image layer)
+# Rationale: Pip vendored setuptools in base python layer; runtime environment uses updated pip/wheel/setuptools.
+# Review Date: 2026-09-11
 GHSA-6v7p-g79w-8964
+
+# Package: pip/setuptools (path traversal during build, not reachable in runtime production container)
+# Rationale: Runtime container runs as unprivileged user (1000:1000) with read-only root filesystem; no package installations occur at runtime.
+# Review Date: 2026-09-11
 CVE-2025-47273
+
+# Package: pip/msgpack (vendored in base image layer cache)
+# Rationale: Base image build layer artifact; runtime dependencies are fully pinned and upgraded in virtual environment.
+# Review Date: 2026-09-11
 CVE-2026-59890
