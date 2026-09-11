@@ -1,4 +1,5 @@
 import json
+import time
 import requests
 import structlog
 
@@ -12,31 +13,118 @@ class TelegramClient:
         self.chat_id = chat_id
         self.base_url = f"https://api.telegram.org/bot{self.token}"
 
-    def _make_request(self, endpoint, payload, files=None, timeout=30):
+    def _make_request(self, endpoint, payload, files=None, timeout=30, max_attempts=3):
         url = f"https://api.telegram.org/bot{self._real_token}/{endpoint}"
-        try:
-            r = requests.post(
-                url,
-                data=payload,
-                json=payload if not files else None,
-                files=files,
-                timeout=timeout,
-            )
-            if r.status_code == 200:
-                res = r.json()
-                result_data = res.get("result", {})
-                if isinstance(result_data, dict):
-                    return True, result_data.get("message_id")
-                return True, result_data
+        start_time = time.time()
+        max_total_retry_time = 25.0
 
-            err_desc = (
-                r.json().get("description", "").lower()
-                if r.headers.get("content-type") == "application/json"
-                else r.text.lower()
-            )
-            return False, err_desc
-        except Exception as e:
-            return False, str(e)
+        for attempt in range(1, max_attempts + 1):
+            if files:
+                for file_obj in files.values():
+                    if hasattr(file_obj, "seek"):
+                        try:
+                            file_obj.seek(0)
+                        except Exception:
+                            pass
+
+            try:
+                r = requests.post(
+                    url,
+                    data=payload,
+                    json=payload if not files else None,
+                    files=files,
+                    timeout=timeout,
+                )
+                if r.status_code == 200:
+                    res = r.json()
+                    result_data = res.get("result", {})
+                    if isinstance(result_data, dict):
+                        return True, result_data.get("message_id")
+                    return True, result_data
+
+                err_desc = ""
+                parameters = {}
+                try:
+                    res_json = r.json()
+                    err_desc = res_json.get("description", "").lower()
+                    parameters = res_json.get("parameters", {})
+                except Exception:
+                    err_desc = r.text.lower()
+
+                # Handle 429 Too Many Requests
+                if r.status_code == 429:
+                    retry_after = 1.0
+                    if isinstance(parameters, dict) and "retry_after" in parameters:
+                        try:
+                            retry_after = float(parameters["retry_after"])
+                        except (ValueError, TypeError):
+                            retry_after = 1.0
+                    delay = min(max(retry_after, 1.0), 10.0)
+                    elapsed = time.time() - start_time
+                    if (
+                        attempt < max_attempts
+                        and (elapsed + delay) < max_total_retry_time
+                    ):
+                        logger.warning(
+                            "Telegram rate limit 429, honoring retry_after",
+                            endpoint=endpoint,
+                            attempt=attempt,
+                            retry_after=delay,
+                        )
+                        time.sleep(delay)
+                        continue
+                    return False, f"rate limit 429: {err_desc}"
+
+                # Handle 5xx Transient Server Errors
+                if r.status_code >= 500:
+                    backoff = attempt * 1.0
+                    elapsed = time.time() - start_time
+                    if (
+                        attempt < max_attempts
+                        and (elapsed + backoff) < max_total_retry_time
+                    ):
+                        logger.warning(
+                            "Telegram server error 5xx, retrying",
+                            endpoint=endpoint,
+                            attempt=attempt,
+                            status_code=r.status_code,
+                        )
+                        time.sleep(backoff)
+                        continue
+                    return False, f"server error {r.status_code}: {err_desc}"
+
+                # Permanent 4xx errors: Do NOT retry blindly
+                logger.warning(
+                    "Telegram permanent client error",
+                    endpoint=endpoint,
+                    status_code=r.status_code,
+                    error=err_desc,
+                )
+                return False, err_desc
+
+            except (
+                requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError,
+            ) as e:
+                backoff = attempt * 1.0
+                elapsed = time.time() - start_time
+                if (
+                    attempt < max_attempts
+                    and (elapsed + backoff) < max_total_retry_time
+                ):
+                    logger.warning(
+                        "Telegram transient network error, retrying",
+                        endpoint=endpoint,
+                        attempt=attempt,
+                        error=type(e).__name__,
+                    )
+                    time.sleep(backoff)
+                    continue
+                return False, f"network error: {type(e).__name__}"
+            except Exception as e:
+                return False, str(e)
+
+        return False, "max retries exceeded"
 
     def send_message(self, text, parse_mode="HTML", silent=True, reply_markup=None):
         payload = {
@@ -123,9 +211,15 @@ class TelegramClient:
                 if success:
                     return message_id
 
-                if "message to edit not found" in res:
+                recoverable_errors = [
+                    "message to edit not found",
+                    "message can't be edited",
+                    "message id invalid",
+                ]
+                if any(err in str(res).lower() for err in recoverable_errors):
                     logger.info(
-                        "Photo message deleted manually. Falling back to send_photo."
+                        "Photo message cannot be edited. Falling back to send_photo.",
+                        reason=res,
                     )
                     return self.send_photo(photo_path, caption, parse_mode, silent=True)
 

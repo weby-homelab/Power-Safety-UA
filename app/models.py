@@ -26,6 +26,8 @@ class Notifications(BaseModel):
     report_times: List[str] = ["06:00", "20:00"]
     mute_during_night: bool = False
     telegram_air_raid_alerts: bool = True
+    telegram_daily_reports: bool = True
+    telegram_weekly_reports: bool = True
 
 
 class SourcesConfig(BaseModel):

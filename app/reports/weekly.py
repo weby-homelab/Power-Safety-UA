@@ -19,7 +19,7 @@ from app.reports.daily import (  # noqa: E402
     get_intervals_for_date,
     KYIV_TZ,
     load_schedule_slots,
-    get_quiet_status,
+    get_quiet_status,  # noqa: F401
     get_now,
 )
 
@@ -34,6 +34,19 @@ def get_telegram_config():
     return cfg.get("settings", {}).get("telegram_bot_token"), cfg.get(
         "settings", {}
     ).get("telegram_channel_id")
+
+
+from app.telegram_client import TelegramClient  # noqa: E402
+from app.reports.delivery_state import mark_weekly_delivered  # noqa: E402
+
+
+def get_telegram_client():
+    token, chat_id = get_telegram_config()
+    token = token or os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = chat_id or os.environ.get("TELEGRAM_CHANNEL_ID")
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        chat_id = ""
+    return TelegramClient(token, chat_id)
 
 
 _cfg_token, _cfg_chat = get_telegram_config()
@@ -641,23 +654,8 @@ def generate_weekly_chart(end_date, daily_data, theme="dark", lang="ua"):
 
 
 def send_telegram_photo(photo_path, caption):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-    with open(photo_path, "rb") as f:
-        files = {"photo": f}
-        data = {
-            "chat_id": CHAT_ID,
-            "caption": caption,
-            "parse_mode": "HTML",
-            "disable_notification": True,
-        }
-        try:
-            r = requests.post(url, files=files, data=data, timeout=20)
-            if r.status_code == 200:
-                logger.info("Weekly report sent successfully.")
-            else:
-                logger.error(f"Failed to send weekly report: {r.text}")
-        except Exception as e:
-            logger.error(f"Error sending weekly report: {e}")
+    client = get_telegram_client()
+    return client.send_photo(photo_path, caption)
 
 
 if __name__ == "__main__":
@@ -860,11 +858,30 @@ if __name__ == "__main__":
 
 #тиждень #статистика_світла"""
 
-    if not args.no_send:
-        if get_quiet_status() == "quiet":
-            logger.info("Quiet mode active: Skipping weekly Telegram report.")
+    from app.config_runtime import get_config
+
+    cfg = get_config()
+    weekly_reports_enabled = (
+        cfg.get("advanced", {})
+        .get("notifications", {})
+        .get("telegram_weekly_reports", True)
+    )
+
+    exit_code = 0
+    if args.no_send or args.output:
+        logger.info("Telegram sending skipped (--no-send or --output).")
+    elif not weekly_reports_enabled:
+        logger.info("Telegram weekly report is disabled in configuration.")
+    else:
+        # Scheduled weekly summary: IGNORE Quiet Mode, send once if enabled
+        logger.info("Sending weekly report to Telegram...", target_date=target_date)
+        msg_id = send_telegram_photo(filename, caption)
+        if msg_id:
+            logger.info("Weekly report sent successfully.", message_id=msg_id)
+            mark_weekly_delivered(target_date.strftime("%Y-%m-%d"), msg_id)
         else:
-            send_telegram_photo(filename, caption)
+            logger.error("Failed to send weekly report to Telegram.")
+            exit_code = 1
 
     if os.path.exists(filename):
         os.remove(filename)
@@ -874,3 +891,5 @@ if __name__ == "__main__":
         os.remove(filename_en)
     if os.path.exists(filename_light_en):
         os.remove(filename_light_en)
+
+    sys.exit(exit_code)

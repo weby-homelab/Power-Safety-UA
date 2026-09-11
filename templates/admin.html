@@ -542,6 +542,20 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label>Telegram: Щоденний графічний звіт <span class="info-icon">i<span class="tooltip">Надсилати підсумковий графічний звіт за добу у Telegram. (Telegram: Daily graphic summary)</span></span></label>
+                    <select id="adv-notif-daily-reports">
+                        <option value="true">Увімкнено</option>
+                        <option value="false">Вимкнено</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Telegram: Тижневий графічний звіт <span class="info-icon">i<span class="tooltip">Надсилати підсумковий тижневий графік у Telegram щопонеділка. (Telegram: Weekly graphic summary)</span></span></label>
+                    <select id="adv-notif-weekly-reports">
+                        <option value="true">Увімкнено</option>
+                        <option value="false">Вимкнено</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label style="white-space: nowrap; display: flex; align-items: center; gap: 5px;">API Пуш (Webhook) <span class="info-icon">i<span class="tooltip">URL для зовнішніх скриптів моніторингу. На цей адрес пристрій має слати запити для підтвердження наявності світла.</span></span></label>
                     <div style="display: flex; gap: 5px; align-items: center; width: 100%;">
                         <input type="text" id="info-push-api" readonly style="background: rgba(255,255,255,0.05); color: #888; flex: 1; min-width: 0;">
@@ -947,6 +961,8 @@
                     if (adv.notifications) {
                         setVal('adv-notif-times', (adv.notifications.report_times || []).join(', '));
                         setVal('adv-notif-alerts', adv.notifications.telegram_air_raid_alerts !== false ? 'true' : 'false');
+                        setVal('adv-notif-daily-reports', adv.notifications.telegram_daily_reports !== false ? 'true' : 'false');
+                        setVal('adv-notif-weekly-reports', adv.notifications.telegram_weekly_reports !== false ? 'true' : 'false');
                     }
                     if (adv.dashboard) {
                         setVal('adv-db-aq', adv.dashboard.show_aq ? 'true' : 'false');
@@ -1145,7 +1161,9 @@
                 };
                 config.advanced.notifications = {
                     report_times: getVal('adv-notif-times').split(',').map(s => s.trim()).filter(s => s),
-                    telegram_air_raid_alerts: getVal('adv-notif-alerts') === 'true'
+                    telegram_air_raid_alerts: getVal('adv-notif-alerts') === 'true',
+                    telegram_daily_reports: getVal('adv-notif-daily-reports') === 'true',
+                    telegram_weekly_reports: getVal('adv-notif-weekly-reports') === 'true'
                 };
                 config.advanced.dashboard = {
                     show_aq: getVal('adv-db-aq') === 'true',
