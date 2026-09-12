@@ -1619,7 +1619,10 @@ async def _check_outage_detection(current_time, last_seen):
         state["went_down_at"] = down_time_ts
         await log_event("down", down_time_ts)
         msg = format_event_message(False, down_time_ts, state.get("came_up_at", 0))
-        if state.get("quiet_status") == "quiet" or state.get("quiet_mode") == "forced_on":
+        if (
+            state.get("quiet_status") == "quiet"
+            or state.get("quiet_mode") == "forced_on"
+        ):
             state["pending_confirmation"] = True
             _executor.submit(
                 send_admin_confirmation,

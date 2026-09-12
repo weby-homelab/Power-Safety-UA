@@ -925,7 +925,10 @@ def test_alerts_loop_iteration_suppressed_in_quiet_mode():
 
     captured_messages = []
 
-    for quiet_key, quiet_val in [("quiet_status", "quiet"), ("quiet_mode", "forced_on")]:
+    for quiet_key, quiet_val in [
+        ("quiet_status", "quiet"),
+        ("quiet_mode", "forced_on"),
+    ]:
         state.clear()
         state.update(
             {

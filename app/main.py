@@ -2063,7 +2063,11 @@ async def admin_config_post(request: Request, new_config: AdminConfigRequest):
                 existing_val = existing_cfg.get("settings", {}).get(
                     "telegram_bot_token", ""
                 )
-                if existing_val and "*" not in existing_val and "..." not in existing_val:
+                if (
+                    existing_val
+                    and "*" not in existing_val
+                    and "..." not in existing_val
+                ):
                     validated_config["settings"]["telegram_bot_token"] = existing_val
                 else:
                     validated_config["settings"]["telegram_bot_token"] = ""
