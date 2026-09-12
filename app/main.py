@@ -1562,8 +1562,12 @@ async def push_api(
             state["came_up_at"] = current_time
             await log_event("up", current_time)
 
-            # Quiet Mode check: skip message if status is 'quiet'
-            if state.get("quiet_status") == "quiet":
+            # Quiet Mode check: skip message if status is 'quiet' or mode is 'forced_on'
+            is_quiet = (
+                state.get("quiet_status") == "quiet"
+                or state.get("quiet_mode") == "forced_on"
+            )
+            if is_quiet:
                 logger.info("Quiet mode active: Skipping 'Light Up' Telegram message.")
             else:
                 msg = format_event_message(
@@ -2045,7 +2049,28 @@ async def admin_config_post(request: Request, new_config: AdminConfigRequest):
         )
 
     try:
-        validated_config = new_config.model_dump(exclude_unset=False, by_alias=True)
+        validated_config = new_config.get_app_config().model_dump(
+            exclude_unset=False, by_alias=True
+        )
+
+        # Sanitize masked telegram bot token so it never overwrites real credentials
+        if validated_config.get("settings", {}).get("telegram_bot_token"):
+            token_val = validated_config["settings"]["telegram_bot_token"]
+            if "*" in token_val or "..." in token_val:
+                from app.config_runtime import get_config
+
+                existing_cfg = get_config()
+                existing_val = existing_cfg.get("settings", {}).get(
+                    "telegram_bot_token", ""
+                )
+                if (
+                    existing_val
+                    and "*" not in existing_val
+                    and "..." not in existing_val
+                ):
+                    validated_config["settings"]["telegram_bot_token"] = existing_val
+                else:
+                    validated_config["settings"]["telegram_bot_token"] = ""
 
         # Create auto-backup before saving
         await asyncio.to_thread(create_backup, "auto_before_save")

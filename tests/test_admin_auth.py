@@ -135,3 +135,84 @@ def test_first_run_admin_token_generation_no_raw_token(capsys):
             "first_run_admin_token_generated",
             token_fingerprint=f"sha256:{hashlib.sha256(generated_token.encode('utf-8')).hexdigest()[:16]}",
         )
+
+
+@patch("app.main.state", {"admin_token": "secret_adm_token_12345"})
+def test_admin_config_post_flat_payload():
+    """Verify /api/admin/config accepts flat payload from UI and saves without nested config wrapper."""
+    saved_data = {}
+
+    def mock_save_json(path, data):
+        saved_data.update(data)
+        return True
+
+    flat_payload = {
+        "settings": {"region": "kyiv", "groups": ["GPV36.1"], "push_interval": 40},
+        "sources": {},
+        "advanced": {
+            "notifications": {
+                "telegram_air_raid_alerts": False,
+                "telegram_daily_reports": True,
+            }
+        },
+        "ui": {"text": {"on_full": "Є СВІТЛО"}},
+    }
+
+    with (
+        patch("app.main.StorageUtils.save_json_sync", side_effect=mock_save_json),
+        patch("app.main.create_backup"),
+    ):
+        response = client.post(
+            "/api/admin/config",
+            json=flat_payload,
+            headers={"X-Admin-Token": "secret_adm_token_12345"},
+        )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert "config" not in saved_data
+    assert saved_data["settings"]["region"] == "kyiv"
+    assert saved_data["settings"]["push_interval"] == 40
+    assert saved_data["advanced"]["notifications"]["telegram_air_raid_alerts"] is False
+
+
+@patch("app.main.state", {"admin_token": "secret_adm_token_12345"})
+def test_admin_config_post_masked_token_sanitization():
+    """Verify /api/admin/config sanitizes masked token so it does not overwrite real credentials."""
+    saved_data = {}
+
+    def mock_save_json(path, data):
+        saved_data.update(data)
+        return True
+
+    flat_payload = {
+        "settings": {
+            "telegram_bot_token": "7102****Js",
+            "region": "kyiv",
+        },
+        "sources": {},
+        "advanced": {},
+        "ui": {},
+    }
+
+    with (
+        patch("app.main.StorageUtils.save_json_sync", side_effect=mock_save_json),
+        patch("app.main.create_backup"),
+        patch(
+            "app.config_runtime.get_config",
+            return_value={"settings": {"telegram_bot_token": "valid_tok"}},
+        ),
+    ):
+        response = client.post(
+            "/api/admin/config",
+            json=flat_payload,
+            headers={"X-Admin-Token": "secret_adm_token_12345"},
+        )
+    assert response.status_code == 200
+    assert saved_data["settings"]["telegram_bot_token"] == "valid_tok"
+
+
+@patch("app.main.state", {"admin_token": "secret_adm_token_12345"})
+def test_admin_config_post_unauthorized():
+    """Verify /api/admin/config rejects unauthenticated requests."""
+    response = client.post("/api/admin/config", json={})
+    assert response.status_code == 403

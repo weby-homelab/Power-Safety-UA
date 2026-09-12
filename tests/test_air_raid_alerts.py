@@ -907,3 +907,128 @@ def test_merged_alert_duration_no_double_counting_with_overlap():
     summary = summarize_alert_intervals(intervals)
     assert summary["yellow"]["duration_sec"] == 7200.0
     assert summary["red"]["duration_sec"] == 5100.0
+
+
+def test_alerts_loop_iteration_suppressed_in_quiet_mode():
+    import asyncio
+    from app.light_service import _alerts_loop_iteration, state
+
+    class FakeDateTime(datetime.datetime):
+        _mock_now = None
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls._mock_now or super().now(tz=tz)
+
+    now_ts = 1775000000.0
+    FakeDateTime._mock_now = datetime.datetime.fromtimestamp(now_ts, tz=KYIV_TZ)
+
+    captured_messages = []
+
+    for quiet_key, quiet_val in [
+        ("quiet_status", "quiet"),
+        ("quiet_mode", "forced_on"),
+    ]:
+        state.clear()
+        state.update(
+            {
+                "status": "up",
+                "alert_status": "clear",
+                "alert_type": "clear",
+                "alert_types": [],
+                quiet_key: quiet_val,
+            }
+        )
+        captured_messages.clear()
+
+        with (
+            patch(
+                "app.light_service.get_air_raid_alert",
+                return_value={
+                    "city": True,
+                    "type": "red",
+                    "types": ["red"],
+                    "location": "Київ",
+                },
+            ),
+            patch("app.light_service.datetime.datetime", FakeDateTime),
+            patch("app.light_service.StorageUtils.load_json_async", return_value=[]),
+            patch("app.light_service.StorageUtils.save_json_async", return_value=True),
+            patch("app.light_service.save_state", return_value=True),
+            patch("app.light_service.load_state", return_value=None),
+            patch(
+                "app.light_service.send_telegram",
+                side_effect=lambda msg: captured_messages.append(msg),
+            ),
+            patch(
+                "app.light_service.get_config",
+                return_value={
+                    "advanced": {"notifications": {"telegram_air_raid_alerts": True}}
+                },
+            ),
+        ):
+            asyncio.run(_alerts_loop_iteration())
+
+        assert len(captured_messages) == 0, (
+            f"Expected 0 messages when {quiet_key}={quiet_val}, got {len(captured_messages)}"
+        )
+        assert state.get("alert_type") == "red"
+
+
+def test_alerts_loop_iteration_notified_when_active():
+    import asyncio
+    from app.light_service import _alerts_loop_iteration, state
+
+    class FakeDateTime(datetime.datetime):
+        _mock_now = None
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls._mock_now or super().now(tz=tz)
+
+    now_ts = 1775000000.0
+    FakeDateTime._mock_now = datetime.datetime.fromtimestamp(now_ts, tz=KYIV_TZ)
+
+    state.clear()
+    state.update(
+        {
+            "status": "up",
+            "alert_status": "clear",
+            "alert_type": "clear",
+            "alert_types": [],
+            "quiet_status": "active",
+            "quiet_mode": "auto",
+        }
+    )
+    captured_messages = []
+
+    with (
+        patch(
+            "app.light_service.get_air_raid_alert",
+            return_value={
+                "city": True,
+                "type": "red",
+                "types": ["red"],
+                "location": "Київ",
+            },
+        ),
+        patch("app.light_service.datetime.datetime", FakeDateTime),
+        patch("app.light_service.StorageUtils.load_json_async", return_value=[]),
+        patch("app.light_service.StorageUtils.save_json_async", return_value=True),
+        patch("app.light_service.save_state", return_value=True),
+        patch("app.light_service.load_state", return_value=None),
+        patch(
+            "app.light_service.send_telegram",
+            side_effect=lambda msg: captured_messages.append(msg),
+        ),
+        patch(
+            "app.light_service.get_config",
+            return_value={
+                "advanced": {"notifications": {"telegram_air_raid_alerts": True}}
+            },
+        ),
+    ):
+        asyncio.run(_alerts_loop_iteration())
+
+    assert len(captured_messages) == 1
+    assert "ЧЕРВОНИЙ РІВЕНЬ НЕБЕЗПЕКИ" in captured_messages[0]

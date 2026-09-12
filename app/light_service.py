@@ -208,9 +208,10 @@ def get_advanced_setting(section, key, default=None):
 
 def get_telegram_token():
     cfg = get_config()
-    return cfg.get("settings", {}).get("telegram_bot_token") or os.environ.get(
-        "TELEGRAM_BOT_TOKEN"
-    )
+    token = cfg.get("settings", {}).get("telegram_bot_token")
+    if token and "*" not in token and "..." not in token:
+        return token
+    return os.environ.get("TELEGRAM_BOT_TOKEN")
 
 
 def get_telegram_channel_id_cfg():
@@ -1618,7 +1619,10 @@ async def _check_outage_detection(current_time, last_seen):
         state["went_down_at"] = down_time_ts
         await log_event("down", down_time_ts)
         msg = format_event_message(False, down_time_ts, state.get("came_up_at", 0))
-        if state.get("quiet_status") == "quiet":
+        if (
+            state.get("quiet_status") == "quiet"
+            or state.get("quiet_mode") == "forced_on"
+        ):
             state["pending_confirmation"] = True
             _executor.submit(
                 send_admin_confirmation,
@@ -1828,6 +1832,19 @@ async def _alerts_loop_iteration():
             can_notify = False
         else:
             can_notify = bool(can_notify)
+
+        # Quiet Mode check: strictly suppress all air raid Telegram alerts during quiet mode
+        is_quiet = (
+            state.get("quiet_status") == "quiet"
+            or state.get("quiet_mode") == "forced_on"
+        )
+        if is_quiet:
+            can_notify = False
+            logger.info(
+                "Quiet mode active (quiet_status=%s, quiet_mode=%s): Suppressing air raid Telegram alert.",
+                state.get("quiet_status"),
+                state.get("quiet_mode"),
+            )
 
         if changed_types or history_sync_types:
             for alert_type in (ALERT_TYPE_YELLOW, ALERT_TYPE_RED):
