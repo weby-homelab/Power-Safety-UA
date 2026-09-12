@@ -136,7 +136,21 @@ class OutageActionRequest(BaseModel):
 
 class AdminConfigRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    config: AppConfig
+    settings: AppSettings = Field(default_factory=AppSettings)
+    sources: SourcesConfig = Field(default_factory=SourcesConfig)
+    advanced: AdvancedSettings = Field(default_factory=AdvancedSettings)
+    ui: Dict[str, Any] = Field(default_factory=dict)
+    config: Optional[AppConfig] = None
+
+    def get_app_config(self) -> AppConfig:
+        if self.config is not None:
+            return self.config
+        return AppConfig(
+            settings=self.settings,
+            sources=self.sources,
+            advanced=self.advanced,
+            ui=self.ui,
+        )
 
 
 class QuietModeRequest(BaseModel):

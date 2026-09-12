@@ -1129,7 +1129,13 @@
 
                 // Telegram & API
                 if (data.env) {
-                    setVal('cfg-tg-token', config.settings.telegram_bot_token || data.env.telegram_bot_token_masked);
+                    if (config.settings && config.settings.telegram_bot_token && !config.settings.telegram_bot_token.includes('*') && !config.settings.telegram_bot_token.includes('...')) {
+                        setVal('cfg-tg-token', config.settings.telegram_bot_token);
+                    } else {
+                        setVal('cfg-tg-token', '');
+                        const tgInput = document.getElementById('cfg-tg-token');
+                        if (tgInput) tgInput.placeholder = data.env.telegram_bot_token_masked ? `Активний (.env): ${data.env.telegram_bot_token_masked}` : "Введіть новий токен";
+                    }
                     setVal('cfg-tg-chat', config.settings.telegram_channel_id || data.env.telegram_channel_id);
                 }
                 if (data.state && data.state.secret_key) {
@@ -1341,7 +1347,12 @@
                     return getVal(id).trim().replace(',', '.');
                 };
 
-                config.settings.telegram_bot_token = getVal('cfg-tg-token');
+                const tgTokenInput = getVal('cfg-tg-token').trim();
+                if (!tgTokenInput || tgTokenInput.includes('*') || tgTokenInput.includes('...')) {
+                    config.settings.telegram_bot_token = (currentConfig.settings && currentConfig.settings.telegram_bot_token && !currentConfig.settings.telegram_bot_token.includes('*') && !currentConfig.settings.telegram_bot_token.includes('...')) ? currentConfig.settings.telegram_bot_token : "";
+                } else {
+                    config.settings.telegram_bot_token = (tgTokenInput);
+                }
                 config.settings.telegram_channel_id = getVal('cfg-tg-chat');
                 config.settings.region = getVal('cfg-region');
                 config.settings.groups = getVal('cfg-groups').split(',').map(s => s.trim()).filter(s => s);
@@ -1422,8 +1433,24 @@
                     alert('Усі системні налаштування успішно збережено!');
                     fetchData();
                 } else {
-                    const err = await response.json();
-                    alert('Помилка збереження: ' + err.msg);
+                    let errMsg = 'Невідома помилка';
+                    try {
+                        const err = await response.json();
+                        if (err.msg) {
+                            errMsg = err.msg;
+                        } else if (err.detail) {
+                            if (Array.isArray(err.detail)) {
+                                errMsg = err.detail.map(d => `${d.loc ? d.loc.join('.') : ''}: ${d.msg}`).join(', ');
+                            } else {
+                                errMsg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+                            }
+                        } else {
+                            errMsg = JSON.stringify(err);
+                        }
+                    } catch(e) {
+                        errMsg = response.statusText || String(response.status);
+                    }
+                    alert('Помилка збереження: ' + errMsg);
                 }
             } catch (err) { alert('Помилка запиту'); }
         }
