@@ -127,6 +127,121 @@ def test_get_schedule_context_localization():
                 )
 
 
+def test_get_schedule_context_falls_back_to_github_for_tomorrow():
+    from app.light_service import get_schedule_context
+    import json
+    from unittest.mock import patch, mock_open
+
+    mock_now_dt = datetime.datetime(2026, 9, 13, 23, 20, 0, tzinfo=KYIV_TZ)
+    schedule_data = {
+        "yasno": {
+            "GPV36.1": {
+                "2026-09-13": {"slots": [True] * 48, "status": "normal"},
+                "2026-09-14": {"slots": None, "status": "pending"},
+            }
+        },
+        "github": {
+            "GPV36.1": {
+                "2026-09-13": {"slots": [True] * 48, "status": "normal"},
+                "2026-09-14": {"slots": [True] * 48, "status": "normal"},
+            }
+        },
+    }
+
+    with (
+        patch("app.light_service.datetime") as mock_datetime,
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=json.dumps(schedule_data))),
+    ):
+        mock_datetime.datetime.now.return_value = mock_now_dt
+        mock_datetime.timedelta = datetime.timedelta
+        res_ua = get_schedule_context(lang="ua")
+        res_en = get_schedule_context(lang="en")
+
+    assert res_ua[0] is True
+    assert res_ua[1] == "відключення не плануються"
+    assert res_ua[2] == "відключення не плануються"
+
+    assert res_en[0] is True
+    assert res_en[1] == "no outages scheduled"
+    assert res_en[2] == "no outages scheduled"
+
+
+def test_get_schedule_context_reports_no_outages_when_tomorrow_missing_and_light_on():
+    from app.light_service import get_schedule_context
+    import json
+    from unittest.mock import patch, mock_open
+
+    mock_now_dt = datetime.datetime(2026, 9, 13, 14, 0, 0, tzinfo=KYIV_TZ)
+    schedule_data = {
+        "yasno": {
+            "GPV36.1": {
+                "2026-09-13": {"slots": [True] * 48, "status": "normal"},
+                "2026-09-14": {"slots": None, "status": "pending"},
+            }
+        }
+    }
+
+    with (
+        patch("app.light_service.datetime") as mock_datetime,
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=json.dumps(schedule_data))),
+    ):
+        mock_datetime.datetime.now.return_value = mock_now_dt
+        mock_datetime.timedelta = datetime.timedelta
+        res_ua = get_schedule_context(lang="ua")
+        res_en = get_schedule_context(lang="en")
+
+    assert res_ua[0] is True
+    assert res_ua[1] == "відключення не плануються"
+    assert res_ua[2] == "відключення не плануються"
+
+    assert res_en[0] is True
+    assert res_en[1] == "no outages scheduled"
+    assert res_en[2] == "no outages scheduled"
+
+
+def test_get_today_schedule_text_renders_tomorrow_from_fallback_source():
+    from app.main import get_today_schedule_text
+    import json
+    from unittest.mock import patch, mock_open
+
+    mock_now_dt = datetime.datetime(2026, 9, 13, 23, 20, 0, tzinfo=KYIV_TZ)
+    schedule_data = {
+        "yasno": {
+            "GPV36.1": {
+                "2026-09-13": {"slots": [True] * 48, "status": "normal"},
+                "2026-09-14": {"slots": None, "status": "pending"},
+            }
+        },
+        "github": {
+            "GPV36.1": {
+                "2026-09-13": {"slots": [True] * 48, "status": "normal"},
+                "2026-09-14": {"slots": [True] * 48, "status": "normal"},
+            }
+        },
+    }
+
+    def fake_open(filename, *args, **kwargs):
+        if "last_schedules.json" in filename:
+            return mock_open(read_data=json.dumps(schedule_data))()
+        return mock_open(read_data="{}")()
+
+    with (
+        patch("app.main.datetime") as mock_datetime,
+        patch("os.path.exists", return_value=True),
+        patch("os.path.getmtime", return_value=1789330000.0),
+        patch("builtins.open", side_effect=fake_open),
+    ):
+        mock_datetime.now.return_value = mock_now_dt
+        mock_datetime.fromtimestamp = datetime.datetime.fromtimestamp
+        mock_datetime.side_effect = lambda *a, **k: datetime.datetime(*a, **k)
+        html = get_today_schedule_text(lang="ua")
+
+    assert "13 Вересня" in html
+    assert "14 Вересня" in html
+
+
 def test_get_deviation_info_localization():
     from app.light_service import get_deviation_info
     import json
