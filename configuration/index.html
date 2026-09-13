@@ -631,12 +631,12 @@ Docker secrets у <code>/run/secrets</code>).</p>
 <tr>
 <td><code>TELEGRAM_CHANNEL_ID</code></td>
 <td>—</td>
-<td>ID каналу для публікації.</td>
+<td>ID каналу для публікації (підтримує аліас <code>TELEGRAM_CHAT_ID</code>).</td>
 </tr>
 <tr>
 <td><code>TELEGRAM_WEBHOOK_SECRET</code></td>
 <td>—</td>
-<td>Секрет для перевірки вебхуків.</td>
+<td>Секрет для перевірки вебхуків Telegram API.</td>
 </tr>
 <tr>
 <td><code>ADMIN_CHAT_ID</code></td>
@@ -646,12 +646,12 @@ Docker secrets у <code>/run/secrets</code>).</p>
 <tr>
 <td><code>DATA_DIR</code></td>
 <td><code>data</code></td>
-<td>Каталог збереження БД/логів.</td>
+<td>Каталог збереження БД/логів/конфігурації.</td>
 </tr>
 <tr>
 <td><code>SECRET_KEY</code></td>
 <td>—</td>
-<td>Секрет сесій/API (обов'язково!).</td>
+<td>Секрет сесій/API/Heartbeat (обов'язково задавати!).</td>
 </tr>
 <tr>
 <td><code>VAPID_PRIVATE_KEY</code> / <code>VAPID_PUBLIC_KEY</code></td>
@@ -666,7 +666,32 @@ Docker secrets у <code>/run/secrets</code>).</p>
 <tr>
 <td><code>SCHEDULE_API_URL</code></td>
 <td>—</td>
-<td>Джерело графіків відключень.</td>
+<td>Кастомне джерело графіків відключень.</td>
+</tr>
+<tr>
+<td><code>ALERTS_API_URL</code></td>
+<td>alerts.in.ua</td>
+<td>Основне джерело тривог.</td>
+</tr>
+<tr>
+<td><code>TYPED_ALERTS_API_URL</code></td>
+<td>etryvoga</td>
+<td>Джерело типізованих загроз (БПЛА, балістика, тактична авіація).</td>
+</tr>
+<tr>
+<td><code>JAAM_ALERTS_API_URL</code></td>
+<td>jaam.net.ua</td>
+<td>Резервне джерело швидкої крос-перевірки тривог.</td>
+</tr>
+<tr>
+<td><code>RADIATION_FALLBACK_URL</code></td>
+<td>SaveEcoBot</td>
+<td>Резервне джерело радіаційного фону.</td>
+</tr>
+<tr>
+<td><code>POWER_SAFETY_IMAGE</code></td>
+<td>webyhomelab/power-safety-ua:latest</td>
+<td>Іммутабельний тег або sha256 digest образу в Compose.</td>
 </tr>
 <tr>
 <td><code>ALLOWED_ORIGINS</code></td>
@@ -676,7 +701,7 @@ Docker secrets у <code>/run/secrets</code>).</p>
 <tr>
 <td><code>PORT_BINDING</code></td>
 <td><code>127.0.0.1</code></td>
-<td>Прив'язка порту (безпека).</td>
+<td>Прив'язка порту контейнера (безпека).</td>
 </tr>
 </tbody>
 </table>

@@ -395,6 +395,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#4-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Доступ до Адмін-панелі
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -657,6 +668,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#4-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Доступ до Адмін-панелі
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -733,13 +755,25 @@
 <h2 id="3-cloudflare-tunnel">3. Зовнішній доступ (Cloudflare Tunnel)<a class="headerlink" href="#3-cloudflare-tunnel" title="Permanent link">&para;</a></h2>
 <p>Архітектура використовує Cloudflare Tunnel із Zero-Trust та реверс-проксі.
 Рекомендується <strong>не</strong> публікувати порт <code>5050</code> напряму в інтернет.</p>
+<h2 id="4-">4. Доступ до Адмін-панелі<a class="headerlink" href="#4-" title="Permanent link">&para;</a></h2>
+<p>Панель керування доступна за адресою <code>http://127.0.0.1:5050/admin</code> (або через ваш домен/Cloudflare Tunnel).</p>
+<ol>
+<li><strong>Отримання токена:</strong><br />
+   При першому запуску система автоматично генерує токен адміна. З міркувань безпеки (Zero-Trust Secret Hygiene) у консоль виводиться лише цифровий відбиток (fingerprint), а сам токен надійно зберігається у файлі стану <code>data/power_monitor_state.json</code>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>grep<span class="w"> </span>admin_token<span class="w"> </span>data/power_monitor_state.json
+</code></pre></div></li>
+<li><strong>Вхід у панель:</strong><br />
+   Введіть отриманий токен у мобільну Glassmorphism-картку авторизації. Токен зберігається виключно в <code>sessionStorage</code> вашого браузера та передається через заголовок <code>X-Admin-Token</code> або <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+<li><strong>Гігієна URL:</strong><br />
+   Ви можете відкрити панель за посиланням з параметром <code>?t=&lt;TOKEN&gt;</code> або <code>#t=&lt;TOKEN&gt;</code> — система миттєво очистить токен з адресного рядка за допомогою <code>history.replaceState</code>.</li>
+</ol>
 <h2 id="_2">Детальна інструкція<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <p>Повну покрокову інструкцію див. у
 <a href="https://github.com/weby-homelab/Power-Safety-UA/blob/main/docs/INSTRUCTIONS_INSTALL.md">INSTRUCTIONS_INSTALL.md</a>
 та <a href="https://github.com/weby-homelab/Power-Safety-UA/blob/main/docs/INSTRUCTIONS.md">INSTRUCTIONS.md</a>.</p>
 <h2 id="_3">Оновлення<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>pull
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>pull
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
 </code></pre></div>
 
 

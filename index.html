@@ -637,14 +637,15 @@
 <ul>
 <li>⚡ Прецизійний моніторинг електропостачання в реальному часі.</li>
 <li>🗓 Інтелектуальну обробку графіків відключень (DTEK / Yasno).</li>
-<li>🚨 Відстеження повітряних тривог.</li>
-<li>🌫 Моніторинг якості повітря (AQI) та радіаційного фону.</li>
+<li>🚨 Відстеження повітряних тривог (жовтий/червоний рівні, загрози БПЛА/балістики/авіації).</li>
+<li>🔇 Режим спокою (Quiet Mode) з повним глушінням тривог під час стабільної мережі.</li>
+<li>🌫 Моніторинг якості повітря (AQI) та радіаційного фону (резервування SaveEcoBot).</li>
 <li>🔔 Сповіщення через Telegram та Web Push.</li>
-<li>📊 Автономну адмін-панель (Glassmorphism) і PWA-дашборд.</li>
+<li>📊 Автономну адмін-панель (Glassmorphism з токен-автентифікацією) і PWA-дашборд.</li>
 </ul>
 <div class="admonition info">
 <p class="admonition-title">Статус проєкту</p>
-<p>Stable · FastAPI + Docker Compose + JSON Flat-DB · Python 3.12 ·
+<p>Stable (v3.9.27) · FastAPI + Docker Compose + JSON Flat-DB + SQLite WAL · Python 3.12 ·
 Docker multi-arch (amd64 / arm64).</p>
 </div>
 <h2 id="_1">Чому саме цей проєкт?<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
@@ -662,11 +663,19 @@ Docker multi-arch (amd64 / arm64).</p>
 </tr>
 <tr>
 <td>Безпека</td>
-<td>Zero-Trust, усунено LFI/Path Traversal, строга перевірка шляхів.</td>
+<td>Zero-Trust, усунено LFI/Path Traversal, авторизація через <code>X-Admin-Token</code> та заголовок Bearer.</td>
 </tr>
 <tr>
 <td>Точність</td>
 <td>Гібридна логіка «False Always Wins» для графіків відключень.</td>
+</tr>
+<tr>
+<td>Спокій</td>
+<td>Інтелектуальний Quiet Mode: глушіння сповіщень про тривоги та відключення при стабільній мережі.</td>
+</tr>
+<tr>
+<td>Надійність</td>
+<td>Гібридне сховище JSON Flat-DB + SQLite WAL, персистентність звітів із блокуванням <code>fcntl.flock</code>.</td>
 </tr>
 <tr>
 <td>Спостережуваність</td>

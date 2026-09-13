@@ -616,43 +616,44 @@
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    subgraph External["🔌 Джерела даних"]
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        direction TB
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        Energy["⚡ Yasno / DTEK API&lt;br&gt;Розклади відключень"]
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        Meteo["🌤️ OpenMeteo + SaveEcoBot&lt;br&gt;Погода та AQI"]
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    end
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    subgraph Core["⚙️ Power Safety Core"]
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        direction TB
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        Worker["🔄 Worker&lt;br&gt;run_background.py"]
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        subgraph Processing["Обробка та логіка"]
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>            direction LR
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>            Rules["🛡️ Rules Engine&lt;br&gt;False Always Wins • 30s Safety Net&lt;br&gt;Quiet Mode"]
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>            Reports["📊 Reports Generator&lt;br&gt;Matplotlib charts"]
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>            Storage["💾 Storage&lt;br&gt;JSON Flat-DB"]
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>        end
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>        API["🔌 FastAPI&lt;br&gt;app.main:app"]
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>        TgClient["🤖 Telegram Client"]
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    end
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    subgraph Gateway["🔐 Cloudflare Tunnel"]
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>        CF["☁️ Cloudflare Tunnel&lt;br&gt;порт 5050"]
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    end
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    subgraph Clients["👥 Інтерфейси"]
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>        direction TB
-<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>        PWA["📱 PWA Dashboard"]
-<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>        Admin["🛠️ Admin Panel"]
-<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>        Telegram["📨 Telegram Channel"]
-<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    end
-<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>
-<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>    Energy &amp; Meteo --&gt;|Скрейпінг + Fetch| Worker
-<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>    Worker --&gt;|Перевірка правил| Rules
-<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    Worker --&gt;|Збереження| Storage
-<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>    Worker --&gt;|Генерація| Reports
-<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    Worker --&gt;|Сповіщення| TgClient
-<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    Worker &lt;--&gt;|REST + SSE| API
-<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>    API --&gt;|Reverse Proxy| CF
-<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>    CF &lt;--&gt;|HTTPS + JWT / WSS| PWA
-<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>    CF &lt;--&gt;|HTTPS + JWT| Admin
-<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>    TgClient --&gt;|Bot API| Telegram
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        Alerts["🚨 Alerts.in.ua / JAAM / Ubilling&lt;br&gt;Повітряні тривоги (Yellow/Red)"]
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        Meteo["🌤️ OpenMeteo + SaveEcoBot&lt;br&gt;Погода та AQI"]
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    end
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    subgraph Core["⚙️ Power Safety Core"]
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        direction TB
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        Worker["🔄 Background Worker&lt;br&gt;run_background.py"]
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        subgraph Processing["Обробка та логіка"]
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>            direction LR
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>            Rules["🛡️ Rules Engine&lt;br&gt;False Always Wins • Safety Net&lt;br&gt;Quiet Mode • Stale Filter"]
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>            Reports["📊 Reports Generator&lt;br&gt;Matplotlib charts"]
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>            Storage["💾 Storage&lt;br&gt;JSON Flat-DB + SQLite WAL&lt;br&gt;config • state • logs • db"]
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>        end
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>        API["🔌 FastAPI Service&lt;br&gt;app.main:app"]
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>        TgClient["🤖 Telegram Client"]
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    end
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    subgraph Gateway["🔐 Cloudflare Tunnel"]
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>        CF["☁️ Cloudflare Tunnel&lt;br&gt;порт 5050"]
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    end
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    subgraph Clients["👥 Інтерфейси"]
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>        direction TB
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>        PWA["📱 PWA Dashboard"]
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>        Admin["🛠️ Admin Panel"]
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>        Telegram["📨 Telegram Channel"]
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>    end
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>    Energy &amp; Alerts &amp; Meteo --&gt;|Скрейпінг + Fetch| Worker
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    Worker --&gt;|Перевірка правил| Rules
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>    Worker --&gt;|Збереження| Storage
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    Worker --&gt;|Генерація| Reports
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    Worker --&gt;|Сповіщення| TgClient
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>    Worker &lt;--&gt;|REST + SSE + SQLite| API
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>    API --&gt;|Reverse Proxy| CF
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>    CF &lt;--&gt;|HTTPS + SSE| PWA
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>    CF &lt;--&gt;|HTTPS + X-Admin-Token| Admin
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>    TgClient --&gt;|Bot API| Telegram
 </code></pre></div>
 <h2 id="_1">Компоненти<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <table>
@@ -677,12 +678,12 @@
 <tr>
 <td>Rules Engine</td>
 <td><code>app/light_service.py</code></td>
-<td>Логіка графіків, Quiet Mode, Safety Net.</td>
+<td>Логіка графіків, Quiet Mode, Safety Net, тривоги.</td>
 </tr>
 <tr>
 <td>Storage</td>
 <td><code>app/storage.py</code></td>
-<td>JSON Flat-DB (config/state/logs/schedules).</td>
+<td>Гібридне сховище: JSON Flat-DB + SQLite WAL.</td>
 </tr>
 <tr>
 <td>Parser</td>

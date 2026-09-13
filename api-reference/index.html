@@ -631,12 +631,17 @@
 <tr>
 <td><code>GET</code></td>
 <td><code>/</code></td>
-<td>Головна сторінка дашборда (HTML).</td>
+<td>Головна сторінка дашборда (HTML / PWA).</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/admin</code></td>
+<td>Адмін-панель керування (Glassmorphism).</td>
 </tr>
 <tr>
 <td><code>GET</code></td>
 <td><code>/health</code></td>
-<td>Health-check (<code>{"status":"ok"}</code>).</td>
+<td>Базовий health-check (<code>{"status":"ok"}</code>).</td>
 </tr>
 <tr>
 <td><code>GET</code></td>
@@ -645,40 +650,99 @@
 </tr>
 <tr>
 <td><code>GET</code></td>
+<td><code>/health/ready</code></td>
+<td>Readiness-проба готовності сервісу.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/health/worker</code></td>
+<td>Перевірка стану фонового воркера.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
 <td><code>/metrics</code></td>
-<td>Prometheus-метрики.</td>
+<td>Prometheus-метрики застосунку.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/version</code></td>
+<td>Поточна версія релізу системи.</td>
 </tr>
 <tr>
 <td><code>GET</code></td>
 <td><code>/api/status</code></td>
-<td>Поточний статус системи.</td>
+<td>Поточний стан світла, графіків та тривог (JSON).</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/status/stream</code></td>
+<td>Потік оновлень у реальному часі через Server-Sent Events (SSE).</td>
 </tr>
 <tr>
 <td><code>GET</code></td>
 <td><code>/api/push/{key}</code></td>
-<td>Heartbeat для Web Push (потребує <code>SECRET_KEY</code>).</td>
+<td>Heartbeat присутності мережі від IoT-датчика (потребує <code>SECRET_KEY</code>).</td>
 </tr>
 <tr>
 <td><code>GET</code></td>
-<td><code>/admin</code></td>
-<td>Адмін-панель (Glassmorphism).</td>
+<td><code>/api/ping/{key}</code></td>
+<td>Альтернативний endpoint перевірки доступності.</td>
 </tr>
 <tr>
-<td><code>WS</code> / <code>SSE</code></td>
-<td><code>/stream</code></td>
-<td>Потік оновлень у реальному часі (SSE).</td>
+<td><code>GET</code></td>
+<td><code>/api/down/{key}</code></td>
+<td>Прямий сигнал відключення живлення (потребує <code>SECRET_KEY</code>).</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/confirm-outage/{action}/{key}</code></td>
+<td>Підтвердження відключення (Safety Net).</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/push/vapid-key</code></td>
+<td>Отримання публічного VAPID-ключа для Web Push.</td>
 </tr>
 <tr>
 <td><code>POST</code></td>
-<td><code>/api/telegram/webhook</code></td>
-<td>Webhook Telegram (перевірка <code>TELEGRAM_WEBHOOK_SECRET</code>).</td>
+<td><code>/api/push/subscribe</code></td>
+<td>Реєстрація підписки браузера на Web Push.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/push/unsubscribe</code></td>
+<td>Скасування підписки Web Push.</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/tg/webhook</code></td>
+<td>Webhook для отримання оновлень від Telegram Bot API.</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/admin/data</code></td>
+<td>Дані стану для адмін-панелі (<code>X-Admin-Token</code>).</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/admin/config</code></td>
+<td>Збереження налаштувань системи (<code>X-Admin-Token</code>).</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/admin/observability</code></td>
+<td>Метрики та останні логи в реальному часі (<code>X-Admin-Token</code>).</td>
 </tr>
 </tbody>
 </table>
 <div class="admonition info">
-<p class="admonition-title">Аутентифікація</p>
-<p>Публічні ендпоінти захищені rate-limiter (<code>slowapi</code>, 120 запитів/хв).
-Адмін- та push-ендпоінти вимагають валідний ключ/підпис.</p>
+<p class="admonition-title">Аутентифікація та безпека</p>
+<ul>
+<li>Публічні ендпоінти захищені rate-limiter (<code>slowapi</code>, 120 запитів/хв).</li>
+<li>IoT-ендпоінти (<code>/api/push/{key}</code>, <code>/api/down/{key}</code>) вимагають співпадіння з <code>SECRET_KEY</code>.</li>
+<li>Telegram webhook перевіряє заголовок <code>X-Telegram-Bot-Api-Secret-Token</code> проти <code>TELEGRAM_WEBHOOK_SECRET</code>.</li>
+<li>Адмін-ендпоінти вимагають автентифікацію через заголовок <code>X-Admin-Token</code> або <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+</ul>
 </div>
 <h2 id="_2">Автогенерація документації<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <ul>
