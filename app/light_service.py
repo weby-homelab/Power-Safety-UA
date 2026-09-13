@@ -216,8 +216,10 @@ def get_telegram_token():
 
 def get_telegram_channel_id_cfg():
     cfg = get_config()
-    return cfg.get("settings", {}).get("telegram_channel_id") or os.environ.get(
-        "TELEGRAM_CHANNEL_ID"
+    return (
+        cfg.get("settings", {}).get("telegram_channel_id")
+        or os.environ.get("TELEGRAM_CHANNEL_ID")
+        or os.environ.get("TELEGRAM_CHAT_ID")
     )
 
 

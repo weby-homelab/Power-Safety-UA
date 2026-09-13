@@ -44,7 +44,11 @@ from app.metrics import report_generation_errors  # noqa: E402
 def get_telegram_client():
     token, chat_id = get_telegram_config()
     token = token or os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat_id = chat_id or os.environ.get("TELEGRAM_CHANNEL_ID")
+    chat_id = (
+        chat_id
+        or os.environ.get("TELEGRAM_CHANNEL_ID")
+        or os.environ.get("TELEGRAM_CHAT_ID")
+    )
     if "PYTEST_CURRENT_TEST" in os.environ:
         chat_id = ""
     return TelegramClient(token, chat_id)
@@ -52,7 +56,11 @@ def get_telegram_client():
 
 _cfg_token, _cfg_chat = get_telegram_config()
 TOKEN = _cfg_token or os.environ.get("TELEGRAM_BOT_TOKEN")
-CHAT_ID = _cfg_chat or os.environ.get("TELEGRAM_CHANNEL_ID")
+CHAT_ID = (
+    _cfg_chat
+    or os.environ.get("TELEGRAM_CHANNEL_ID")
+    or os.environ.get("TELEGRAM_CHAT_ID")
+)
 
 if "PYTEST_CURRENT_TEST" in os.environ:
     CHAT_ID = ""

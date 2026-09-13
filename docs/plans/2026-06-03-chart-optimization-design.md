@@ -12,7 +12,7 @@
 ## 2. Proposed Changes
 
 ### A. Daily Graphic Chart Height & Y-Position Adjustments
-In [app/generate_daily_report.py](file:///root/geminicli/projects/flash-monitor-kyiv/app/generate_daily_report.py):
+In [app/generate_daily_report.py](../../app/generate_daily_report.py):
 - Update heights of the four bars to `1.0`:
   - `aqi_h = 1.0`
   - `alert_h = 1.0`
@@ -27,7 +27,7 @@ In [app/generate_daily_report.py](file:///root/geminicli/projects/flash-monitor-
 - Keep y-ticks `ax.set_yticks` centered as before, since center values like `aqi_y + aqi_h/2` evaluates to `10.0` (same as `9.0 + 2.0/2`).
 
 ### B. Air Quality Hour Filtering
-In [app/generate_daily_report.py](file:///root/geminicli/projects/flash-monitor-kyiv/app/generate_daily_report.py):
+In [app/generate_daily_report.py](../../app/generate_daily_report.py):
 - Fetch the hourly AQI forecast as before.
 - When iterating over the hourly data, calculate `start_t = datetime.datetime.combine(target_date, datetime.time(i, 0)).replace(tzinfo=KYIV_TZ)`.
 - Skip appending the interval if `start_t > now`, where `now = datetime.datetime.now(KYIV_TZ)`.

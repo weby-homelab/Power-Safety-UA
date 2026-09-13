@@ -27,7 +27,11 @@ def get_telegram_config():
 
 _cfg_token, _cfg_chat = get_telegram_config()
 TOKEN = _cfg_token or os.environ.get("TELEGRAM_BOT_TOKEN")
-CHAT_ID = _cfg_chat or os.environ.get("TELEGRAM_CHANNEL_ID")
+CHAT_ID = (
+    _cfg_chat
+    or os.environ.get("TELEGRAM_CHANNEL_ID")
+    or os.environ.get("TELEGRAM_CHAT_ID")
+)
 
 if "PYTEST_CURRENT_TEST" in os.environ:
     CHAT_ID = ""

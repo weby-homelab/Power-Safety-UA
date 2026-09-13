@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.27] - 2026-09-12
+
+### Reliability & Bug Fixes
+- **Quiet Mode Air Raid Alert Suppression:** Fully suppressed all Telegram air raid alerts and outage notifications when Quiet Mode is active (`quiet_status == "quiet"` or `quiet_mode == "forced_on"`), ensuring zero noise in community chats during stable operation.
+- **Admin Config Save Resiliency:** Resolved HTTP 422 validation errors on saving settings in `/admin` by accepting both flat and nested payloads in `AdminConfigRequest` schema (`get_app_config()`).
+- **Masked Token Secret Hygiene:** Added sanitization preventing masked placeholder strings (`*` or `...`) from accidentally overwriting real bot tokens in `data/config.json`.
+
+## [3.9.26] - 2026-09-11
+
+### UI & Styling
+- **Minimal Semantic Icons:** Unified and simplified semantic icons across dashboard cards, header status, and Telegram messages (`💡` light on, `⚡️` light off, `🟡` warning, `🔴` critical, `🟢` clear).
+- **Runtime Icon Migration:** Added automated migration from legacy symbols to new semantic defaults while preserving custom user overrides.
+
 ## [3.9.25] - 2026-09-11
 
 ### Security & UX

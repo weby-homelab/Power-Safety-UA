@@ -1,5 +1,22 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.27] - 2026-09-12
+- **Повне глушіння сповіщень у тихому режимі (Quiet Mode Air Raid Alert Suppression):** Повністю пригнічено всі сповіщення про повітряні тривоги та реактивні відключення світла в Telegram при активному Режимі Спокою (`quiet_status == "quiet"` або `quiet_mode == "forced_on"`). / Suppressed all Telegram air raid alerts and outage notifications in Quiet Mode.
+- **Виправлення збереження налаштувань в адмінці (Admin Config Save Resiliency):** Усунено помилку валідації HTTP 422 завдяки підтримці пласких та вкладених JSON-пейлоадів у `AdminConfigRequest` (`get_app_config()`). / Resolved HTTP 422 validation errors on saving settings in admin panel.
+- **Гігієна маскованих токенів (Masked Token Hygiene):** Запобігли випадковому перезапису чинних секретних токенів маскованими рядками (`*` / `...`). / Prevented masked placeholder strings from overwriting real secrets.
+
+## [v3.9.26] - 2026-09-11
+- **Мінімалістичні семантичні іконки (Minimal Semantic Icons):** Уніфіковано семантичні іконки в дашборді та Telegram (`💡` світло є, `⚡️` світла немає, `🟡` warning, `🔴` critical, `🟢` clear) з автоматичною міграцією legacy-конфігурацій. / Simplified semantic icons across dashboard and Telegram with automated migration.
+
+## [v3.9.25] - 2026-09-11
+- **Захищена картка входу до адмінки (Dedicated Secure Admin Login Card):** Впроваджено мобільну картку авторизації з підтримкою темної/світлої тем, збереженням токена в `sessionStorage` та автентифікацією через заголовок `X-Admin-Token` / `Bearer`. / Implemented mobile-first admin login card with sessionStorage and header-based authentication.
+- **Гігієна секретів та URL (URL & Secret Hygiene):** Токен видалено з виводу в консоль на першому запуску (друкується лише sha256-відбиток) та з тіла відповіді `/api/admin/data`; додано миттєве очищення параметрів `?t=` та `#t=` з адресного рядка через `history.replaceState`. / Purged raw token from console logs and API payload; added immediate URL sanitization via history.replaceState.
+
+## [v3.9.24] - 2026-09-11
+- **Транзакційний гейт доставки (Delivery Persistence Transaction Gate):** Додано блокування файлів стану доставки через `fcntl.flock` для надійної синхронізації між веб-додатком та фоновим воркером. / Added file-based locking for delivery state synchronization.
+- **Гранулярні тривалості тривог (Granular Air Raid Alert Durations):** Впроваджено незалежні мітки часу для кожного рівня тривоги (`alert_start_times`) та коректне сповіщення про відбій кількох загроз. / Added per-level alert durations and multi-threat clear notifications.
+- **Стейт-машина при старті сервісу (Startup Reconciliation State Machine):** Впроваджено 180-секундний поріг при перезапуску для запобігання хибним сповіщенням про відключення/відновлення живлення. / Added 180s startup threshold preventing false outage or restoration alerts.
+
 ## [v3.9.23] - 2026-09-11
 - **Безпека ланцюга постачання та CI гейт (Supply-Chain Hardening & CI Security Gate):** Впроваджено збірку та сканування кандидатного образу PR локально (`power-safety-ua:ci-${{ github.sha }}`) за допомогою Trivy замість сканування попереднього релізу. Додано жорсткий гейт зупинки (`exit-code: 1`) при виявленні невиправлених вразливостей категорій HIGH або CRITICAL. / Hardened CI with candidate image scanning and a blocking vulnerability fail-gate on HIGH/CRITICAL CVEs.
 - **Іммутабельність та атестація релізів (SBOM, SLSA Provenance & Immutable Digest):** Додано генерацію та прикріплення SPDX JSON SBOM як релізного артефакту, увімкнено SLSA provenance та сканування точного іммутабельного хешу образу (`webyhomelab/power-safety-ua@sha256:...`) при публікації. / Added SPDX SBOM release asset upload, SLSA provenance attestation, and exact release digest scanning.

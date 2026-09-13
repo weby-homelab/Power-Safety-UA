@@ -1,7 +1,7 @@
 import os
 
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 SECRETS_DIR = "/run/secrets"
@@ -32,7 +32,10 @@ _load_docker_secrets()
 
 class Settings(BaseSettings):
     telegram_bot_token: str = Field(default="", validation_alias="TELEGRAM_BOT_TOKEN")
-    telegram_channel_id: str = Field(default="", validation_alias="TELEGRAM_CHANNEL_ID")
+    telegram_channel_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("TELEGRAM_CHANNEL_ID", "TELEGRAM_CHAT_ID"),
+    )
     admin_chat_id: str = Field(default="", validation_alias="ADMIN_CHAT_ID")
     data_dir: str = Field(default="data", validation_alias="DATA_DIR")
     secret_key: str = Field(default="", validation_alias="SECRET_KEY")
