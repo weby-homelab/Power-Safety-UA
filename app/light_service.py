@@ -652,7 +652,25 @@ def get_next_scheduled_event(event_time, look_for_light):
         ):
             slots.extend(tomorrow_data["slots"])
         else:
-            slots.extend([slots[-1]] * 48)
+            has_tomorrow_slots = False
+            for s_name in ["yasno", "github", "custom"]:
+                other_src = data.get(s_name)
+                if not other_src or not isinstance(other_src, dict):
+                    continue
+                for g_key in other_src:
+                    g_days = other_src[g_key]
+                    if (
+                        isinstance(g_days, dict)
+                        and tomorrow_str in g_days
+                        and g_days[tomorrow_str].get("slots")
+                    ):
+                        slots.extend(g_days[tomorrow_str]["slots"])
+                        has_tomorrow_slots = True
+                        break
+                if has_tomorrow_slots:
+                    break
+            if not has_tomorrow_slots:
+                slots.extend([slots[-1]] * 48)
 
         current_slot_idx = (now_dt.hour * 2) + (1 if now_dt.minute >= 30 else 0)
 
@@ -849,7 +867,24 @@ def get_schedule_context(lang="ua"):
             slots.extend(schedule_data[tomorrow_str]["slots"])
             has_tomorrow = True
         else:
-            slots.extend([slots[-1]] * 48)
+            for s_name in ["yasno", "github", "custom"]:
+                other_src = data.get(s_name)
+                if not other_src or not isinstance(other_src, dict):
+                    continue
+                for g_key in other_src:
+                    g_days = other_src[g_key]
+                    if (
+                        isinstance(g_days, dict)
+                        and tomorrow_str in g_days
+                        and g_days[tomorrow_str].get("slots")
+                    ):
+                        slots.extend(g_days[tomorrow_str]["slots"])
+                        has_tomorrow = True
+                        break
+                if has_tomorrow:
+                    break
+            if not has_tomorrow:
+                slots.extend([slots[-1]] * 48)
 
         current_slot_idx = (now.hour * 2) + (1 if now.minute >= 30 else 0)
         is_light_now = slots[current_slot_idx]
@@ -862,11 +897,17 @@ def get_schedule_context(lang="ua"):
 
         def format_idx_to_time(idx):
             if idx >= 96:
-                if lang == "en":
-                    return "no outages scheduled" if has_tomorrow else "unknown time"
+                if is_light_now:
+                    return (
+                        "no outages scheduled"
+                        if lang == "en"
+                        else "відключення не плануються"
+                    )
                 else:
                     return (
-                        "відключення не плануються" if has_tomorrow else "невідомий час"
+                        "no outages scheduled"
+                        if has_tomorrow
+                        else ("unknown time" if lang == "en" else "невідомий час")
                     )
             day_offset = idx // 48
             rem_idx = idx % 48
@@ -889,7 +930,14 @@ def get_schedule_context(lang="ua"):
 
         if next_start_idx < len(slots):
             if next_start_idx >= 48 and not has_tomorrow:
-                next_range = "unknown time" if lang == "en" else "невідомий час"
+                if is_light_now:
+                    next_range = (
+                        "no outages scheduled"
+                        if lang == "en"
+                        else "відключення не плануються"
+                    )
+                else:
+                    next_range = "unknown time" if lang == "en" else "невідомий час"
             else:
                 next_end_idx = len(slots)
                 for i in range(next_start_idx + 1, len(slots)):
@@ -902,15 +950,23 @@ def get_schedule_context(lang="ua"):
                 if next_start_idx >= 96 or (
                     next_start_idx >= 48 and next_end_idx >= 96 and is_light_now
                 ):
-                    if lang == "en":
+                    if is_light_now:
                         next_range = (
-                            "no outages scheduled" if has_tomorrow else "unknown time"
+                            "no outages scheduled"
+                            if lang == "en"
+                            else "відключення не плануються"
                         )
                     else:
                         next_range = (
-                            "відключення не плануються"
-                            if has_tomorrow
-                            else "невідомий час"
+                            "no outages scheduled"
+                            if (has_tomorrow and lang == "en")
+                            else (
+                                "відключення не плануються"
+                                if has_tomorrow
+                                else (
+                                    "unknown time" if lang == "en" else "невідомий час"
+                                )
+                            )
                         )
                 else:
                     next_range = f"{ns_t} - {ne_t}"
@@ -920,11 +976,21 @@ def get_schedule_context(lang="ua"):
                 if lang == "ua":
                     next_duration = next_duration.replace(".", ",")
         else:
-            if lang == "en":
-                next_range = "no outages scheduled" if has_tomorrow else "unknown time"
+            if is_light_now:
+                next_range = (
+                    "no outages scheduled"
+                    if lang == "en"
+                    else "відключення не плануються"
+                )
             else:
                 next_range = (
-                    "відключення не плануються" if has_tomorrow else "невідомий час"
+                    "no outages scheduled"
+                    if (has_tomorrow and lang == "en")
+                    else (
+                        "відключення не плануються"
+                        if has_tomorrow
+                        else ("unknown time" if lang == "en" else "невідомий час")
+                    )
                 )
 
         return (is_light_now, t_end, next_range, next_duration, is_emergency)

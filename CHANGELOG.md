@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.29] - 2026-09-13
+
+### Reliability & UX Fixes
+- **Cross-Source Tomorrow Schedule Fallback & Accurate Outage Status (#178):** Fixed false "Графік невідомий" (`Schedule unknown`) status when power is on and no outages are scheduled. Added cross-source fallback for next day's schedule (e.g. falling back from YASNO pending state to DTEK/GitHub data) in both `get_schedule_context()` and `get_today_schedule_text()`. When light is currently on and all remaining slots of today have light, correctly returns "Відключення не плануються" (`No outages scheduled`) instead of "невідомий час".
+
 ## [3.9.28] - 2026-09-13
 
 ### Reliability & Bug Fixes

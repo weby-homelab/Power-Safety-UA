@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.29] - 2026-09-13
+- **Усунення хибного статусу "Графік невідомий" при увімкненому світлі (#178) (Cross-Source Tomorrow Schedule Fallback & Accurate Outage Status):** Виправлено проблему, коли наявність світла супроводжувалася статусом «Графік невідомий» через очікування розкладу на завтра в обраному джерелі (YASNO). Впроваджено крос-джерельний fallback на розклад наступного дня (DTEK/GitHub) у `get_schedule_context()` та `get_today_schedule_text()`. При активному світлі та відсутності планових відключень до кінця доби система гарантовано відображає «Відключення не плануються». / Fixed false "Schedule unknown" when power is on by adding cross-source tomorrow schedule fallback and reporting no outages scheduled.
+
 ## [v3.9.28] - 2026-09-13
 - **Усунення залипання жовтої тривоги через тимчасові загрози БПЛА (#176) (Transient UAV Alert Expiration & Finished State Filter):** Виправлено проблему залипання жовтої тривоги (`ALERT_TYPE_YELLOW`), спричинену збереженням застарілих повідомлень про загрозу БПЛА (`at: 3`) у скрейпленому фіді eTryvoga без мітки відбою. Додано ігнорування завершених записів (наявність поля `f`), встановлено TTL 20 хвилин для тимчасових оперативних попереджень (при збереженні 12 годин для офіційних наказів про тривогу), та додано крос-перевірку через JAAM для миттєвого пріоритету червоної тривоги. / Resolved stuck yellow alert by filtering finished alerts, introducing a 20-minute TTL for transient UAV warnings, and cross-checking JAAM sirens.
 

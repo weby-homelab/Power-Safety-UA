@@ -894,6 +894,22 @@ def get_today_schedule_text(lang="ua"):
                 found_source = s_name
                 break
 
+        # Fallback for tomorrow_slots from any other source if missing in primary
+        if tomorrow_slots is None:
+            for s_name in priority_order:
+                if s_name == found_source:
+                    continue
+                src = data.get(s_name)
+                if not src or not isinstance(src, dict):
+                    continue
+                for grp in src:
+                    tm_data = src[grp].get(tomorrow_str)
+                    if tm_data and tm_data.get("slots"):
+                        tomorrow_slots = list(tm_data["slots"])
+                        break
+                if tomorrow_slots is not None:
+                    break
+
         # 2. Second Pass: If no slots found, check for emergency in any source
         if today_slots is None:
             for s_name in priority_order:
