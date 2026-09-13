@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.28] - 2026-09-13
+- **Усунення залипання жовтої тривоги через тимчасові загрози БПЛА (#176) (Transient UAV Alert Expiration & Finished State Filter):** Виправлено проблему залипання жовтої тривоги (`ALERT_TYPE_YELLOW`), спричинену збереженням застарілих повідомлень про загрозу БПЛА (`at: 3`) у скрейпленому фіді eTryvoga без мітки відбою. Додано ігнорування завершених записів (наявність поля `f`), встановлено TTL 20 хвилин для тимчасових оперативних попереджень (при збереженні 12 годин для офіційних наказів про тривогу), та додано крос-перевірку через JAAM для миттєвого пріоритету червоної тривоги. / Resolved stuck yellow alert by filtering finished alerts, introducing a 20-minute TTL for transient UAV warnings, and cross-checking JAAM sirens.
+
 ## [v3.9.27] - 2026-09-12
 - **Повне глушіння сповіщень у тихому режимі (Quiet Mode Air Raid Alert Suppression):** Повністю пригнічено всі сповіщення про повітряні тривоги та реактивні відключення світла в Telegram при активному Режимі Спокою (`quiet_status == "quiet"` або `quiet_mode == "forced_on"`). / Suppressed all Telegram air raid alerts and outage notifications in Quiet Mode.
 - **Виправлення збереження налаштувань в адмінці (Admin Config Save Resiliency):** Усунено помилку валідації HTTP 422 завдяки підтримці пласких та вкладених JSON-пейлоадів у `AdminConfigRequest` (`get_app_config()`). / Resolved HTTP 422 validation errors on saving settings in admin panel.
