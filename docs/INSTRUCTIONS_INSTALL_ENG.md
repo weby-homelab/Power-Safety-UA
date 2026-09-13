@@ -75,29 +75,36 @@ docker-compose up -d
 
 ## 🔑 Accessing the Admin Panel
 
-After the first run, the system automatically generates an access token and **immediately prints a ready-to-use login link to the logs** — no need to extract it manually:
+After the first run, the system automatically generates an access token and displays a secure banner with the token's cryptographic fingerprint in the logs (preventing console secret leaks):
 
 ```bash
-docker-compose logs power-safety-ua 2>&1 | grep -A6 "FIRST RUN"
+docker-compose logs power-safety-ua 2>&1 | grep -A7 "Перший запуск"
 ```
 
 You will see a block like this:
 ```
 ========================================================================
-  Power-Safety-UA: FIRST RUN — admin token generated.
-  Save this link to access the admin panel:
-  http://localhost:5050/admin?t=<YOUR_TOKEN>
+  Power-Safety-UA: Перший запуск — токен адміна успішно згенеровано.
+  Відбиток токена (fingerprint): sha256:1a2b3c4d5e6f7a8b
+  Для безпечного доступу скопіюйте токен із файлу стану:
+  data/power_monitor_state.json (поле 'admin_token')
+  та використовуйте форму входу на сторінці /admin.
 ========================================================================
 ```
-Open that link in your browser. If you access from another machine, replace `localhost:5050` with your server's domain/port.
 
-> 💡 **Tip:** the current token is always visible inside the admin panel itself — next to the "Reset admin token" button there is a token field, a **Copy** button (copies the full login link) and an **Open panel** link (opens the admin panel with the token on the current domain). So you can reach the panel from any device right from the panel.
-
-If the logs have already scrolled past, you can still extract the token manually from the state file:
+For Zero-Trust Secret Hygiene, the raw token is not printed in plaintext stdout, but stored securely in the state file:
 ```bash
 docker exec -it power-safety-ua cat data/power_monitor_state.json | grep admin_token
+# or directly on the host:
+grep admin_token data/power_monitor_state.json
 ```
-Then open your browser: `http://SERVER_IP:5050/admin?t=YOUR_TOKEN`
+
+### Logging into the Admin Panel:
+1. Open your browser: `http://localhost:5050/admin` (or replace `localhost:5050` with your server's domain/IP).
+2. Enter the token into the dedicated Glassmorphism login card. The token is strictly stored in `sessionStorage` and sent via `X-Admin-Token` header.
+3. *(Optional)*: You may also pass the token via URL fragment `#t=<YOUR_TOKEN>` or query parameter `?t=<YOUR_TOKEN>` — the application immediately scrubs the token from the browser address bar via `history.replaceState` for privacy.
+
+> 💡 **Tip:** inside the admin panel, the token is masked (`admin_token_masked`), and you can regenerate a new token at any time by clicking "Generate new token" in the Security section.
 
 ---
 

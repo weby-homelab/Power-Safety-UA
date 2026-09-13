@@ -1,3 +1,67 @@
+# Release v3.9.27
+
+**Quiet Mode Air Raid Alert Suppression & Admin Config Save Fix**
+
+## What's New & Fixed
+- **Complete Quiet Mode Suppression:** Suppressed all Telegram air raid alerts and reactive outage messages when Quiet Mode is active (`quiet_status == "quiet"` or `quiet_mode == "forced_on"`), ensuring silence in group chats during stable operation.
+- **Admin Config Save Resiliency:** Fixed HTTP 422 validation errors when saving configuration in `/admin` by supporting both flat and nested JSON payloads in `AdminConfigRequest` schema (`get_app_config()`).
+- **Secret Sanitization:** Protected existing bot tokens from being overwritten by masked placeholder values (`*` / `...`) when saving admin configuration.
+
+---
+
+# Release v3.9.26
+
+**Minimal Semantic Icons**
+
+## What's New
+- **Unified Semantic Symbols:** Standardized semantic icons across dashboard and Telegram notifications (`💡` light on, `⚡️` light off, `🟡` warning, `🔴` critical, `🟢` clear).
+- **Runtime Migration:** Automatic migration from legacy symbols to new semantic defaults with backward-compatibility for user custom icons.
+
+---
+
+# Release v3.9.25
+
+**Dedicated Admin Auth Card & Security Hygiene**
+
+## What's New & Fixed
+- **Dedicated Auth Card:** Clean mobile-first Glassmorphism login card with password visibility toggle and inline error recovery.
+- **Header-Based Auth:** Admin authentication standardized on `X-Admin-Token` and `Authorization: Bearer <token>` headers; tokens stored strictly in `sessionStorage`.
+- **Secret & URL Hygiene:** Scrubbed query parameters (`?t=`, `#t=`) via `history.replaceState`; purged raw tokens from console startup logs (displaying only sha256 fingerprints) and `/api/admin/data` responses.
+
+---
+
+# Release v3.9.24
+
+**Reliability, Delivery Persistence & Granular Alert Tracking**
+
+## What's New & Fixed
+- **Delivery Transaction Gate:** File-locked delivery persistence (`report_delivery_state.json`) prevents duplicate report sends across worker restarts.
+- **Granular Threat Timing:** Independent start timestamps per alert level (`alert_start_times`) and multi-threat clear notifications.
+- **Startup Reconciliation:** 180-second safety window on startup suppresses false outage/restoration alerts caused by service reboots.
+
+---
+
+# Release v3.9.23
+
+**Supply-Chain Hardening, SBOM & Immutable Digest Pinning**
+
+## What's New
+- **CI Security Gate:** Trivy PR image candidate scanning with strict blocking gate on HIGH/CRITICAL CVEs.
+- **SLSA & SBOM:** Release generation and publication of SPDX JSON SBOM and immutable digest verification.
+- **Compose Parameterization:** Parameterized `docker-compose.yml` with `POWER_SAFETY_IMAGE` variable for deterministic image pinning.
+
+---
+
+# Release v3.9.22
+
+**Telegram Graphic Report Delivery Hotfix**
+
+## What's New & Fixed
+- **Scheduled Report Delivery in Quiet Mode:** Restored delivery of scheduled final daily and weekly graphic summaries while in Quiet Mode via `telegram_daily_reports` and `telegram_weekly_reports`.
+- **Transactional Telegram Transport:** Bounded retries, 429 rate limit backoff, and safe error logging without credential leakage.
+
+---
+
 # Release v3.9.21
 
 **Event & State Visual Identity**

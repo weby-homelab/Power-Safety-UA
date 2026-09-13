@@ -33,7 +33,7 @@
 
 This branch (`main`) contains the **Docker Edition** of the project, designed for fast, portable, and isolated deployment in any environment. It is a fully containerized version, which is the industry standard for modern server deployments.
 
-> **Project Status:** Stable v3.9.21 (Updated: 09.2026)
+> **Project Status:** Stable v3.9.27 (Updated: 09.2026)
 > **Architecture:** FastAPI + Docker Compose + JSON Flat-DB & SQLite WAL
 > **Brand:** Weby Homelab
 
@@ -61,22 +61,25 @@ A fully autonomous **Glassmorphism** web interface to manage all system aspects 
 
 *   **Asynchronous Performance:** A new async caching mechanism eliminates deadlocks between the background worker and user requests.
 *   **Smart Backups:** Create manual and automatic restoration points.
-*   **Security (Zero-Trust):** Strict protection against LFI (Path Traversal), token validation via `X-Admin-Token` headers, and SSRF prevention.
+*   **Security (Zero-Trust):** Dedicated mobile-first login card, tokens strictly in `sessionStorage`, transport via `X-Admin-Token` / `Bearer` headers, masked secrets in responses, sha256-fingerprint console logging, and strict LFI/SSRF prevention.
+*   **Universal Persistence:** Robust configuration schema validation (`AdminConfigRequest`) accepting both flat and nested JSON payloads.
 
 ### 🚨 Air Raid Alert Monitoring (Two-Tier Alert System)
 Multi-level threat tracking system with resilience against third-party service downtime:
-*   🟡 **Yellow Alert (Warning):** Elevated danger, strike UAV or tactical aviation threat.
+*   🟡 **Yellow Alert (Warning):** Elevated danger, strike UAV (drone/shahed) or tactical aviation threat.
 *   🔴 **Red Alert (Active):** Immediate air raid alarm, missile threat, high-speed targets.
-*   🟢 **All Clear (Clear):** Automated clearance of individual danger tiers or total threat resolution with accurate duration tracking.
+*   🟢 **All Clear (Clear):** Automated clearance of individual danger tiers or total threat resolution with accurate duration tracking per threat type.
+*   🏙 **Kyiv City Alerts Isolation:** Air raid monitoring and notifications are strictly isolated to Kyiv city (`м. Київ`, UID 31), preventing false alarms triggered by alerts in Kyiv Oblast.
 *   🛡 **Multi-Source Resilience:** Smart polling of Alerts.in.ua v3 with automatic rapid fallback cross-verification via state JAAM API and Ubilling API.
 *   🧹 **Stale Ghost Alerts Filter:** Automatic elimination of outdated records (> 12 hours) preventing stuck false alarms caused by upstream scraper issues.
 
 ### 🎨 Event Visual Grammar
-Graphical reports and the live dashboard use four independent channels:
-* **Fact** — solid strip; power states use teal for on and rose for off.
+Graphical reports, live dashboard, and Telegram notifications use four independent channels:
+* **Fact** — solid strip; power states use teal for on (`💡`) and rose for off (`⚡️`).
 * **Plan** — neutral track; a planned outage uses indigo with a hatch pattern.
-* **Alert** — a quiet dotted track for clear, amber for warning, and red for critical.
+* **Alert** — a quiet dotted track for clear (`🟢`), amber for warning (`🟡`), and red for critical (`🔴`).
 * **Unknown** — slate + `?`/pattern; **AQI** — a thin environmental strip.
+* **Semantic Icons:** Minimal and intuitive symbols (`💡`/`⚡️`/`🟡`/`🔴`/`🟢`) with automatic backward-compatible runtime migration.
 
 > **Compatibility:** report statistics retain the legacy schedule fallback when metadata is unavailable, so historical math does not change; the live dashboard shows `Unknown` when `schedule_known` is missing or false.
 
@@ -85,7 +88,9 @@ Graphical reports and the live dashboard use four independent channels:
 *   **Bilingual Switcher:** The switcher button clearly displays the action to transition to the next language (`UA` when viewing English, `EN` when viewing Ukrainian) with localized tooltips.
 
 ### 🤫 «Quiet Mode» (Information Calm)
-A unique algorithm that minimizes "information noise." The system automatically enters a calm state if no outages occurred in the last 24 hours and no restrictions are planned for the upcoming day. Quiet Mode suppresses reactive live updates while guaranteeing delivery of the final daily summary and weekly graphic reports (configured via `telegram_daily_reports` and `telegram_weekly_reports`).
+A unique algorithm that minimizes "information noise." The system automatically enters a calm state if no outages occurred in the last 24 hours and no restrictions are planned for the upcoming day (or forced via the admin panel).
+* **Complete Reactive Notification Suppression:** In Quiet Mode, reactive state notifications are silenced and **all air raid alerts are completely suppressed** in the Telegram channel to preserve chat peace during stable periods.
+* **Guaranteed Report Delivery:** Scheduled final daily summaries and Monday weekly graphic reports are reliably delivered even in Quiet Mode (controlled by `telegram_daily_reports` and `telegram_weekly_reports`) with transactional persistence (`report_delivery_state.json`) and deduplication.
 
 ### ⚖️ «False Always Wins» Logic
 A hybrid schedule processing system. If at least one source indicates an outage, the system prioritizes it. Historical records are never overwritten by "clean" plans.
@@ -227,7 +232,7 @@ description: All-in-one real-time monitoring. Power-Safety-UA — autonomous pow
 applicationCategory: DashboardApplication
 applicationSubCategory: PowerMonitoring
 operatingSystem: Linux
-softwareVersion: 3.9.23
+softwareVersion: 3.9.27
 keywords: power-monitoring, air-raid-alerts, ukraine, fastapi, dashboard, iot, monitoring, blackout, electricity, aqi, air-quality, pwa, real-time, telegram-bot, kyiv, radiation, analytics, automation
 author: Weby Homelab (https://github.com/weby-homelab)
 codeRepository: https://github.com/weby-homelab/Power-Safety-UA

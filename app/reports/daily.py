@@ -61,7 +61,11 @@ def get_token():
 
 
 def get_chat_id():
-    return get_telegram_config()[1] or os.environ.get("TELEGRAM_CHANNEL_ID")
+    return (
+        get_telegram_config()[1]
+        or os.environ.get("TELEGRAM_CHANNEL_ID")
+        or os.environ.get("TELEGRAM_CHAT_ID")
+    )
 
 
 logger = structlog.get_logger(__name__)
