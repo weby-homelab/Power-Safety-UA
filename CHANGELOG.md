@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.28] - 2026-09-13
+
+### Reliability & Bug Fixes
+- **Transient UAV Alert Expiration & Finished State Filter (#176):** Resolved stuck yellow air raid alert state caused by indefinite scraping of transient UAV threat notices (`at: 3`) from eTryvoga. Added immediate filtering of finished records (`f` timestamp present), bounded transient threat notices to a 20-minute TTL, maintained 12-hour TTL for explicit official declarations, and added JAAM cross-verification so red alerts immediately supersede non-red statuses.
+
 ## [3.9.27] - 2026-09-12
 
 ### Reliability & Bug Fixes

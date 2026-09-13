@@ -1149,7 +1149,47 @@ def _alert_location(record):
     return None
 
 
+def _is_explicit_alert(record):
+    if record.get("al") in (1, 2):
+        return True
+    raw_text = " ".join(
+        str(record.get(key, ""))
+        for key in (
+            "message",
+            "m",
+            "n",
+            "alert_type",
+            "reason_type",
+            "severity",
+        )
+    ).lower()
+    return any(
+        marker in raw_text
+        for marker in (
+            "червон",
+            "red",
+            "🔴",
+            "каб",
+            "обстріл",
+            "артилер",
+            "ракет",
+            "повітряна тривога",
+            "air raid",
+            "жовт",
+            "yellow",
+            "🟡",
+            "підвищен",
+        )
+    )
+
+
 def _alert_level(record):
+    if record.get("f") is not None:
+        return None
+    if record.get("al") == 1:
+        return ALERT_TYPE_YELLOW
+    if record.get("al") == 2:
+        return ALERT_TYPE_RED
     raw_text = " ".join(
         str(record.get(key, ""))
         for key in (
@@ -1268,18 +1308,28 @@ def parse_typed_alerts(records, current_time=None):
 
     now_ts = current_time if current_time is not None else time.time()
     now_s = int(now_ts - 1640000000)
-    max_alert_age_sec = 12 * 3600  # 12 hours max valid alert duration
+    max_explicit_alert_age_sec = 12 * 3600  # 12 hours max valid official alert duration
+    max_transient_alert_age_sec = (
+        20 * 60
+    )  # 20 minutes max valid operational notice duration
 
     city_levels = set()
     region_levels = set()
     for record in records if isinstance(records, list) else []:
         if not isinstance(record, dict):
             continue
-        # Filter out stale ghost records (e.g. orphan records older than 12h or future clocks)
+        if record.get("f") is not None:
+            continue
+        # Filter out stale ghost records and expired transient notices
         s_val = record.get("s")
         if isinstance(s_val, (int, float)):
             age = now_s - s_val
-            if age > max_alert_age_sec or (s_val - now_s) > 3600:
+            max_age = (
+                max_explicit_alert_age_sec
+                if _is_explicit_alert(record)
+                else max_transient_alert_age_sec
+            )
+            if age > max_age or (s_val - now_s) > 3600:
                 continue
 
         location_type = _alert_location(record)
@@ -1332,9 +1382,9 @@ def get_air_raid_alert():
             if isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
                 result = parse_typed_alerts(payload["alerts"])
                 if result is not None:
-                    # If typed feed did not detect city alert, verify with JAAM
-                    # to prevent missing fresh official alerts if the typed scraper lags.
-                    if not result["city"]:
+                    # If typed feed did not detect city red alert, verify with JAAM
+                    # to prevent missing fresh official red alerts if the typed scraper lags.
+                    if result.get("type") != ALERT_TYPE_RED:
                         try:
                             jaam_resp = requests.get(JAAM_ALERTS_API_URL, timeout=3)
                             if jaam_resp.status_code == 200:

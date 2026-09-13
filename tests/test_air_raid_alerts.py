@@ -523,6 +523,114 @@ def test_get_air_raid_alert_cross_checks_jaam_when_typed_clear():
     assert result["location"] == "м. Київ"
 
 
+def test_parse_typed_alerts_rejects_finished_record():
+    fixed_now = 1788950000.0
+    fixed_now_s = int(fixed_now - 1640000000)
+    records = [
+        {
+            "luid": 31,
+            "m": "Загроза застосування БПЛА. Перейдіть в укриття!",
+            "s": fixed_now_s - 100,
+            "f": fixed_now_s - 10,  # finished
+        }
+    ]
+    result = parse_typed_alerts(records, current_time=fixed_now)
+    assert result["type"] == "clear"
+    assert result["status"] == "clear"
+    assert result["city"] is False
+
+
+def test_parse_typed_alerts_transient_uav_notice_expires_after_20_minutes():
+    fixed_now = 1788950000.0
+    fixed_now_s = int(fixed_now - 1640000000)
+    records = [
+        {
+            "luid": 31,
+            "m": "Загроза застосування БПЛА. Перейдіть в укриття!",
+            "at": 3,
+            "s": fixed_now_s - (25 * 60),  # 25 minutes old (> 20 min TTL)
+        }
+    ]
+    result = parse_typed_alerts(records, current_time=fixed_now)
+    assert result["type"] == "clear"
+    assert result["status"] == "clear"
+    assert result["city"] is False
+
+
+def test_parse_typed_alerts_transient_uav_notice_active_within_20_minutes():
+    fixed_now = 1788950000.0
+    fixed_now_s = int(fixed_now - 1640000000)
+    records = [
+        {
+            "luid": 31,
+            "m": "Загроза застосування БПЛА. Перейдіть в укриття!",
+            "at": 3,
+            "s": fixed_now_s - (10 * 60),  # 10 minutes old (< 20 min TTL)
+        }
+    ]
+    result = parse_typed_alerts(records, current_time=fixed_now)
+    assert result["type"] == "yellow"
+    assert result["status"] == "warning"
+    assert result["city"] is True
+
+
+def test_parse_typed_alerts_explicit_yellow_alert_lasts_up_to_12_hours():
+    fixed_now = 1788950000.0
+    fixed_now_s = int(fixed_now - 1640000000)
+    records = [
+        {
+            "luid": 31,
+            "m": "Жовтий рівень тривоги. Прямуйте в укриття!",
+            "s": fixed_now_s - (2 * 3600),  # 2 hours old (explicit alert up to 12h)
+        }
+    ]
+    result = parse_typed_alerts(records, current_time=fixed_now)
+    assert result["type"] == "yellow"
+    assert result["status"] == "warning"
+    assert result["city"] is True
+
+
+def test_get_air_raid_alert_upgrades_yellow_to_red_on_jaam_siren():
+    fixed_now = 1788950000.0
+    fixed_now_s = int(fixed_now - 1640000000)
+
+    typed_resp = Mock(status_code=200)
+    typed_resp.json.return_value = {
+        "alerts": [
+            {
+                "luid": 31,
+                "m": "Загроза застосування БПЛА. Перейдіть в укриття!",
+                "s": fixed_now_s - 100,
+            }
+        ]
+    }
+
+    jaam_resp = Mock(status_code=200)
+    jaam_resp.json.return_value = {
+        "states": {
+            "Київ": {"enabled": True},
+            "Київська область": {"enabled": False},
+        }
+    }
+
+    def mock_get(url, *args, **kwargs):
+        if "alerts.in.ua" in url:
+            return typed_resp
+        if "jaam.net.ua" in url:
+            return jaam_resp
+        raise requests.exceptions.ConnectionError("Mocked failure")
+
+    with (
+        patch("app.light_service.requests.get", side_effect=mock_get),
+        patch("time.time", return_value=fixed_now),
+    ):
+        result = get_air_raid_alert()
+
+    assert result["city"] is True
+    assert result["type"] == "red"
+    assert result["status"] == "active"
+
+
 def test_parse_typed_alerts_ignores_region_only_red_and_yellow():
     records = [
         {
