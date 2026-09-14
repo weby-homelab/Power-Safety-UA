@@ -14,7 +14,7 @@
 - 📊 Автономну адмін-панель (Glassmorphism з токен-автентифікацією) і PWA-дашборд.
 
 !!! info "Статус проєкту"
-    Stable (v3.9.27) · FastAPI + Docker Compose + JSON Flat-DB + SQLite WAL · Python 3.12 ·
+    Stable (v3.9.29) · FastAPI + Docker Compose + JSON Flat-DB + SQLite WAL · Python 3.12 ·
     Docker multi-arch (amd64 / arm64).
 
 ## Чому саме цей проєкт?
