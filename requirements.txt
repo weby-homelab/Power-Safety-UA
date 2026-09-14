@@ -9,7 +9,7 @@ uvicorn==0.50.2
 httptools==0.7.1
 uvloop==0.22.1
 watchfiles==1.1.1
-websockets==16.0
+websockets==17.1
 structlog==26.1.0
 aiofiles==23.2.1
 pydantic-settings==2.14.2
