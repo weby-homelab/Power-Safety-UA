@@ -10,6 +10,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 VERSION_PATTERN = re.compile(r"v\d+\.\d+\.\d+")
+RELEASE_HEADING_PATTERN = re.compile(r"## \[([^\]\n]+)\] - \d{4}-\d{2}-\d{2}")
 
 
 def read_project_file(relative_path: str) -> str:
@@ -30,6 +31,17 @@ def read_release_version() -> str:
     return version
 
 
+def first_release_heading_is_current(content: str, expected: str) -> bool:
+    first_heading = next(
+        (line for line in content.splitlines() if line.startswith("## [")),
+        None,
+    )
+    if first_heading is None:
+        return False
+    match = RELEASE_HEADING_PATTERN.fullmatch(first_heading)
+    return match is not None and match.group(1) == expected
+
+
 def main() -> int:
     try:
         version = read_release_version()
@@ -47,8 +59,8 @@ def main() -> int:
         ("docs_site/index.md", r"Stable \((v\d+\.\d+\.\d+)\)", version),
     )
     top_heading_checks = (
-        ("CHANGELOG.md", r"^## \[(\d+\.\d+\.\d+)\] - ", version_number),
-        ("docs/CHANGELOG.md", r"^## \[(v\d+\.\d+\.\d+)\] - ", version),
+        ("CHANGELOG.md", version_number),
+        ("docs/CHANGELOG.md", version),
     )
 
     failures: list[str] = []
@@ -66,15 +78,14 @@ def main() -> int:
                 f"{relative_path}: expected exactly one current version marker {expected!r}"
             )
 
-    for relative_path, pattern, expected in top_heading_checks:
+    for relative_path, expected in top_heading_checks:
         if relative_path not in loaded_files:
             try:
                 loaded_files[relative_path] = read_project_file(relative_path)
             except (OSError, UnicodeError, ValueError) as error:
                 failures.append(f"{relative_path}: {error}")
                 continue
-        matches = re.findall(pattern, loaded_files[relative_path], flags=re.MULTILINE)
-        if not matches or matches[0] != expected:
+        if not first_release_heading_is_current(loaded_files[relative_path], expected):
             failures.append(
                 f"{relative_path}: first release heading must use {expected!r}"
             )

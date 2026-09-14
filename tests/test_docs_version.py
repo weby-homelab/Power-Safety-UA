@@ -2,6 +2,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from scripts.check_docs_version import first_release_heading_is_current
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -32,3 +34,14 @@ def test_documentation_version_checker_passes() -> None:
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_checker_rejects_malformed_first_release_heading() -> None:
+    changelog = """# Changelog
+
+## [3.9.29]
+
+## [3.9.29] - 2026-09-13
+"""
+
+    assert not first_release_heading_is_current(changelog, "3.9.29")
