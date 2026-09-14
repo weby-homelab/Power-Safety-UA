@@ -7,6 +7,14 @@ on:
       - "docs_site/**"
       - "mkdocs.yml"
       - "requirements-dev.txt"
+      - "VERSION"
+      - "app/_version.py"
+      - "scripts/check_docs_version.py"
+      - "README.md"
+      - "README_ENG.md"
+      - "release_notes.md"
+      - "CHANGELOG.md"
+      - "docs/CHANGELOG.md"
   workflow_dispatch:
 
 permissions:
@@ -19,17 +27,22 @@ concurrency:
 jobs:
   deploy:
     name: Build & Deploy Docs
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.12"
+
+      - name: Validate documentation version
+        run: python scripts/check_docs_version.py
 
       - name: Install dependencies
         run: |
@@ -37,4 +50,9 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Build & deploy to GitHub Pages
-        run: mkdocs gh-deploy --force
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 --wrap=0)"
+          git config --local http.https://github.com/.extraheader "$auth_header"
+          mkdocs gh-deploy --strict --force

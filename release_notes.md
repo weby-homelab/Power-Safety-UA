@@ -1,3 +1,24 @@
+# Release v3.9.29
+
+**Cross-Source Tomorrow Schedule Fallback & Accurate Outage Status**
+
+## What's New & Fixed
+- Added a cross-source fallback for tomorrow's schedule when the preferred source is pending or unavailable.
+- When power is on and no outages remain today, the dashboard now reports "No outages scheduled" instead of "Schedule unknown".
+
+---
+
+# Release v3.9.28
+
+**Transient UAV Alert Expiration & Finished State Filter**
+
+## What's New & Fixed
+- Filtered finished records from the typed air-raid feed.
+- Added a 20-minute TTL for transient UAV warnings while retaining the 12-hour TTL for explicit official alerts.
+- Added JAAM cross-checking so an active red siren takes precedence over non-red statuses.
+
+---
+
 # Release v3.9.27
 
 **Quiet Mode Air Raid Alert Suppression & Admin Config Save Fix**
