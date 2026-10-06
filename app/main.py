@@ -1578,6 +1578,8 @@ async def push_api(
             state["came_up_at"] = current_time
             await log_event("up", current_time)
 
+            msg = format_event_message(True, current_time, state.get("went_down_at", 0))
+
             # Quiet Mode check: skip message if status is 'quiet' or mode is 'forced_on'
             is_quiet = (
                 state.get("quiet_status") == "quiet"
@@ -1586,15 +1588,13 @@ async def push_api(
             if is_quiet:
                 logger.info("Quiet mode active: Skipping 'Light Up' Telegram message.")
             else:
-                msg = format_event_message(
-                    True, current_time, state.get("went_down_at", 0)
-                )
                 background_tasks.add_task(_safe_send_telegram, msg)
-                background_tasks.add_task(
-                    _safe_send_push_notification,
-                    "⚡ Світло з'явилось!",
-                    msg.split("\n")[0] if msg else "Електропостачання відновлено",
-                )
+
+            background_tasks.add_task(
+                _safe_send_push_notification,
+                "⚡ Світло з'явилось!",
+                msg.split("\n")[0] if msg else "Електропостачання відновлено",
+            )
             background_tasks.add_task(broadcast_state_update)
         elif previous_status in ("unknown", "startup_reconciliation"):
             logger.info(
@@ -1897,6 +1897,11 @@ async def tg_webhook(
                     False, down_time_ts, state.get("came_up_at", 0)
                 )
                 background_tasks.add_task(_safe_send_telegram, msg)
+                background_tasks.add_task(
+                    _safe_send_push_notification,
+                    "⚡ Світло зникло!",
+                    msg.split("\n")[0] if msg else "Електропостачання відсутнє",
+                )
                 background_tasks.add_task(broadcast_state_update)
                 await save_state()
 
@@ -2168,6 +2173,11 @@ async def admin_safety_net_react(
             await log_event("down", down_time_ts)
             msg = format_event_message(False, down_time_ts, state.get("came_up_at", 0))
             background_tasks.add_task(_safe_send_telegram, msg)
+            background_tasks.add_task(
+                _safe_send_push_notification,
+                "⚡ Світло зникло!",
+                msg.split("\n")[0] if msg else "Електропостачання відсутнє",
+            )
             background_tasks.add_task(broadcast_state_update)
 
         elif action == "tech":
@@ -2185,6 +2195,11 @@ async def admin_safety_net_react(
             down_time = state.get("went_down_at", time.time())
             msg = format_event_message(False, down_time, state.get("came_up_at", 0))
             background_tasks.add_task(_safe_send_telegram, msg)
+            background_tasks.add_task(
+                _safe_send_push_notification,
+                "⚡ Відключення підтверджено",
+                msg.split("\n")[0] if msg else "Електропостачання відсутнє",
+            )
             background_tasks.add_task(broadcast_state_update)
 
         elif action == "ignore":

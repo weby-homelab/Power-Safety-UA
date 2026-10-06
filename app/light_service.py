@@ -42,6 +42,7 @@ from app.reports.delivery_state import (
     is_daily_final_delivered,
     is_weekly_delivered,
 )
+from app.push_service import send_push_notification
 
 # Load environment variables
 load_dotenv()
@@ -1751,6 +1752,11 @@ async def _check_outage_detection(current_time, last_seen):
                 send_telegram,
                 msg,
             )
+            _executor.submit(
+                send_push_notification,
+                "⚡ Світло зникло!",
+                msg.split("\n")[0] if msg else "Електропостачання відсутнє",
+            )
         await save_state()
 
 
@@ -1800,6 +1806,11 @@ async def _check_auto_confirmation(current_time):
         _executor.submit(
             send_telegram,
             msg,
+        )
+        _executor.submit(
+            send_push_notification,
+            "⚡ Світло зникло!",
+            msg.split("\n")[0] if msg else "Електропостачання відсутнє",
         )
 
         await save_state()
@@ -1870,6 +1881,12 @@ async def _monitor_loop_iteration():
             await _check_outage_detection(current_time, last_seen)
 
         await _check_auto_confirmation(current_time)
+
+        try:
+            with open(os.path.join(DATA_DIR, "worker_heartbeat"), "w") as f:
+                f.write(str(current_time))
+        except Exception:
+            pass
 
 
 async def monitor_loop():

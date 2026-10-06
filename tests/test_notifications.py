@@ -474,3 +474,55 @@ def test_format_event_message_uses_power_domain_icons():
 
     assert up_message.startswith("💡 <b>")
     assert down_message.startswith("⚡️ <b>")
+
+
+def test_push_notification_dispatched_even_in_quiet_mode():
+    """Verify that Web Push is sent on power restoration even when quiet mode silences Telegram."""
+    from fastapi.testclient import TestClient
+    from unittest.mock import AsyncMock
+    from app.main import app, state
+
+    client = TestClient(app)
+    state["secret_key"] = "test_key_123"
+    state["status"] = "down"
+    state["went_down_at"] = time.time() - 3600
+    state["came_up_at"] = time.time() - 7200
+    state["quiet_mode"] = "forced_on"
+    state["quiet_status"] = "quiet"
+
+    with patch("app.main.load_state", new_callable=AsyncMock):
+        with patch("app.main.save_state", new_callable=AsyncMock):
+            with patch("app.main.log_event", new_callable=AsyncMock):
+                with patch("app.main.broadcast_state_update", new_callable=AsyncMock):
+                    with patch("app.main._safe_send_push_notification") as mock_push:
+                        with patch("app.main._safe_send_telegram") as mock_tg:
+                            response = client.get("/api/push/test_key_123")
+                            assert response.status_code == 200
+                            assert state["status"] == "up"
+                            # Telegram should be suppressed in quiet mode
+                            mock_tg.assert_not_called()
+                            # Web Push MUST still be called!
+                            mock_push.assert_called_once()
+                            args, _ = mock_push.call_args
+                            assert args[0] == "⚡ Світло з'явилось!"
+
+
+def test_outage_detection_dispatches_web_push():
+    """Verify that _check_outage_detection dispatches web push when outage is detected."""
+    import asyncio
+    from unittest.mock import AsyncMock
+    from app.light_service import _check_outage_detection, state, send_push_notification
+
+    state["status"] = "up"
+    state["quiet_mode"] = "auto"
+    state["quiet_status"] = "active"
+    current_time = time.time()
+    last_seen = current_time - 200  # > 180s threshold
+
+    with patch("app.light_service._executor.submit") as mock_submit:
+        with patch("app.light_service.log_event", new_callable=AsyncMock):
+            with patch("app.light_service.save_state", new_callable=AsyncMock):
+                asyncio.run(_check_outage_detection(current_time, last_seen))
+                assert state["status"] == "down"
+                submitted_funcs = [call.args[0] for call in mock_submit.call_args_list]
+                assert send_push_notification in submitted_funcs
