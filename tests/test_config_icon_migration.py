@@ -6,34 +6,34 @@ def test_migrate_exact_legacy_default_icons():
     cfg = {
         "advanced": {
             "text": {
-                "event_up": "🟢 <b>{time} Світло з'явилося</b>",
-                "event_down": "🔴 <b>{time} Світло зникло</b>",
+                "event_up": "💡 <b>{time} Світло з'явилося</b>",
+                "event_down": "⚡️ <b>{time} Світло зникло</b>",
             }
         }
     }
     modified = migrate_legacy_icons(cfg)
     assert modified is True
-    assert cfg["advanced"]["text"]["event_up"] == "💡 <b>{time} Світло з'явилося</b>"
-    assert cfg["advanced"]["text"]["event_down"] == "⚡️ <b>{time} Світло зникло</b>"
+    assert cfg["advanced"]["text"]["event_up"] == "🟢 <b>{time} Світло з'явилося</b>"
+    assert cfg["advanced"]["text"]["event_down"] == "🔴  <b>{time} Світло зникло</b>"
 
 
 def test_custom_user_text_preserved_intact():
     cfg_custom = {
         "advanced": {
             "text": {
-                "event_up": "🟢 Світло нарешті дали! ({time})",
-                "event_down": "🔴 Увага: знеструмлення ({time})",
+                "event_up": "🔥 Світло нарешті дали! ({time})",
+                "event_down": "⚡ Увага: знеструмлення ({time})",
             }
         }
     }
     modified = migrate_legacy_icons(cfg_custom)
     assert modified is False
     assert (
-        cfg_custom["advanced"]["text"]["event_up"] == "🟢 Світло нарешті дали! ({time})"
+        cfg_custom["advanced"]["text"]["event_up"] == "🔥 Світло нарешті дали! ({time})"
     )
     assert (
         cfg_custom["advanced"]["text"]["event_down"]
-        == "🔴 Увага: знеструмлення ({time})"
+        == "⚡ Увага: знеструмлення ({time})"
     )
 
 
@@ -42,14 +42,14 @@ def test_partial_custom_migration():
     cfg = {
         "advanced": {
             "text": {
-                "event_up": "🟢 <b>{time} Світло з'явилося</b>",
+                "event_up": "💡 <b>{time} Світло з'явилося</b>",
                 "event_down": "🔴 Custom outage text",
             }
         }
     }
     modified = migrate_legacy_icons(cfg)
     assert modified is True
-    assert cfg["advanced"]["text"]["event_up"] == "💡 <b>{time} Світло з'явилося</b>"
+    assert cfg["advanced"]["text"]["event_up"] == "🟢 <b>{time} Світло з'явилося</b>"
     assert cfg["advanced"]["text"]["event_down"] == "🔴 Custom outage text"
 
 
@@ -58,8 +58,8 @@ def test_get_config_triggers_migration_and_save():
     legacy_cfg = {
         "advanced": {
             "text": {
-                "event_up": "🟢 <b>{time} Світло з'явилося</b>",
-                "event_down": "🔴 <b>{time} Світло зникло</b>",
+                "event_up": "💡 <b>{time} Світло з'явилося</b>",
+                "event_down": "⚡️ <b>{time} Світло зникло</b>",
             }
         }
     }
@@ -77,15 +77,15 @@ def test_get_config_triggers_migration_and_save():
         loaded = get_config()
         assert (
             loaded["advanced"]["text"]["event_up"]
-            == "💡 <b>{time} Світло з'явилося</b>"
+            == "🟢 <b>{time} Світло з'явилося</b>"
         )
         assert len(saved_payloads) == 1
         assert (
             saved_payloads[0]["advanced"]["text"]["event_up"]
-            == "💡 <b>{time} Світло з'явилося</b>"
+            == "🟢 <b>{time} Світло з'явилося</b>"
         )
         assert (
             saved_payloads[0]["advanced"]["text"]["event_down"]
-            == "⚡️ <b>{time} Світло зникло</b>"
+            == "🔴  <b>{time} Світло зникло</b>"
         )
     invalidate_config_cache()

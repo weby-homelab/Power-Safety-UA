@@ -7,11 +7,11 @@ _config_cache = cachetools.TTLCache(maxsize=1, ttl=30)
 
 
 def migrate_legacy_icons(cfg: dict) -> bool:
-    """Migrates exact legacy default icons in config text strings.
-    🟢 <b>{time} Світло з'явилося</b> -> 💡 <b>{time} Світло з'явилося</b>
-    🔴 <b>{time} Світло зникло</b> -> ⚡️ <b>{time} Світло зникло</b>
-    💡 Очікуємо через -> 🗓️ Очікуємо через
-    ❌ Вимкнення через -> 🗓️ Вимкнення через
+    """Migrates exact legacy default icons in config text strings to the new format:
+    💡 <b>{time} Світло з'явилося</b> -> 🟢 <b>{time} Світло з'явилося</b>
+    ⚡️ <b>{time} Світло зникло</b> -> 🔴  <b>{time} Світло зникло</b>
+    🗓️ Очікуємо через -> 🗓  Очікуємо через
+    🗓️ Вимкнення через -> 🗓 Вимкнення через
     Preserves custom user strings intact.
     Returns True if modified, False otherwise.
     """
@@ -30,20 +30,49 @@ def migrate_legacy_icons(cfg: dict) -> bool:
         text_sections.append(ui["text"])
 
     for text in text_sections:
-        if text.get("event_up") == "🟢 <b>{time} Світло з'явилося</b>":
-            text["event_up"] = "💡 <b>{time} Світло з'явилося</b>"
+        if text.get("event_up") in (
+            "💡 <b>{time} Світло з'явилося</b>",
+            "💡 <b>{time} Світло з'явилось</b>",
+        ):
+            text["event_up"] = "🟢 <b>{time} Світло з'явилося</b>"
             modified = True
         if text.get("event_down") in (
-            "🔴 <b>{time} Світло зникло</b>",
+            "⚡️ <b>{time} Світло зникло</b>",
             "⚡ <b>{time} Світло зникло</b>",
+            "🔴 <b>{time} Світло зникло</b>",
         ):
-            text["event_down"] = "⚡️ <b>{time} Світло зникло</b>"
+            text["event_down"] = "🔴  <b>{time} Світло зникло</b>"
             modified = True
-        if text.get("next_prefix_up") == "💡 Очікуємо через":
-            text["next_prefix_up"] = "🗓️ Очікуємо через"
+        if text.get("next_prefix_up") in (
+            "💡 Очікуємо через",
+            "🗓️ Очікуємо через",
+            "🗓 Очікуємо через",
+        ):
+            text["next_prefix_up"] = "🗓  Очікуємо через"
             modified = True
-        if text.get("next_prefix_down") == "❌ Вимкнення через":
-            text["next_prefix_down"] = "🗓️ Вимкнення через"
+        if text.get("next_prefix_down") in (
+            "🗓️ Вимкнення через",
+            "❌ Вимкнення через",
+        ):
+            text["next_prefix_down"] = "🗓 Вимкнення через"
+            modified = True
+        if text.get("dur_prefix_up") in ("Не було", "не було"):
+            text["dur_prefix_up"] = "❌ не було"
+            modified = True
+        if text.get("dur_prefix_down") in ("Воно було", "воно було"):
+            text["dur_prefix_down"] = "💡 Воно було"
+            modified = True
+        if text.get("dev_shift") in (
+            "⚡️ На {value} {timing} графіка",
+            "⚡ На {value} {timing} графіка",
+        ):
+            text["dev_shift"] = "⌛ На {value} {timing} графіка"
+            modified = True
+        if text.get("dev_exact") in (
+            "⚡️ Точно за графіком",
+            "⚡ Точно за графіком",
+        ):
+            text["dev_exact"] = "⌛ Точно за графіком"
             modified = True
 
     return modified

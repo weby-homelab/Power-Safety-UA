@@ -24,9 +24,9 @@ def test_format_event_message_very_soon_outage():
         with patch("app.light_service.get_deviation_info", return_value=None):
             msg = format_event_message(True, event_time, prev_event_time)
 
-            assert "🗓️ Вимкнення через ~ менше хвилини" in msg
+            assert "🗓 Вимкнення через ~ менше хвилини" in msg
             assert "(19:30-22:00)" in msg
-            assert "🗓 (" not in msg
+            assert "⏱ (19:30-22:00)" in msg
 
 
 def test_short_duration_formatting():
@@ -421,8 +421,8 @@ class TestFormatEventMessageEdgeCases:
                 ):
                     msg = format_event_message(True, now, prev)
                     assert "не плануються" in msg
-                    assert "🗓️" in msg
-                    assert "💡" in msg
+                    assert "🗓" in msg
+                    assert "🟢" in msg
 
     def test_format_down_with_no_schedule_at_all(self):
         """Down event from region without scheduled outages."""
@@ -436,6 +436,8 @@ class TestFormatEventMessageEdgeCases:
                 ):
                     msg = format_event_message(False, now, prev)
                     assert "невідомий час" in msg
+                    assert "🔴" in msg
+                    assert "💡" in msg
 
     def test_format_down_with_custom_text_overrides(self):
         """Custom text from config should be used in message."""
@@ -472,5 +474,65 @@ def test_format_event_message_uses_power_domain_icons():
                 up_message = format_event_message(True, now, now - 3600)
                 down_message = format_event_message(False, now, now - 3600)
 
-    assert up_message.startswith("💡 <b>")
-    assert down_message.startswith("⚡️ <b>")
+    assert up_message.startswith("🟢 <b>")
+    assert down_message.startswith("🔴  <b>")
+
+
+def test_format_event_message_exact_user_spec():
+    # Test down event: 06:11, dev 11m later, was up 7h 54m, next in 3h 18m (09:30-15:00)
+    event_down_ts = datetime.datetime(2026, 10, 9, 6, 11, tzinfo=KYIV_TZ).timestamp()
+    prev_up_ts = event_down_ts - (7 * 3600 + 54 * 60)
+
+    with (
+        patch(
+            "app.light_service.get_deviation_info",
+            return_value="Вимкнули пізніше на 11 хв",
+        ),
+        patch(
+            "app.light_service.get_next_scheduled_event",
+            return_value={
+                "time_left_sec": 3 * 3600 + 18 * 60,
+                "interval": "09:30-15:00",
+            },
+        ),
+        patch("app.light_service.get_config", return_value={"ui": {"text": {}}}),
+    ):
+        down_msg = format_event_message(False, event_down_ts, prev_up_ts)
+
+    expected_down = (
+        "🔴  <b>06:11 Світло зникло</b>\n"
+        "⌛ На 11 хв пізніше графіка\n"
+        "💡 Воно було 7 г 54 хв\n"
+        "🗓  Очікуємо через ~ 3 г 18 хв,\n"
+        "⏱ (09:30-15:00)"
+    )
+    assert down_msg == expected_down
+
+    # Test up event: 09:23, dev 6m earlier, was down 3h 12m, next in 5h 36m (15:00-18:30)
+    event_up_ts = datetime.datetime(2026, 10, 9, 9, 23, tzinfo=KYIV_TZ).timestamp()
+    prev_down_ts = event_up_ts - (3 * 3600 + 12 * 60)
+
+    with (
+        patch(
+            "app.light_service.get_deviation_info",
+            return_value="Увімкнули раніше на 6 хв",
+        ),
+        patch(
+            "app.light_service.get_next_scheduled_event",
+            return_value={
+                "time_left_sec": 5 * 3600 + 36 * 60,
+                "interval": "15:00-18:30",
+            },
+        ),
+        patch("app.light_service.get_config", return_value={"ui": {"text": {}}}),
+    ):
+        up_msg = format_event_message(True, event_up_ts, prev_down_ts)
+
+    expected_up = (
+        "🟢 <b>09:23 Світло з'явилося</b>\n"
+        "⌛ На 6 хв раніше графіка\n"
+        "❌ не було 3 г 12 хв\n"
+        "🗓 Вимкнення через ~ 5 г 36 хв,\n"
+        "⏱ (15:00-18:30)"
+    )
+    assert up_msg == expected_up
