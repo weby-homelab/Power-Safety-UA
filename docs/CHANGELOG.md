@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.31] - 2026-10-09
+- **Виправлення визначення рівнів повітряної тривоги (Live Air Raid Alert Levels):** Оновлено джерело типізованих тривог на офіційний робочий ендпоінт `https://api.alerts.in.ua/v3/alerts/active.json`, підтримано компактну схему v3 (`al: 1` для жовтого рівня), та ліквідовано баг затирання жовтого рівня бінарним сиренним фолбеком JAAM. / Updated typed alert feed to live Alerts.in.ua v3, supported compact schema, and prevented JAAM siren checks from overwriting explicit yellow alert levels.
+
 ## [v3.9.30] - 2026-10-09
 - **Оновлений формат сповіщень та розширені звіти в Telegram (Telegram Events & Comprehensive Reports):** Впроваджено сучасну граматику сповіщень про світло (`🔴` / `🟢`, `⌛`, `⏱`), додано розбивку рівнів тривог (Жовтий/Червоний) та AQI у % від доби в щоденний звіт, додано налаштування `telegram_weekly_analysis` та виправлено локальні вердикти тижневого аналізу. / Redesigned Telegram power event grammar, enhanced daily reports with alert level and AQI breakdown, made weekly analysis configurable with realistic localized verdicts.
 

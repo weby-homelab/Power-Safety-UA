@@ -1140,3 +1140,44 @@ def test_alerts_loop_iteration_notified_when_active():
 
     assert len(captured_messages) == 1
     assert "ЧЕРВОНИЙ РІВЕНЬ НЕБЕЗПЕКИ" in captured_messages[0]
+
+
+def test_parse_typed_alerts_v3_compact_format():
+    # Yellow alert with al=1 and luid=31
+    yellow_res = parse_typed_alerts([{"luid": 31, "al": 1}])
+    assert yellow_res["type"] == "yellow"
+    assert yellow_res["status"] == "warning"
+    assert yellow_res["city"] is True
+
+    # Red alert with luid=31 and no al (standard official sirens)
+    red_res = parse_typed_alerts([{"luid": 31, "t": "o"}])
+    assert red_res["type"] == "red"
+    assert red_res["status"] == "active"
+    assert red_res["city"] is True
+
+    # Red alert with al=2
+    red_res2 = parse_typed_alerts([{"luid": 31, "al": 2}])
+    assert red_res2["type"] == "red"
+    assert red_res2["city"] is True
+
+
+def test_get_air_raid_alert_preserves_yellow_when_jaam_enabled():
+    mock_typed = Mock(status_code=200)
+    mock_typed.json.return_value = {"alerts": [{"luid": 31, "al": 1}]}
+
+    mock_jaam = Mock(status_code=200)
+    mock_jaam.json.return_value = {"states": {"м. Київ": {"enabled": True}}}
+
+    def mock_get(url, *args, **kwargs):
+        if "alerts.in.ua" in url:
+            return mock_typed
+        if "jaam.net.ua" in url:
+            return mock_jaam
+        raise requests.exceptions.ConnectionError("Unknown URL")
+
+    with patch("app.light_service.requests.get", side_effect=mock_get):
+        result = get_air_raid_alert()
+
+    assert result["type"] == "yellow"
+    assert result["status"] == "warning"
+    assert result["source"] == "alerts.in.ua"

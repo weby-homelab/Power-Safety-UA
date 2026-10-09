@@ -245,7 +245,7 @@ ALERTS_API_URL = os.environ.get(
 )
 TYPED_ALERTS_API_URL = os.environ.get(
     "TYPED_ALERTS_API_URL",
-    "https://api.alerts.in.ua/v3/etryvoga/alerts/active.json",
+    "https://api.alerts.in.ua/v3/alerts/active.json",
 )
 JAAM_ALERTS_API_URL = os.environ.get(
     "JAAM_ALERTS_API_URL", "https://jaam.net.ua/alerts_statuses_v1.json"
@@ -1218,6 +1218,12 @@ def _alert_location(record):
 def _is_explicit_alert(record):
     if record.get("al") in (1, 2):
         return True
+    if record.get("at") in (1, 2):
+        return True
+    if (
+        record.get("luid") is not None or record.get("location_uid") is not None
+    ) and record.get("at") != 3:
+        return True
     raw_text = " ".join(
         str(record.get(key, ""))
         for key in (
@@ -1300,10 +1306,44 @@ def _alert_level(record):
         )
     ):
         return ALERT_TYPE_YELLOW
+    if record.get("at") == 3:
+        return ALERT_TYPE_YELLOW
+    if record.get("at") in (1, 2):
+        return ALERT_TYPE_RED
+    if (
+        record.get("luid") is not None
+        or record.get("location_uid") is not None
+        or record.get("loi") is not None
+    ):
+        return ALERT_TYPE_RED
     return None
 
 
-def _alert_result(city=False, region=False, levels=None, location=None, source=None):
+def _is_explicit_yellow_alert(record):
+    if record.get("al") == 1:
+        return True
+    raw_text = " ".join(
+        str(record.get(key, ""))
+        for key in (
+            "message",
+            "m",
+            "n",
+            "alert_type",
+            "reason_type",
+            "severity",
+        )
+    ).lower()
+    return any(marker in raw_text for marker in ("жовт", "yellow", "🟡"))
+
+
+def _alert_result(
+    city=False,
+    region=False,
+    levels=None,
+    location=None,
+    source=None,
+    explicit_yellow=False,
+):
     levels = set(levels or [])
     types = [
         alert_type
@@ -1332,6 +1372,8 @@ def _alert_result(city=False, region=False, levels=None, location=None, source=N
     }
     if source:
         result["source"] = source
+    if explicit_yellow:
+        result["explicit_yellow"] = True
     return result
 
 
@@ -1381,6 +1423,7 @@ def parse_typed_alerts(records, current_time=None):
 
     city_levels = set()
     region_levels = set()
+    city_explicit_yellow = False
     for record in records if isinstance(records, list) else []:
         if not isinstance(record, dict):
             continue
@@ -1404,6 +1447,8 @@ def parse_typed_alerts(records, current_time=None):
             continue
         target = city_levels if location_type == "city" else region_levels
         target.add(alert_type)
+        if location_type == "city" and _is_explicit_yellow_alert(record):
+            city_explicit_yellow = True
 
     levels = set(city_levels)
     if ALERT_TYPE_RED in city_levels or ALERT_TYPE_YELLOW in city_levels:
@@ -1416,6 +1461,7 @@ def parse_typed_alerts(records, current_time=None):
         levels=levels,
         location=location,
         source="alerts.in.ua",
+        explicit_yellow=city_explicit_yellow,
     )
 
 
@@ -1448,9 +1494,13 @@ def get_air_raid_alert():
             if isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
                 result = parse_typed_alerts(payload["alerts"])
                 if result is not None:
-                    # If typed feed did not detect city red alert, verify with JAAM
-                    # to prevent missing fresh official red alerts if the typed scraper lags.
-                    if result.get("type") != ALERT_TYPE_RED:
+                    # If typed feed did not detect city red alert:
+                    # If typed feed has an explicit yellow alert, preserve it.
+                    # Otherwise (if typed feed has no city alert, or only a transient notice),
+                    # verify with JAAM to catch fresh official red alerts.
+                    if result.get("type") != ALERT_TYPE_RED and not result.get(
+                        "explicit_yellow"
+                    ):
                         try:
                             jaam_resp = requests.get(JAAM_ALERTS_API_URL, timeout=3)
                             if jaam_resp.status_code == 200:

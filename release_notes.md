@@ -1,3 +1,14 @@
+# Release v3.9.31
+
+**Live Air Raid Alert Levels (Yellow & Red) Correction & JAAM Fallback Preservation**
+
+## What's New & Fixed
+- **Official Live Feed:** Switched default typed alert feed from stale `v3/etryvoga` endpoint to live `https://api.alerts.in.ua/v3/alerts/active.json`.
+- **Yellow Alert Level Preservation:** Prevented JAAM binary siren checks from overwriting explicit Yellow alert levels with Red.
+- **Alerts.in.ua v3 Compact Format:** Full support for compact records (`al: 1` for Yellow, active records defaulting to Red sirens).
+
+---
+
 # Release v3.9.30
 
 **Enhanced Telegram Power Events, Daily AQI/Alert Breakdown & Localized Weekly Reports**
