@@ -1,3 +1,14 @@
+# Release v3.9.30
+
+**Enhanced Telegram Power Events, Daily AQI/Alert Breakdown & Localized Weekly Reports**
+
+## What's New & Fixed
+- **Power Event Grammar:** Clear semantic notifications on outage and restoration with exact deviation, duration, and scheduled intervals.
+- **Daily Report Breakdown:** Added Yellow/Red air raid alert statistics and Air Quality Index (AQI) duration with % of day.
+- **Weekly Report Analysis & Bug Fixes:** Fixed `-0 хв` deviation bug, standardized hours & minutes, added `telegram_weekly_analysis` toggle, and localized verdict text.
+
+---
+
 # Release v3.9.29
 
 **Cross-Source Tomorrow Schedule Fallback & Accurate Outage Status**

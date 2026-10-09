@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.30] - 2026-10-09
+- **Оновлений формат сповіщень та розширені звіти в Telegram (Telegram Events & Comprehensive Reports):** Впроваджено сучасну граматику сповіщень про світло (`🔴` / `🟢`, `⌛`, `⏱`), додано розбивку рівнів тривог (Жовтий/Червоний) та AQI у % від доби в щоденний звіт, додано налаштування `telegram_weekly_analysis` та виправлено локальні вердикти тижневого аналізу. / Redesigned Telegram power event grammar, enhanced daily reports with alert level and AQI breakdown, made weekly analysis configurable with realistic localized verdicts.
+
 ## [v3.9.29] - 2026-09-13
 - **Усунення хибного статусу "Графік невідомий" при увімкненому світлі (#178) (Cross-Source Tomorrow Schedule Fallback & Accurate Outage Status):** Виправлено проблему, коли наявність світла супроводжувалася статусом «Графік невідомий» через очікування розкладу на завтра в обраному джерелі (YASNO). Впроваджено крос-джерельний fallback на розклад наступного дня (DTEK/GitHub) у `get_schedule_context()` та `get_today_schedule_text()`. При активному світлі та відсутності планових відключень до кінця доби система гарантовано відображає «Відключення не плануються». / Fixed false "Schedule unknown" when power is on by adding cross-source tomorrow schedule fallback and reporting no outages scheduled.
 
