@@ -99,3 +99,20 @@ def test_mid_week_force_send_overrides_safeguard():
         force_send=True,
     )
     assert effective_no_send is False
+
+
+def test_weekly_analysis_configuration_and_realistic_verdicts():
+    from app.models import Notifications
+    import pathlib
+
+    n = Notifications()
+    assert n.telegram_weekly_analysis is True
+
+    weekly_source = (
+        pathlib.Path(__file__).parent.parent / "app" / "reports" / "weekly.py"
+    ).read_text(encoding="utf-8")
+    assert "telegram_weekly_analysis" in weekly_source
+    assert "Енергосистема працювала майже без обмежень" not in weekly_source
+    assert "більшу часть часу" not in weekly_source
+    assert "Майже повна стабільність на локації" in weekly_source
+    assert "Відключень світла зафіксовано не було" in weekly_source

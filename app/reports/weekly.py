@@ -838,14 +838,45 @@ if __name__ == "__main__":
     total_h = up_h + down_h
     up_pct = (up_h / total_h * 100) if total_h > 0 else 0
 
-    if up_pct > 90:
-        verdict = "Тиждень був надзвичайно стабільним. Енергосистема працювала майже без обмежень."
-    elif up_pct > 70:
-        verdict = "Відносно спокійний тиждень. Відключення були прогнозованими та нетривалими."
-    elif up_pct > 50:
-        verdict = "Складний тиждень. Енергетики застосовували обмеження, але світло було більшу часть часу."
-    else:
-        verdict = "Важкий енергетичний тиждень. Тривалі відключення та дефіцит потужності в мережі."
+    def format_duration_h(hours_val):
+        h = int(abs(hours_val))
+        m = int(round((abs(hours_val) - h) * 60))
+        if m == 60:
+            h += 1
+            m = 0
+        parts = []
+        if h > 0:
+            parts.append(f"{h} г")
+        if m > 0:
+            parts.append(f"{m} хв")
+        return " ".join(parts) if parts else "0 хв"
+
+    from app.config_runtime import get_config
+
+    cfg = get_config()
+    show_analysis = (
+        cfg.get("advanced", {})
+        .get("notifications", {})
+        .get("telegram_weekly_analysis", True)
+    )
+    weekly_reports_enabled = (
+        cfg.get("advanced", {})
+        .get("notifications", {})
+        .get("telegram_weekly_reports", True)
+    )
+
+    verdict = ""
+    if show_analysis:
+        if down_h == 0:
+            verdict = "Відключень світла зафіксовано не було. Електропостачання було повністю стабільним."
+        elif up_pct >= 95:
+            verdict = f"Майже повна стабільність на локації. Відключення були мінімальними ({format_duration_h(down_h)} за весь тиждень)."
+        elif up_pct >= 80:
+            verdict = f"Помірні обмеження за адресою. Сумарні відключення склали {format_duration_h(down_h)} за тиждень."
+        elif up_pct >= 50:
+            verdict = f"Складний тиждень із регулярними відключеннями. Світло було більшу частину часу ({int(up_pct)}%)."
+        else:
+            verdict = f"Критичний тиждень із тривалими обмеженнями. Світло було доступне лише {int(up_pct)}% часу ({format_duration_h(up_h)})."
 
     day_names = [
         "Понеділок",
@@ -863,20 +894,6 @@ if __name__ == "__main__":
 
     plan_section = ""
     if plan_up_h > 0:
-
-        def format_duration_h(hours_val):
-            h = int(abs(hours_val))
-            m = int(round((abs(hours_val) - h) * 60))
-            if m == 60:
-                h += 1
-                m = 0
-            parts = []
-            if h > 0:
-                parts.append(f"{h} г")
-            if m > 0:
-                parts.append(f"{m} хв")
-            return " ".join(parts) if parts else "0 хв"
-
         diff_total = up_h - plan_up_h
         diff_formatted_val = format_duration_h(abs(diff_total))
         sign = (
@@ -943,6 +960,10 @@ if __name__ == "__main__":
             )
     alert_type_summary = "; ".join(alert_type_parts) or "немає"
 
+    analysis_section = (
+        f"\n<b>Аналіз</b>\n{verdict}\n" if (show_analysis and verdict) else ""
+    )
+
     caption = f"""📊 <b>Енергетичний тиждень ({monday.strftime("%d.%m")}–{sunday.strftime("%d.%m")})</b>
 
 💡 Світло було: {int(up_h)} г {int((up_h % 1) * 60)} хв ({int(up_pct)}%)
@@ -954,20 +975,8 @@ if __name__ == "__main__":
 {plan_section if plan_section else chr(10)}
 Найменше відключень: {day_names[best_day["date"].weekday()]}
 Найбільше відключень: {day_names[worst_day["date"].weekday()]}
-
-<b>Аналіз</b>
-{verdict}
-
+{analysis_section}
 #тиждень #статистика_світла"""
-
-    from app.config_runtime import get_config
-
-    cfg = get_config()
-    weekly_reports_enabled = (
-        cfg.get("advanced", {})
-        .get("notifications", {})
-        .get("telegram_weekly_reports", True)
-    )
 
     exit_code = 0
     if args.no_send or args.output:

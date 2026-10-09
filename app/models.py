@@ -28,6 +28,7 @@ class Notifications(BaseModel):
     telegram_air_raid_alerts: bool = True
     telegram_daily_reports: bool = True
     telegram_weekly_reports: bool = True
+    telegram_weekly_analysis: bool = True
 
 
 class SourcesConfig(BaseModel):
