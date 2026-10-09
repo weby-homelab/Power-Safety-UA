@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.30] - 2026-10-09
+
+### Features & UX Improvements
+- **Modern Telegram Power Events Grammar:** Redesigned power outage and recovery messages with precise deviation (`⌛`), previous duration (`💡` / `❌`), and scheduled interval formatting (`⏱ (HH:MM-HH:MM)`).
+- **Daily Air Raid Levels & AQI Breakdown:** Added detailed Yellow and Red alert durations and % of day, along with Air Quality Index (AQI) duration breakdown by status.
+- **Weekly Report Refinements & Localized Analysis:** Fixed `-0 хв` negative zero glitch in Plan vs Fact, standardized duration formatting, added `telegram_weekly_analysis` toggle in `Notifications`, and replaced generic grid claims with realistic local power statistics.
+
 ## [3.9.29] - 2026-09-13
 
 ### Reliability & UX Fixes
