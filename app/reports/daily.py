@@ -747,6 +747,109 @@ def send_telegram_photo(photo_path, caption, target_date):
     return msg_id
 
 
+def get_daily_aqi_stats(target_date, now_time=None, data_dir=DATA_DIR):
+    """Calculates duration and % of day (86400s) for each AQI state:
+    - Добре (AQI <= 50)
+    - Помірне (51 <= AQI <= 100)
+    - Шкідливе (AQI > 100)
+    Returns list of tuples (label, duration_sec, pct).
+    """
+    if now_time is None:
+        now_time = datetime.datetime.now(KYIV_TZ)
+
+    history_file = os.path.join(data_dir, "metrics_history.json")
+    history_data = []
+    if os.path.exists(history_file):
+        try:
+            with open(history_file, "r") as f:
+                history_data = json.load(f)
+        except Exception:
+            history_data = []
+
+    target_metrics = []
+    for item in history_data:
+        ts = item.get("timestamp", 0)
+        dt_metric = datetime.datetime.fromtimestamp(ts, KYIV_TZ)
+        if dt_metric.date() == target_date:
+            target_metrics.append(item)
+
+    target_metrics.sort(key=lambda x: x.get("timestamp", 0))
+
+    durations = {AQI_GOOD: 0.0, AQI_MODERATE: 0.0, AQI_UNHEALTHY: 0.0}
+
+    if target_metrics:
+        for idx, item in enumerate(target_metrics):
+            ts = item.get("timestamp", 0)
+            aqi_val = item.get("aqi")
+            color = get_aqi_color(aqi_val)
+            if color not in durations:
+                continue
+
+            start_t = datetime.datetime.fromtimestamp(ts, KYIV_TZ)
+            if start_t > now_time:
+                continue
+
+            if idx < len(target_metrics) - 1:
+                next_ts = target_metrics[idx + 1].get("timestamp", 0)
+                end_t = datetime.datetime.fromtimestamp(min(next_ts, ts + 600), KYIV_TZ)
+            else:
+                end_t = start_t + datetime.timedelta(minutes=10)
+
+            if end_t > now_time:
+                end_t = now_time
+
+            if end_t > start_t:
+                durations[color] += (end_t - start_t).total_seconds()
+    elif not os.environ.get("PYTEST_CURRENT_TEST"):
+        try:
+            from app.config_runtime import get_config
+
+            cfg = get_config()
+            aq_cfg = cfg.get("air_quality", {})
+            lat = aq_cfg.get("lat", "50.408")
+            lon = aq_cfg.get("lon", "30.400")
+            date_str = target_date.strftime("%Y-%m-%d")
+            aq_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&start_date={date_str}&end_date={date_str}&hourly=us_aqi&timezone=Europe%2FKyiv"
+            r_aq = requests.get(aq_url, timeout=10)
+            if r_aq.status_code == 200:
+                aq_data = r_aq.json()
+                us_aqi_hourly = aq_data.get("hourly", {}).get("us_aqi", [])
+                for i in range(min(len(us_aqi_hourly), 24)):
+                    val = us_aqi_hourly[i]
+                    if val is None:
+                        continue
+                    color = get_aqi_color(int(val))
+                    if color not in durations:
+                        continue
+                    start_t = datetime.datetime.combine(
+                        target_date, datetime.time(i, 0)
+                    ).replace(tzinfo=KYIV_TZ)
+                    if start_t > now_time:
+                        continue
+                    end_t = start_t + datetime.timedelta(hours=1)
+                    if end_t > now_time:
+                        end_t = now_time
+                    if end_t > start_t:
+                        durations[color] += (end_t - start_t).total_seconds()
+        except Exception as e:
+            logger.warning("Error fetching AQI for daily report", error=str(e))
+
+    labels = [
+        (AQI_GOOD, "Добре"),
+        (AQI_MODERATE, "Помірне"),
+        (AQI_UNHEALTHY, "Шкідливе"),
+    ]
+    result = []
+    total_measured = sum(durations.values())
+    if total_measured > 0:
+        for color, label in labels:
+            sec = durations[color]
+            if sec > 0:
+                pct = (sec / 86400) * 100
+                result.append((label, sec, pct))
+    return result
+
+
 def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
     if now_time is None:
         now_time = get_now()
@@ -775,12 +878,21 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
             (ALERT_TYPE_RED, "Червоний"),
         ):
             details = alert_summary[alert_type]
-            if details["count"]:
-                type_parts.append(f"{label} {format_duration(details['duration_sec'])}")
+            dur_sec = details["duration_sec"]
+            pct = (dur_sec / 86400) * 100
+            type_parts.append(f"{label} {format_duration(dur_sec)} ({pct:.1f}%)")
         caption += (
             f"\n🚨 Тривоги без подвійного рахунку: {format_duration(total_alert_sec)}\n"
             f"   За рівнями: " + "; ".join(type_parts)
         )
+
+    aqi_stats = get_daily_aqi_stats(target_date, now_time, DATA_DIR)
+    if aqi_stats:
+        aqi_parts = [
+            f"{label} {format_duration(sec)} ({pct:.1f}%)"
+            for label, sec, pct in aqi_stats
+        ]
+        caption += "\n🌫️ AQI: " + ", ".join(aqi_parts)
 
     plan_up_sec_formatted = "0 хв"
     diff_hours = 0

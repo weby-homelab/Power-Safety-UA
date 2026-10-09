@@ -145,7 +145,7 @@ def get_weekly_alert_intervals(monday, sunday):
 def format_alert_duration(seconds):
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
-    return f"{hours}г {minutes}хв"
+    return f"{hours} г {minutes} хв"
 
 
 def get_schedule_slots(date_obj):
@@ -878,15 +878,22 @@ if __name__ == "__main__":
             return " ".join(parts) if parts else "0 хв"
 
         diff_total = up_h - plan_up_h
-        sign = "+" if diff_total > 0 else "-" if diff_total < 0 else ""
-        diff_formatted = f"{sign}{format_duration_h(abs(diff_total))}"
+        diff_formatted_val = format_duration_h(abs(diff_total))
+        sign = (
+            "+"
+            if diff_total > 0
+            else "-"
+            if (diff_total < 0 and diff_formatted_val != "0 хв")
+            else ""
+        )
+        diff_formatted = f"{sign}{diff_formatted_val}"
 
         compliance_pct = (up_h / plan_up_h * 100) if plan_up_h > 0 else 0
 
         plan_section = f"""
 🗓️ <b>План vs факт</b>
-План: {int(plan_up_h)} г
-Факт: {int(up_h)} г
+План: {format_duration_h(plan_up_h)}
+Факт: {format_duration_h(up_h)}
 Відхилення: {diff_formatted}
 Світла: {compliance_pct:.0f}% від плану
 """
@@ -896,10 +903,28 @@ if __name__ == "__main__":
             e_diff = easiest["diff"]
             h_diff = hardest["diff"]
 
-            e_sign = "+" if e_diff > 0 else "-" if e_diff < 0 else ""
-            h_sign = "+" if h_diff > 0 else "-" if h_diff < 0 else ""
+            e_formatted = format_duration_h(abs(e_diff))
+            h_formatted = format_duration_h(abs(h_diff))
 
-            plan_section += f"\nЛегше ніж очікувалось: {e_name} ({e_sign}{format_duration_h(abs(e_diff))} понад план)\nВажче ніж очікувалось: {h_name} ({h_sign}{format_duration_h(abs(h_diff))} від плану)\n"
+            e_sign = (
+                "+"
+                if e_diff > 0
+                else "-"
+                if (e_diff < 0 and e_formatted != "0 хв")
+                else ""
+            )
+            h_sign = (
+                "+"
+                if h_diff > 0
+                else "-"
+                if (h_diff < 0 and h_formatted != "0 хв")
+                else ""
+            )
+
+            e_label = "понад план" if e_diff >= 0 else "від плану"
+            h_label = "понад план" if h_diff >= 0 else "від плану"
+
+            plan_section += f"\nЛегше ніж очікувалось: {e_name} ({e_sign}{e_formatted} {e_label})\nВажче ніж очікувалось: {h_name} ({h_sign}{h_formatted} {h_label})\n"
 
     alerts_count, alerts_dur_sec, alerts_pct = get_weekly_alerts_stats(monday, sunday)
     alert_breakdown = get_weekly_alerts_breakdown(monday, sunday)

@@ -25,9 +25,9 @@ from app.reports.visual import (
     ALERT_CLEAR_ICON,
     ALERT_CRITICAL_ICON,
     ALERT_WARNING_ICON,
-    PLAN_ICON,
-    POWER_DOWN_ICON,
-    POWER_UP_ICON,
+    PLAN_ICON,  # noqa: F401
+    POWER_DOWN_ICON,  # noqa: F401
+    POWER_UP_ICON,  # noqa: F401
 )
 from app.metrics import (
     loop_restarts_total,
@@ -740,18 +740,18 @@ def format_event_message(is_up, event_time, prev_event_time):
     txt = cfg.get("ui", {}).get("text", {})
 
     if is_up:
-        header = txt.get(
-            "event_up", f"{POWER_UP_ICON} <b>{{time}} Світло з'явилося</b>"
-        ).format(time=time_str)
-        duration_prefix = txt.get("dur_prefix_up", "Не було")
-        wait_prefix = txt.get("next_prefix_down", f"{PLAN_ICON} Вимкнення через")
+        header = txt.get("event_up", "🟢 <b>{time} Світло з'явилося</b>").format(
+            time=time_str
+        )
+        duration_prefix = txt.get("dur_prefix_up", "❌ не було")
+        wait_prefix = txt.get("next_prefix_down", "🗓 Вимкнення через")
         look_for_light = False  # Next we wait for OFF
     else:
-        header = txt.get(
-            "event_down", f"{POWER_DOWN_ICON} <b>{{time}} Світло зникло</b>"
-        ).format(time=time_str)
-        duration_prefix = txt.get("dur_prefix_down", "Воно було")
-        wait_prefix = txt.get("next_prefix_up", f"{PLAN_ICON} Очікуємо через")
+        header = txt.get("event_down", "🔴  <b>{time} Світло зникло</b>").format(
+            time=time_str
+        )
+        duration_prefix = txt.get("dur_prefix_down", "💡 Воно було")
+        wait_prefix = txt.get("next_prefix_up", "🗓  Очікуємо через")
         look_for_light = True  # Next we wait for ON
 
     # 1. Deviation
@@ -764,11 +764,11 @@ def format_event_message(is_up, event_time, prev_event_time):
         if m:
             timing = m.group(1)
             value = m.group(2)
-            dev_line = txt.get("dev_shift", "⚡️ На {value} {timing} графіка").format(
+            dev_line = txt.get("dev_shift", "⌛ На {value} {timing} графіка").format(
                 value=value, timing=timing
             )
         elif "точно за графіком" in dev_msg:
-            dev_line = txt.get("dev_exact", "⚡️ Точно за графіком")
+            dev_line = txt.get("dev_exact", "⌛ Точно за графіком")
 
     # 2. Previous Duration
     if (
@@ -801,10 +801,10 @@ def format_event_message(is_up, event_time, prev_event_time):
             wait_dur = format_duration(wait_sec)
 
         wait_line = f"{wait_prefix} ~ {wait_dur}"
-        interval_line = f"({next_info['interval']})"
+        interval_line = f"⏱ ({next_info['interval']})"
     else:
         if is_up:
-            wait_line = f"{PLAN_ICON} Відключення не плануються"
+            wait_line = "🗓 Відключення не плануються"
         else:
             wait_line = f"{wait_prefix} невідомий час"
 

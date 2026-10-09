@@ -143,21 +143,21 @@ def test_telegram_power_events_grammar():
         up_msg = format_event_message(True, now_ts, prev_ts)
         down_msg = format_event_message(False, now_ts, prev_ts)
 
-        # Power ON uses 💡 only in headline
-        assert up_msg.startswith("💡")
+        # Power ON uses 🟢 in headline
+        assert up_msg.startswith("🟢")
         # Ensure no 🕓, 🤷‍♂️, or extra decorative icons
         for obsolete in ("🕓", "🤷‍♂️", "🌤", "🌩", "🏆", "🧟", "📝", "👉", "🕐"):
             assert obsolete not in up_msg
             assert obsolete not in down_msg
 
-        # Power OFF uses ⚡ only in headline
-        assert down_msg.startswith("⚡")
+        # Power OFF uses 🔴 in headline
+        assert down_msg.startswith("🔴")
 
-        # Plan line uses single 🗓️
-        assert "🗓️" in up_msg
-        assert "🗓️" in down_msg
-        assert up_msg.count("🗓️") == 1
-        assert down_msg.count("🗓️") == 1
+        # Plan line uses single 🗓
+        assert "🗓" in up_msg
+        assert "🗓" in down_msg
+        assert up_msg.count("🗓") == 1
+        assert down_msg.count("🗓") == 1
 
 
 # 4. DAILY CAPTION
@@ -208,8 +208,8 @@ def test_config_migration_and_custom_preservation():
     legacy_cfg = {
         "advanced": {
             "text": {
-                "event_up": "🟢 <b>{time} Світло з'явилося</b>",
-                "event_down": "🔴 <b>{time} Світло зникло</b>",
+                "event_up": "💡 <b>{time} Світло з'явилося</b>",
+                "event_down": "⚡️ <b>{time} Світло зникло</b>",
             }
         },
         "ui": {
@@ -222,11 +222,11 @@ def test_config_migration_and_custom_preservation():
     assert migrate_legacy_icons(legacy_cfg) is True
     assert (
         legacy_cfg["advanced"]["text"]["event_up"]
-        == "💡 <b>{time} Світло з'явилося</b>"
+        == "🟢 <b>{time} Світло з'явилося</b>"
     )
-    assert "⚡" in legacy_cfg["advanced"]["text"]["event_down"]
-    assert legacy_cfg["ui"]["text"]["next_prefix_up"] == "🗓️ Очікуємо через"
-    assert legacy_cfg["ui"]["text"]["next_prefix_down"] == "🗓️ Вимкнення через"
+    assert "🔴" in legacy_cfg["advanced"]["text"]["event_down"]
+    assert legacy_cfg["ui"]["text"]["next_prefix_up"] == "🗓  Очікуємо через"
+    assert legacy_cfg["ui"]["text"]["next_prefix_down"] == "🗓 Вимкнення через"
 
     # Custom text preserved intact
     custom_cfg = {
