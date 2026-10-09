@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.31] - 2026-10-09
+
+### Bug Fixes & Reliability
+- **Live Air Raid Alert Levels (Yellow & Red) Correction:** Switched default typed alert feed from stale/frozen endpoint to official live `https://api.alerts.in.ua/v3/alerts/active.json`.
+- **Preserved Yellow Alert State from JAAM Overwrite:** Fixed issue where JAAM siren cross-check unconditionally overwritten Yellow air raid alerts with Red; now preserves explicit Yellow levels while maintaining Red fallback for untyped or missed sirens.
+- **Alerts.in.ua v3 Compact Schema Support:** Added full support for compact v3 records (`al: 1` for Yellow, active records defaulting to Red sirens).
+
 ## [3.9.30] - 2026-10-09
 
 ### Features & UX Improvements
