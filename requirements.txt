@@ -25,7 +25,7 @@ setuptools>=84.0.0
 msgpack>=1.2.2
 
 # --- Observability: OpenTelemetry distributed tracing (optional, opt-in) ---
-opentelemetry-api==1.43.0
+opentelemetry-api==1.45.1
 opentelemetry-sdk==1.43.0
 opentelemetry-exporter-otlp-proto-http==1.43.0
 opentelemetry-instrumentation-fastapi==0.64b0
