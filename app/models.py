@@ -29,6 +29,8 @@ class Notifications(BaseModel):
     telegram_daily_reports: bool = True
     telegram_weekly_reports: bool = True
     telegram_weekly_analysis: bool = True
+    morning_schedule_time: str = "07:00"
+    evening_schedule_time: str = "22:00"
 
 
 class SourcesConfig(BaseModel):

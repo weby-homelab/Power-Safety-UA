@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.32] - 2026-10-13
+- **Роздільні ранкові та вечірні графіки відключень у Telegram (Scheduled Telegram Outage Schedules):** Ранкове сповіщення з графіком надсилається о 07:00 для поточного дня (без нічних публікацій), а вечірнє сповіщення надсилається о 22:00 виключно для наступного дня («без раннішнього»). Додано параметри `morning_schedule_time` та `evening_schedule_time` у налаштування сповіщень. / Scheduled morning outage report at 07:00 (today only) and evening outage report at 22:00 (tomorrow only, without repeating current day).
+
 ## [v3.9.31] - 2026-10-09
 - **Виправлення визначення рівнів повітряної тривоги (Live Air Raid Alert Levels):** Оновлено джерело типізованих тривог на офіційний робочий ендпоінт `https://api.alerts.in.ua/v3/alerts/active.json`, підтримано компактну схему v3 (`al: 1` для жовтого рівня), та ліквідовано баг затирання жовтого рівня бінарним сиренним фолбеком JAAM. / Updated typed alert feed to live Alerts.in.ua v3, supported compact schema, and prevented JAAM siren checks from overwriting explicit yellow alert levels.
 
