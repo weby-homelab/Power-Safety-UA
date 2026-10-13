@@ -1,3 +1,15 @@
+# Release v3.9.32
+
+**Scheduled Telegram Outage Schedules (07:00 Morning & 22:00 Next-Day Evening)**
+
+## What's New & Fixed
+- **Morning Outage Schedule at 07:00:** The morning text schedule report is now dispatched at 07:00 (suppressing nocturnal posts before 07:00), providing the current day's outage intervals when users wake up.
+- **Dedicated Evening Schedule at 22:00:** The evening schedule report is now dispatched at 22:00 and focuses exclusively on tomorrow's schedule without repeating the morning day's schedule ("без раннішнього").
+- **Configurable Notification Windows:** Added `morning_schedule_time` (default `"07:00"`) and `evening_schedule_time` (default `"22:00"`) configuration options under `advanced.notifications`.
+- **Target Day Holiday Independence:** Updated holiday report checks so an all-on status today does not suppress tomorrow's schedule during the evening slot.
+
+---
+
 # Release v3.9.31
 
 **Live Air Raid Alert Levels (Yellow & Red) Correction & JAAM Fallback Preservation**

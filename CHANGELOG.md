@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.32] - 2026-10-13
+
+### Features & Scheduling
+- **Scheduled Telegram Outage Notifications (07:00 & 22:00):** Scheduled morning outage notification to be sent at 07:00 for the current day, and evening notification to be sent at 22:00 exclusively for the next day's schedule ("без раннішнього").
+- **Configurable Schedule Windows:** Added `morning_schedule_time` ("07:00") and `evening_schedule_time` ("22:00") in `Notifications` settings.
+- **Target Date Holiday Separation:** Decoupled holiday check between morning and evening slots to prevent all-on current days from suppressing next-day evening schedule reports.
+
 ## [3.9.31] - 2026-10-09
 
 ### Bug Fixes & Reliability

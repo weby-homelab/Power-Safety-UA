@@ -270,9 +270,6 @@ def main():
         save_report_state(report_state)
         return
 
-    if not (datetime.time(0, 10) <= current_time <= datetime.time(23, 45)):
-        return
-
     if get_quiet_status() == "quiet":
         logger.info("Quiet mode active: Skipping text report Telegram update.")
         return
@@ -282,6 +279,25 @@ def main():
         return
     with open(SCHEDULE_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
+
+    notifications_cfg = cfg.get("advanced", {}).get("notifications", {})
+    morning_time = datetime.time(7, 0)
+    try:
+        m_str = notifications_cfg.get("morning_schedule_time", "07:00")
+        parts = m_str.split(":")
+        morning_time = datetime.time(int(parts[0]), int(parts[1]))
+    except Exception:
+        morning_time = datetime.time(7, 0)
+
+    evening_hour = 22
+    try:
+        e_str = notifications_cfg.get("evening_schedule_time", "22:00")
+        evening_hour = int(e_str.split(":")[0])
+    except Exception:
+        evening_hour = 22
+
+    if not force_new and current_time < morning_time:
+        return
 
     groups = cfg.get("settings", {}).get("groups", ["GPV36.1"])
     group = groups[0] if groups else "GPV36.1"
@@ -326,14 +342,15 @@ def main():
     target_slot = "morning"
     if evening_id:
         target_slot = "evening"
-    elif current_hour >= 20 and has_tomorrow_now:
+    elif current_hour >= evening_hour and has_tomorrow_now:
         target_slot = "evening"
 
     all_day_contents = []
 
-    days_to_process = [today_str]
     if target_slot == "evening":
-        days_to_process.append(tomorrow_str)
+        days_to_process = [tomorrow_str]
+    else:
+        days_to_process = [today_str]
 
     for d_idx, d_str in enumerate(days_to_process):
         is_today = d_str == today_str
@@ -402,10 +419,10 @@ def main():
 
     group_display = group.replace("GPV", "")
 
-    # Try generating a holiday report if today is all-on
-    holiday_tomorrow_str = tomorrow_str if target_slot == "evening" else None
+    # Try generating a holiday report if target day is all-on
+    target_holiday_date = today_str if target_slot == "morning" else tomorrow_str
     holiday_text = generate_holiday_report(
-        today_str, holiday_tomorrow_str, data, group, icons
+        target_holiday_date, None, data, group, icons
     )
 
     # Suppress holiday report if it is just "all-on" spam (as per user request)
