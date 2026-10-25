@@ -1,3 +1,14 @@
+# Release v3.9.34
+
+**Dedicated Worker Heartbeat & Container Healthcheck Reliability (#202)**
+
+## What's New & Fixed
+- **Dedicated Worker Heartbeat:** Implemented `WORKER_HEARTBEAT_FILE` in `app/light_service.py` touched upon worker startup and on each `_monitor_loop_iteration()` (throttled to 15 seconds) to reliably reflect background worker event loop liveness.
+- **Worker Healthcheck Correction:** Updated `docker-compose.yml` healthcheck for `background-worker` to verify `worker_heartbeat` freshness (< 120s) instead of `power_monitor_state.json`. This completely eliminates false-positive `unhealthy` container states during prolonged periods of steady power or blackouts when no state transitions occur.
+- **Unit Test Coverage:** Added unit test suite `test_worker_heartbeat.py` covering heartbeat creation, throttling, and write exception resilience.
+
+---
+
 # Release v3.9.33
 
 **Security & Dependency Refresh (43 Dependabot Alerts Resolved, OpenTelemetry Sync, Core Dependencies)**

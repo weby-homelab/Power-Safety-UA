@@ -239,6 +239,23 @@ state_mgr = SafeStateContextAsync(STATE_LOCK_FILE)
 
 HISTORY_FILE = os.path.join(DATA_DIR, "schedule_history.json")
 EVENT_LOG_FILE = os.path.join(DATA_DIR, "event_log.json")
+WORKER_HEARTBEAT_FILE = os.path.join(DATA_DIR, "worker_heartbeat")
+_last_heartbeat_time = 0.0
+
+
+def update_worker_heartbeat(force: bool = False) -> None:
+    """Updates the worker heartbeat file timestamp to indicate worker liveness."""
+    global _last_heartbeat_time
+    now = time.time()
+    if force or (now - _last_heartbeat_time >= 15.0):
+        _last_heartbeat_time = now
+        try:
+            with open(WORKER_HEARTBEAT_FILE, "w", encoding="utf-8") as f:
+                f.write(f"{now}\n")
+        except Exception as e:
+            logger.debug("worker_heartbeat_update_failed", error=str(e))
+
+
 SCHEDULE_API_URL = os.environ.get("SCHEDULE_API_URL", "")
 ALERTS_API_URL = os.environ.get(
     "ALERTS_API_URL", "https://ubilling.net.ua/aerialalerts/"
@@ -1907,6 +1924,7 @@ async def _monitor_loop_iteration():
     if not _startup_reconciled:
         await reconcile_startup_state()
     await load_state()
+    update_worker_heartbeat()
     async with state_mgr:
         current_time = get_current_time()
         last_seen = state["last_seen"]

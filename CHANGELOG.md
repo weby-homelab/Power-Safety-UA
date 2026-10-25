@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.34] - 2026-10-25
+
+### Bug Fixes & Reliability
+- **Dedicated Worker Heartbeat:** Implemented `WORKER_HEARTBEAT_FILE` touched on worker startup and in each `_monitor_loop_iteration()` (throttled to 15s).
+- **Worker Healthcheck Correction:** Updated `docker-compose.yml` healthcheck for `background-worker` to check `worker_heartbeat` freshness (< 120s) instead of `power_monitor_state.json`, eliminating false-positive `unhealthy` states during prolonged steady power or outages (#202).
+
 ## [3.9.33] - 2026-10-25
 
 ### Security & Dependencies
