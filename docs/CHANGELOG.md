@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.34] - 2026-10-25
+- **Виділений Worker Heartbeat та коректний Healthcheck (#202) (Dedicated Worker Heartbeat & Reliable Healthcheck):** Впроваджено файл `worker_heartbeat`, який оновлюється при старті воркера та на кожній ітерації циклу моніторингу `_monitor_loop_iteration()` (з тротлінгом до 15с). Оновлено команду `healthcheck` у `docker-compose.yml` на перевірку свіжості `worker_heartbeat` (< 120с) замість `power_monitor_state.json`. Це повністю усуває помилково негативний стан `unhealthy` при тривалій стабільності живлення чи блекаутах без змін статусу. / Implemented dedicated `worker_heartbeat` and updated compose healthcheck to eliminate false-positive unhealthy states during prolonged steady power or outages.
+
 ## [v3.9.33] - 2026-10-25
 - **Оновлення безпеки та залежностей (Security & Dependency Refresh):** Усунено 43 Dependabot alerts: оновлено Pillow до `13.0.0` (41 CVE: heap overflow, use-after-free, DoS), зафіксовано `certifi==2026.10.23` (TLS security policy) та `opentelemetry-api==1.45.1`. Синхронно оновлено стек OpenTelemetry (`opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` до `1.45.1`, інструментації FastAPI та Requests до `0.66b1`), а також оновлено `python-dotenv==1.2.4`, `starlette==1.7.0` та `responses==0.26.3`. / Resolved 43 Dependabot security alerts (Pillow 13.0.0, certifi, OpenTelemetry 1.45.1 + 0.66b1) and synchronized all dependencies.
 
