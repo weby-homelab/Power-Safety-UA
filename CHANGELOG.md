@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.33] - 2026-10-25
+
+### Security & Dependencies
+- **Resolved 43 Dependabot Security Alerts:** Upgraded Pillow to `13.0.0` to eliminate 41 Critical/High/Medium vulnerabilities (heap buffer overflows, use-after-free, DoS), pinned `certifi==2026.10.23` adhering to TLS security policies, and updated `opentelemetry-api` to `1.45.1` addressing unbounded tracestate parsing DoS.
+- **Consolidated OpenTelemetry Ecosystem:** Bumped `opentelemetry-api`, `opentelemetry-sdk`, and `opentelemetry-exporter-otlp-proto-http` in lockstep to `1.45.1`, and instrumentations (`fastapi`, `requests`) to `0.66b1`, resolving inter-package dependency conflict.
+- **Dependency Refresh:** Bumped `python-dotenv` to `1.2.4`, `starlette` to `1.7.0`, and `responses` to `0.26.3`.
+
 ## [3.9.32] - 2026-10-13
 
 ### Features & Scheduling

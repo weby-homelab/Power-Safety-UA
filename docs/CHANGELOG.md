@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.33] - 2026-10-25
+- **Оновлення безпеки та залежностей (Security & Dependency Refresh):** Усунено 43 Dependabot alerts: оновлено Pillow до `13.0.0` (41 CVE: heap overflow, use-after-free, DoS), зафіксовано `certifi==2026.10.23` (TLS security policy) та `opentelemetry-api==1.45.1`. Синхронно оновлено стек OpenTelemetry (`opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` до `1.45.1`, інструментації FastAPI та Requests до `0.66b1`), а також оновлено `python-dotenv==1.2.4`, `starlette==1.7.0` та `responses==0.26.3`. / Resolved 43 Dependabot security alerts (Pillow 13.0.0, certifi, OpenTelemetry 1.45.1 + 0.66b1) and synchronized all dependencies.
+
 ## [v3.9.32] - 2026-10-13
 - **Роздільні ранкові та вечірні графіки відключень у Telegram (Scheduled Telegram Outage Schedules):** Ранкове сповіщення з графіком надсилається о 07:00 для поточного дня (без нічних публікацій), а вечірнє сповіщення надсилається о 22:00 виключно для наступного дня («без раннішнього»). Додано параметри `morning_schedule_time` та `evening_schedule_time` у налаштування сповіщень. / Scheduled morning outage report at 07:00 (today only) and evening outage report at 22:00 (tomorrow only, without repeating current day).
 
