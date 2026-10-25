@@ -1,3 +1,14 @@
+# Release v3.9.33
+
+**Security & Dependency Refresh (43 Dependabot Alerts Resolved, OpenTelemetry Sync, Core Dependencies)**
+
+## What's New & Fixed
+- **43 Dependabot Alerts Resolved:** Upgraded `pillow` to `13.0.0` to resolve 41 vulnerabilities (including Critical/High heap buffer overflows, use-after-free, and DoS), pinned `certifi==2026.10.23` in accordance with TLS Security Policy, and updated `opentelemetry-api` to `1.45.1` addressing unbounded tracestate parsing DoS.
+- **OpenTelemetry Lockstep Synchronization:** Synchronized `opentelemetry-api`, `opentelemetry-sdk`, and `opentelemetry-exporter-otlp-proto-http` to version `1.45.1`, and instrumentations (`fastapi`, `requests`) to `0.66b1`, fixing dependency resolution conflicts present in isolated bumps.
+- **Dependency Upgrades:** Bumped `python-dotenv` to `1.2.4`, `starlette` to `1.7.0`, and `responses` to `0.26.3`.
+
+---
+
 # Release v3.9.32
 
 **Scheduled Telegram Outage Schedules (07:00 Morning & 22:00 Next-Day Evening)**
