@@ -8,7 +8,7 @@ tzdata==2026.3
 fastapi==0.139.0
 starlette==1.7.0
 uvicorn==0.50.2
-httptools==0.7.1
+httptools==0.9.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0
