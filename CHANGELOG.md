@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.35] - 2026-10-26
+
+### Features & Reporting
+- **Streamlined Live Rolling Daily Caption:** Cleaned up the 10-minute rolling Telegram daily report caption by displaying concise power elapsed metrics (`💡 Світло було`, `⚡ Світла не було`), real-time schedule compliance/balance (`⚖️ Графік: виконується (+X хв)`), active alert warning if an alert is currently in progress, and current air quality (`🌫️ Повітря зараз: {label} (AQI {val})`), eliminating visual clutter, 24h-normalized percentages, and inactive zero-duration alert rows (#211).
+- **Enriched Final Daily Summary:** Retained and refined comprehensive 24-hour analytical breakdown for final archived reports (sent at 00:01 for past day) including full percentage distributions, complete air raid alert levels, and 24h AQI breakdown.
+
 ## [3.9.34] - 2026-10-25
 
 ### Bug Fixes & Reliability

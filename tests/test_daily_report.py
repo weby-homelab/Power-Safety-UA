@@ -20,13 +20,10 @@ def test_build_report_caption_today():
         target_date, t_up, t_down, slots, now_time
     )
 
-    assert "📊 <b>Звіт за 05.03.2026</b>" in caption
+    assert "📊 <b>Моніторинг за 05.03.2026</b>" in caption
     assert "💡 Світло було: 12 г" in caption
     assert "⚡ Світла не було: 0 хв" in caption
-    assert "🗓️ <b>План vs факт</b>" in caption
-    assert "План на добу: 12 г" in caption
-    assert "Факт: 12 г" in caption
-    assert "Виконання плану: 100%" in caption
+    assert "⚖️ Графік: виконується за графіком" in caption
     assert "Оновлено: 12:00" in caption
     assert "👉" not in caption
     assert "🕐" not in caption
@@ -47,13 +44,13 @@ def test_build_report_caption_past_day():
     )
 
     assert "📊 <b>Звіт за 04.03.2026</b>" in caption
-    assert "💡 Світло було: 24 г" in caption
-    assert "⚡ Світла не було: 0 хв" in caption
-    assert "🗓️ <b>План vs факт</b>" in caption
-    assert "План на добу: 20 г 30 хв" in caption
-    assert "Факт: 24 г" in caption
-    assert "Виконання плану: 117%" in caption
-    assert "Оновлено: 12:00" in caption
+    assert "💡 Світло було: 24 г (100.0%)" in caption
+    assert "⚡ Світла не було: 0 хв (0.0%)" in caption
+    assert "🗓️ <b>План vs факт за добу</b>" in caption
+    assert "• Заплановано: 20 г 30 хв" in caption
+    assert "• Фактично: 24 г" in caption
+    assert "• Виконання плану: 117% (+3 г 30 хв)" in caption
+    assert "Зафіксовано: 12:00" in caption
     assert "👉" not in caption
     assert "🕐" not in caption
 
@@ -109,13 +106,24 @@ def test_build_report_caption_with_alerts_and_aqi(tmp_path):
         json.dump(metrics, f)
 
     with patch("app.reports.daily.DATA_DIR", str(tmp_path)):
-        caption, *_ = build_report_caption(
-            target_date, 10 * 3600, 2 * 3600, [True] * 48, now_time
+        # Final summary mode: full breakdown
+        caption_final, *_ = build_report_caption(
+            target_date, 10 * 3600, 2 * 3600, [True] * 48, now_time, is_final=True
+        )
+        # Live rolling mode: streamlined
+        caption_live, *_ = build_report_caption(
+            target_date, 10 * 3600, 2 * 3600, [True] * 48, now_time, is_final=False
         )
 
-    assert "🚨 Тривоги без подвійного рахунку: 4 г 15 хв" in caption
-    assert "Жовтий 1 г (4.2%)" in caption
-    assert "Червоний 3 г 15 хв (13.5%)" in caption
-    assert "🌫️ AQI:" in caption
-    assert "Добре 5 г (20.8%)" in caption
-    assert "Помірне 5 г (20.8%)" in caption
+    # Assertions for final summary
+    assert "🚨 <b>Безпека (повітряні тривоги):</b> 4 г 15 хв (17.7%)" in caption_final
+    assert "Жовтий 1 г (4.2%)" in caption_final
+    assert "Червоний 3 г 15 хв (13.5%)" in caption_final
+    assert "🌫️ <b>Якість повітря (AQI):</b>" in caption_final
+    assert "Добре 5 г (20.8%)" in caption_final
+    assert "Помірне 5 г (20.8%)" in caption_final
+
+    # Assertions for live rolling monitoring
+    assert "📊 <b>Моніторинг за 09.10.2026</b>" in caption_live
+    assert "🌫️ Повітря зараз: Помірне (AQI 65)" in caption_live
+    assert "За рівнями:" not in caption_live

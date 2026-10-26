@@ -850,49 +850,39 @@ def get_daily_aqi_stats(target_date, now_time=None, data_dir=DATA_DIR):
     return result
 
 
-def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
+def get_latest_aqi(data_dir=DATA_DIR):
+    """Returns (aqi_val, label) for the most recent metric entry, or (None, None)."""
+    history_file = os.path.join(data_dir, "metrics_history.json")
+    if os.path.exists(history_file):
+        try:
+            with open(history_file, "r") as f:
+                history_data = json.load(f)
+            if history_data and isinstance(history_data, list):
+                for item in reversed(history_data):
+                    val = item.get("aqi")
+                    if val is not None:
+                        color = get_aqi_color(int(val))
+                        label = (
+                            "Добре"
+                            if color == AQI_GOOD
+                            else "Помірне"
+                            if color == AQI_MODERATE
+                            else "Шкідливе"
+                        )
+                        return int(val), label
+        except Exception:
+            pass
+    return None, None
+
+
+def build_report_caption(
+    target_date, t_up, t_down, slots, now_time=None, is_final=False
+):
     if now_time is None:
         now_time = get_now()
 
-    # Terminology: "Monitoring" for today's ongoing day before noon, "Report" for finished days or today after noon.
     is_today = target_date == now_time.date()
-    if is_today and now_time.hour < 12:
-        title_prefix = "Моніторинг"
-    else:
-        title_prefix = "Звіт"
-
-    caption = (
-        f"📊 <b>{title_prefix} за {target_date.strftime('%d.%m.%Y')}</b>\n\n"
-        f"💡 Світло було: {format_duration(t_up)}\n"
-        f"⚡ Світла не було: {format_duration(t_down)}"
-    )
-
-    alert_intervals = get_alert_intervals(target_date)
-    alerts_count = len(alert_intervals)
-    if alerts_count > 0:
-        alert_summary = summarize_alert_intervals(alert_intervals)
-        total_alert_sec = merged_alert_duration(alert_intervals)
-        type_parts = []
-        for alert_type, label in (
-            (ALERT_TYPE_YELLOW, "Жовтий"),
-            (ALERT_TYPE_RED, "Червоний"),
-        ):
-            details = alert_summary[alert_type]
-            dur_sec = details["duration_sec"]
-            pct = (dur_sec / 86400) * 100
-            type_parts.append(f"{label} {format_duration(dur_sec)} ({pct:.1f}%)")
-        caption += (
-            f"\n🚨 Тривоги без подвійного рахунку: {format_duration(total_alert_sec)}\n"
-            f"   За рівнями: " + "; ".join(type_parts)
-        )
-
-    aqi_stats = get_daily_aqi_stats(target_date, now_time, DATA_DIR)
-    if aqi_stats:
-        aqi_parts = [
-            f"{label} {format_duration(sec)} ({pct:.1f}%)"
-            for label, sec, pct in aqi_stats
-        ]
-        caption += "\n🌫️ AQI: " + ", ".join(aqi_parts)
+    effective_final = is_final or (not is_today)
 
     plan_up_sec_formatted = "0 хв"
     diff_hours = 0
@@ -902,47 +892,121 @@ def build_report_caption(target_date, t_up, t_down, slots, now_time=None):
         plan_up_cnt = sum(1 for s in slots if s)
         plan_up_sec = plan_up_cnt * 1800  # 30 min * 60 sec
         plan_up_sec_formatted = format_duration(plan_up_sec)
-
         diff_sec = t_up - plan_up_sec
         diff_hours = diff_sec / 3600
-        sign = "+" if diff_sec > 0 else "-" if diff_sec < 0 else ""
-        _ = f"{sign}{format_duration(abs(diff_sec))}"
-
         compliance_pct = (t_up / plan_up_sec * 100) if plan_up_sec > 0 else 0
 
-        calc_end_time = (
-            now_time
-            if is_today
-            else datetime.datetime.combine(target_date, datetime.time.max).replace(
-                tzinfo=KYIV_TZ
+    if effective_final:
+        # --- FINAL / PAST DAY SUMMARY ---
+        title_prefix = "Підсумковий звіт" if is_final else "Звіт"
+        total_day_sec = max(t_up + t_down, 86400)
+        pct_up = (t_up / total_day_sec) * 100
+        pct_down = (t_down / total_day_sec) * 100
+
+        caption = (
+            f"📊 <b>{title_prefix} за {target_date.strftime('%d.%m.%Y')}</b>\n\n"
+            f"💡 Світло було: {format_duration(t_up)} ({pct_up:.1f}%)\n"
+            f"⚡ Світла не було: {format_duration(t_down)} ({pct_down:.1f}%)"
+        )
+
+        if slots:
+            plan_up_cnt = sum(1 for s in slots if s)
+            plan_up_sec = plan_up_cnt * 1800
+            diff_sec = t_up - plan_up_sec
+            diff_sign = "+" if diff_sec > 0 else "-" if diff_sec < 0 else ""
+            diff_str = (
+                f"{diff_sign}{format_duration(abs(diff_sec))}"
+                if diff_sec != 0
+                else "0 хв"
             )
-        )
-        day_start = datetime.datetime.combine(target_date, datetime.time.min).replace(
-            tzinfo=KYIV_TZ
+
+            caption += "\n\n🗓️ <b>План vs факт за добу</b>\n"
+            caption += f"• Заплановано: {plan_up_sec_formatted}\n"
+            caption += f"• Фактично: {format_duration(t_up)}\n"
+            caption += f"• Виконання плану: {compliance_pct:.0f}% ({diff_str})"
+
+        alert_intervals = get_alert_intervals(target_date)
+        if alert_intervals:
+            alert_summary = summarize_alert_intervals(alert_intervals)
+            total_alert_sec = merged_alert_duration(alert_intervals)
+            pct_alert = (total_alert_sec / 86400) * 100
+            type_parts = []
+            for alert_type, label in (
+                (ALERT_TYPE_YELLOW, "Жовтий"),
+                (ALERT_TYPE_RED, "Червоний"),
+            ):
+                dur_sec = alert_summary[alert_type]["duration_sec"]
+                if dur_sec > 0:
+                    pct = (dur_sec / 86400) * 100
+                    type_parts.append(
+                        f"{label} {format_duration(dur_sec)} ({pct:.1f}%)"
+                    )
+            caption += f"\n\n🚨 <b>Безпека (повітряні тривоги):</b> {format_duration(total_alert_sec)} ({pct_alert:.1f}%)"
+            if type_parts:
+                caption += "\n   За рівнями: " + "; ".join(type_parts)
+
+        aqi_stats = get_daily_aqi_stats(target_date, now_time, DATA_DIR)
+        if aqi_stats:
+            aqi_parts = [
+                f"{label} {format_duration(sec)} ({pct:.1f}%)"
+                for label, sec, pct in aqi_stats
+            ]
+            caption += "\n\n🌫️ <b>Якість повітря (AQI):</b> " + ", ".join(aqi_parts)
+
+        caption += f"\n\nЗафіксовано: {now_time.strftime('%H:%M')}"
+
+    else:
+        # --- ROLLING LIVE MONITORING (TODAY) ---
+        title_prefix = "Моніторинг"
+        caption = (
+            f"📊 <b>{title_prefix} за {target_date.strftime('%d.%m.%Y')}</b>\n\n"
+            f"💡 Світло було: {format_duration(t_up)}\n"
+            f"⚡ Світла не було: {format_duration(t_down)}"
         )
 
-        plan_up_sec_now = 0
-        for i, s in enumerate(slots):
-            if s:
-                slot_start = day_start + datetime.timedelta(minutes=30 * i)
-                slot_end = slot_start + datetime.timedelta(minutes=30)
-                if slot_end <= calc_end_time:
-                    plan_up_sec_now += 1800
-                elif slot_start < calc_end_time:
-                    plan_up_sec_now += (calc_end_time - slot_start).total_seconds()
+        if slots:
+            day_start = datetime.datetime.combine(
+                target_date, datetime.time.min
+            ).replace(tzinfo=KYIV_TZ)
+            plan_up_sec_now = 0
+            for i, s in enumerate(slots):
+                if s:
+                    slot_start = day_start + datetime.timedelta(minutes=30 * i)
+                    slot_end = slot_start + datetime.timedelta(minutes=30)
+                    if slot_end <= now_time:
+                        plan_up_sec_now += 1800
+                    elif slot_start < now_time:
+                        plan_up_sec_now += (now_time - slot_start).total_seconds()
 
-        caption += "\n\n🗓️ <b>План vs факт</b>\n"
-        caption += f"План на добу: {plan_up_sec_formatted}\n"
-        caption += f"Факт: {format_duration(t_up)}\n"
+            diff_now = t_up - plan_up_sec_now
+            diff_min = int(round(diff_now / 60))
+            if abs(diff_min) <= 5:
+                sched_status = "виконується за графіком"
+            elif diff_now > 0:
+                sched_status = f"виконується (+{format_duration(diff_now)})"
+            else:
+                sched_status = f"відхилення (-{format_duration(abs(diff_now))})"
 
-        compliance_pct_now = (
-            (t_up / plan_up_sec_now * 100) if plan_up_sec_now > 0 else 0
-        )
-        compliance_val = (
-            compliance_pct_now if (is_today and plan_up_sec_now > 0) else compliance_pct
-        )
-        caption += f"Виконання плану: {compliance_val:.0f}%\n\n"
-        caption += f"Оновлено: {now_time.strftime('%H:%M')}"
+            caption += f"\n\n⚖️ Графік: {sched_status}"
+
+        # Active alert indicator if alert is currently active
+        alert_intervals = get_alert_intervals(target_date)
+        if alert_intervals:
+            last_start, last_end, last_type = alert_intervals[-1]
+            if last_end >= now_time:
+                type_label = (
+                    "Червоний рівень (район)"
+                    if last_type == ALERT_TYPE_RED
+                    else "Жовтий рівень (місто)"
+                )
+                caption += f"\n🚨 <b>Зараз тривога:</b> {type_label}"
+
+        # Current AQI indicator
+        latest_aqi, aqi_label = get_latest_aqi(DATA_DIR)
+        if latest_aqi is not None:
+            caption += f"\n🌫️ Повітря зараз: {aqi_label} (AQI {latest_aqi})"
+
+        caption += f"\n\nОновлено: {now_time.strftime('%H:%M')}"
 
     return caption, plan_up_sec_formatted, diff_hours, compliance_pct
 
@@ -1031,8 +1095,12 @@ if __name__ == "__main__":
     shutil.copy(filename_en, os.path.join(web_dir, "chart_en.png"))
     shutil.copy(filename_light_en, os.path.join(web_dir, "chart_light_en.png"))
 
+    is_final = "--final" in sys.argv
+    is_cleanup = "--cleanup" in sys.argv
+    quiet_status = get_quiet_status()
+
     caption, plan_up_sec_formatted, diff_hours, compliance_pct = build_report_caption(
-        target_date, t_up, t_down, slots, now
+        target_date, t_up, t_down, slots, now, is_final=is_final
     )
 
     if slots:
@@ -1049,10 +1117,6 @@ if __name__ == "__main__":
                 json.dump(stats_data, f)
         except Exception as e:
             logger.error("Error saving stats json", error=str(e))
-
-    is_final = "--final" in sys.argv
-    is_cleanup = "--cleanup" in sys.argv
-    quiet_status = get_quiet_status()
 
     def _cleanup_temp_files():
         for f in [filename, filename_light, filename_en, filename_light_en]:

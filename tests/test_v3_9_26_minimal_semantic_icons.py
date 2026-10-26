@@ -166,24 +166,35 @@ def test_daily_caption_structure():
     now_time = datetime.datetime(2026, 9, 10, 20, 0, tzinfo=KYIV_TZ)
     slots = [True] * 40 + [False] * 8
 
-    caption, _, _, _ = build_report_caption(
-        target_date, 20 * 3600, 4 * 3600, slots, now_time
+    caption_final, _, _, _ = build_report_caption(
+        target_date, 20 * 3600, 4 * 3600, slots, now_time, is_final=True
     )
 
     # Exactly one 📊 title marker
-    assert caption.count("📊") == 1
+    assert caption_final.count("📊") == 1
     # One 💡 fact-up marker
-    assert caption.count("💡") == 1
-    assert "💡 Світло було:" in caption
+    assert caption_final.count("💡") == 1
+    assert "💡 Світло було:" in caption_final
     # One ⚡ fact-down marker
-    assert caption.count("⚡") == 1
-    assert "⚡ Світла не було:" in caption
+    assert caption_final.count("⚡") == 1
+    assert "⚡ Світла не було:" in caption_final
     # One 🗓️ plan-section marker
-    assert caption.count("🗓️") == 1
-    assert "🗓️ <b>План vs факт</b>" in caption
+    assert caption_final.count("🗓️") == 1
+    assert "🗓️ <b>План vs факт" in caption_final
     # No decorative emoji
     for obsolete in ("👉", "🕐", "🌤", "🌩", "🏆", "🧟", "📝"):
-        assert obsolete not in caption
+        assert obsolete not in caption_final
+
+    # Also test live rolling caption
+    caption_live, _, _, _ = build_report_caption(
+        target_date, 20 * 3600, 4 * 3600, slots, now_time, is_final=False
+    )
+    assert caption_live.count("📊") == 1
+    assert caption_live.count("💡") == 1
+    assert caption_live.count("⚡") == 1
+    assert "⚖️ Графік:" in caption_live
+    for obsolete in ("👉", "🕐", "🌤", "🌩", "🏆", "🧟", "📝"):
+        assert obsolete not in caption_live
 
 
 # 5. WEEKLY CAPTION
