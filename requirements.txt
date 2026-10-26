@@ -5,7 +5,7 @@ matplotlib==3.9.2
 pillow==13.0.0
 prometheus-client==0.26.0
 tzdata==2026.3
-fastapi==0.139.0
+fastapi==0.161.1
 starlette==1.7.0
 uvicorn==0.50.2
 httptools==0.7.1
