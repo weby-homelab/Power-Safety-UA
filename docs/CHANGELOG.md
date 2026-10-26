@@ -1,5 +1,8 @@
 # Changelog / Історія змін (Bilingual/Двомовний)
 
+## [v3.9.35] - 2026-10-26
+- **Оптимізація та розділення денного моніторингу й фінального звіту (#211) (Streamlined Live Rolling Daily Caption & Enriched Final Summary):** Оптимізовано підпис до динамічного щоденного графіка, який оновлюється що 10 хв у Telegram: залишено виключно оперативні показники (фактичний баланс світла, виконання розкладу `⚖️ Графік: виконується (+X хв)`, індикатор активної тривоги та поточний рівень якості повітря AQI), усунуто шум, нерелевантні 24-годинні відсотки посеред дня та порожні нульові рівні. У фінальному зафіксованому звіті за добу (00:01) збережено вичерпну добову аналітику з розбивкою за рівнями небезпеки, частками доби та якістю повітря. / Streamlined 10-minute live rolling daily Telegram caption to eliminate noise and misleading 24h metrics, while preserving comprehensive 24h analytical breakdown for finalized daily reports.
+
 ## [v3.9.34] - 2026-10-25
 - **Виділений Worker Heartbeat та коректний Healthcheck (#202) (Dedicated Worker Heartbeat & Reliable Healthcheck):** Впроваджено файл `worker_heartbeat`, який оновлюється при старті воркера та на кожній ітерації циклу моніторингу `_monitor_loop_iteration()` (з тротлінгом до 15с). Оновлено команду `healthcheck` у `docker-compose.yml` на перевірку свіжості `worker_heartbeat` (< 120с) замість `power_monitor_state.json`. Це повністю усуває помилково негативний стан `unhealthy` при тривалій стабільності живлення чи блекаутах без змін статусу. / Implemented dedicated `worker_heartbeat` and updated compose healthcheck to eliminate false-positive unhealthy states during prolonged steady power or outages.
 

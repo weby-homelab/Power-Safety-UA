@@ -1,3 +1,15 @@
+# Release v3.9.35
+
+**Streamlined Live Rolling Daily Caption & Enriched Final Daily Summary (#211)**
+
+## What's New & Fixed
+- **Streamlined Live Rolling Daily Caption:** Redesigned the 10-minute rolling Telegram daily report caption to eliminate visual noise and cognitive dissonance. The live caption displays concise operational metrics: elapsed power hours (`💡 Світло було`, `⚡ Світла не було`), real-time schedule compliance (`⚖️ Графік: виконується (+X хв)`), an active alert banner if an air raid alert is currently underway, and current air quality index (`🌫️ Повітря зараз: {label} (AQI {val})`).
+- **Eliminated Daytime Statistical Noise:** Removed confusing 24h-normalized percentages, inactive zero-duration air raid levels (`Червоний 0 хв (0.0%)`), and confusing whole-day plan vs mid-day fact discrepancies from live rolling captions.
+- **Enriched Final Daily Summary:** Retained and refined comprehensive 24-hour analytical breakdown for final archived reports (dispatched at 00:01 for the past day) including full percentage distributions, complete air raid alert levels, and 24h AQI breakdown.
+- **Unit Test Coverage:** Updated and added tests in `test_daily_report.py` and `test_v3_9_26_minimal_semantic_icons.py` verifying both live rolling and final report layouts.
+
+---
+
 # Release v3.9.34
 
 **Dedicated Worker Heartbeat & Container Healthcheck Reliability (#202)**
