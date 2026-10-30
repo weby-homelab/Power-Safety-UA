@@ -728,7 +728,7 @@ def get_telegram_client():
 
 def update_telegram_photo(message_id, photo_path, caption):
     client = get_telegram_client()
-    return client.edit_photo(message_id, photo_path, caption) is not None
+    return client.edit_photo(message_id, photo_path, caption)
 
 
 def delete_telegram_message(message_id):
@@ -1206,7 +1206,9 @@ if __name__ == "__main__":
                 "Quiet mode active, but updating existing report to keep it live",
                 message_id=last_id,
             )
-            update_telegram_photo(last_id, filename, caption)
+            res_id = update_telegram_photo(last_id, filename, caption)
+            if res_id and res_id != last_id:
+                save_report_id(res_id, target_date)
         else:
             logger.info("Quiet mode active: Skipping Telegram update (not final).")
         _cleanup_temp_files()
@@ -1231,13 +1233,37 @@ if __name__ == "__main__":
 
     if last_id:
         logger.info("Updating existing report", message_id=last_id)
-        sent = update_telegram_photo(last_id, filename, caption)
-        if not sent:
-            logger.info(
-                "Update failed (likely message deleted). Sending a NEW message instead..."
+        res_id = update_telegram_photo(last_id, filename, caption)
+        if res_id:
+            if res_id != last_id:
+                save_report_id(res_id, target_date)
+                logger.info(
+                    "Report updated with new message ID",
+                    old_id=last_id,
+                    new_id=res_id,
+                )
+            else:
+                logger.info("Existing report updated successfully", message_id=last_id)
+        else:
+            logger.warning(
+                "Failed to update existing report in Telegram (transient error). Skipping fallback to prevent duplicate messages.",
+                message_id=last_id,
             )
-            send_telegram_photo(filename, caption, target_date)
     else:
+        # Defer initial Telegram report creation during night hours (00:00 - 06:00) when there is no power outage.
+        # This prevents duplicate graphic reports appearing at 00:10 right after the 00:01 final summary.
+        now_time = get_now()
+        is_today = target_date == now_time.date()
+        is_night = is_today and (now_time.hour < 6)
+        if is_night and (t_down == 0) and ("--force-send" not in sys.argv):
+            logger.info(
+                "Night hours (00:00 - 06:00) with normal power: deferring initial Telegram graphic report until morning.",
+                hour=now_time.hour,
+                target_date=target_date,
+            )
+            _cleanup_temp_files()
+            sys.exit(0)
+
         logger.info("No report ID for today. Sending new report...")
         send_telegram_photo(filename, caption, target_date)
 

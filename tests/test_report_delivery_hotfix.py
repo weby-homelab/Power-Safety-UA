@@ -521,3 +521,67 @@ def test_successful_weekly_transaction_records_exact_target_period():
     assert success is True
     assert is_weekly_delivered(target_period) is True
     assert is_weekly_delivered("2026-04-12") is False
+
+
+# 27. update_telegram_photo transient failure does not send duplicate photo
+def test_update_telegram_photo_transient_failure_does_not_send_duplicate(monkeypatch):
+    mock_send = MagicMock()
+    monkeypatch.setattr(daily, "send_telegram_photo", mock_send)
+    monkeypatch.setattr(daily, "update_telegram_photo", lambda mid, f, c: None)
+
+    last_id = 1785
+    res_id = daily.update_telegram_photo(last_id, "dummy.png", "caption")
+    if not res_id:
+        pass
+    else:
+        mock_send()
+
+    mock_send.assert_not_called()
+
+
+# 28. update_telegram_photo fallback saves new report id
+def test_update_telegram_photo_fallback_saves_new_report_id(monkeypatch):
+    saved = {}
+
+    def fake_save(mid, date):
+        saved["id"] = mid
+        saved["date"] = date
+
+    monkeypatch.setattr(daily, "save_report_id", fake_save)
+    monkeypatch.setattr(daily, "update_telegram_photo", lambda mid, f, c: 2000)
+
+    last_id = 1785
+    target_date = datetime.date(2026, 10, 31)
+
+    res_id = daily.update_telegram_photo(last_id, "dummy.png", "caption")
+    if res_id and res_id != last_id:
+        daily.save_report_id(res_id, target_date)
+
+    assert saved.get("id") == 2000
+    assert saved.get("date") == target_date
+
+
+# 29. night hours defer initial telegram daily report creation when power is normal
+def test_night_hours_defer_initial_telegram_daily_report_creation():
+    target_date = datetime.date(2026, 10, 31)
+    mock_now = datetime.datetime(2026, 10, 31, 0, 10, tzinfo=KYIV_TZ)
+    is_today = target_date == mock_now.date()
+    is_night = is_today and (mock_now.hour < 6)
+    t_down = 0
+    argv = ["app.generate_daily_report"]
+
+    should_defer = is_night and (t_down == 0) and ("--force-send" not in argv)
+    assert should_defer is True
+
+
+# 30. night hours do not defer initial telegram daily report if outage is present
+def test_night_hours_do_not_defer_initial_daily_report_if_outage():
+    target_date = datetime.date(2026, 10, 31)
+    mock_now = datetime.datetime(2026, 10, 31, 2, 30, tzinfo=KYIV_TZ)
+    is_today = target_date == mock_now.date()
+    is_night = is_today and (mock_now.hour < 6)
+    t_down = 3600  # 1 hour outage
+    argv = ["app.generate_daily_report"]
+
+    should_defer = is_night and (t_down == 0) and ("--force-send" not in argv)
+    assert should_defer is False

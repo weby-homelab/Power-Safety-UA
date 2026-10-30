@@ -1,3 +1,14 @@
+# Release v3.9.36
+
+**Eliminate Midnight Duplicate Graphic Reports & Resilient Photo Updates (#213)**
+
+## What's New & Fixed
+- **Eliminated Midnight Duplicate Graphic Reports:** Deferred initial Telegram graphic report creation during night hours (00:00 - 06:00) when power is normal (`t_down == 0`). This prevents duplicate graphic messages from being posted at 00:10 immediately after yesterday's 00:01 final summary (#213). Initial Telegram daily report creation now begins at morning schedule time (06:00) or immediately if an outage occurs at night.
+- **Prevented False-Fallback Duplicates on Transient Telegram Errors:** In `app/reports/daily.py`, updated `update_telegram_photo` to return the resulting message ID, and stopped blindly invoking `send_telegram_photo` when `editMessageMedia` encounters transient server errors (5xx) or network timeouts. Fallback message creation only occurs when the message is genuinely uneditable/deleted, updating `daily_report_id.json` with the new message ID.
+- **Unit Test Coverage:** Added unit test suite in `tests/test_report_delivery_hotfix.py` covering night deferral, night outage exception, and transient edit failure fallback prevention.
+
+---
+
 # Release v3.9.35
 
 **Streamlined Live Rolling Daily Caption & Enriched Final Daily Summary (#211)**

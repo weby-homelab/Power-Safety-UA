@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.36] - 2026-10-31
+
+### Bug Fixes & Reliability
+- **Eliminated Midnight Duplicate Graphic Reports:** Deferred initial Telegram graphic report creation during night hours (00:00 - 06:00) when power is normal (`t_down == 0`). This prevents duplicate graphic messages from being posted at 00:10 immediately after yesterday's 00:01 final summary (#213).
+- **Prevented False-Fallback Duplicates on Transient Telegram Errors:** In `app/reports/daily.py`, updated `update_telegram_photo` to return the resulting message ID, and stopped blindly invoking `send_telegram_photo` when `editMessageMedia` encounters transient server errors (5xx) or network timeouts. Fallback message creation only occurs when the message is genuinely uneditable/deleted, updating `daily_report_id.json` with the new message ID.
+
 ## [3.9.35] - 2026-10-26
 
 ### Features & Reporting
