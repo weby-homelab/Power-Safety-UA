@@ -16,3 +16,8 @@ CVE-2025-47273
 # Rationale: Base image build layer artifact; runtime dependencies are fully pinned and upgraded in virtual environment.
 # Review Date: 2026-09-11
 CVE-2026-59890
+
+# Package: libssl3 / openssl (DTLS handshake retransmission)
+# Rationale: Power-Safety-UA operates solely over standard HTTPS (TCP) with Telegram and weather APIs. DTLS (UDP-based TLS) is completely unused and unreachable.
+# Review Date: 2026-10-31
+CVE-2026-84782
