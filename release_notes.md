@@ -1,3 +1,17 @@
+# Release v3.9.37
+
+**Eliminate Duplicate Weekly Reports, Expand Telegram Upload Timeout & Enforce Atomic Replacement (#215)**
+
+## What's New & Fixed
+- **Expanded Telegram Photo Upload Timeout:** In `app/telegram_client.py`, configured dedicated `PHOTO_UPLOAD_TIMEOUT = (15, 75)` (15s connect, 75s read) for multipart photo upload endpoints (`sendPhoto` and `editMessageMedia`). This accounts for Telegram API server-side image processing and ingestion spikes during peak reporting hours (e.g. 00:15–00:25), eliminating premature socket read timeouts.
+- **Dynamic Max Total Retry Calculation:** Replaced hardcoded 25.0s retry budget in `TelegramClient._make_request` with dynamic calculation scaled to request timeout.
+- **Prevented Duplicate Sends on Upload ReadTimeout:** Explicitly caught `requests.exceptions.ReadTimeout` during file uploads in `_make_request` to immediately abort blind retries, preventing duplicate photo dispatch when the server has already received the payload.
+- **Weekly Report Deduplication & Atomic Replacement:** In `app/reports/weekly.py`, enforced `is_weekly_delivered` check to skip dispatch if the target period is already marked delivered (overrideable with `--force-send`). If a report is re-sent or retried, any superseded message ID for the target period is cleanly deleted via `client.delete_message(last_id)`.
+- **Scheduler Retry Dampening:** In `app/light_service.py`, enforced worker session flag check (`weekly_sent_date != today_date`) and a 180-second cooldown between weekly retry attempts, eliminating rapid-fire retries every minute.
+- **Unit Test Coverage:** Added unit test suite in `tests/test_report_delivery_hotfix.py` (tests 31–35) validating weekly deduplication, force-send override, atomic superseded deletion, extended upload timeout, and upload read timeout retry suppression.
+
+---
+
 # Release v3.9.36
 
 **Eliminate Midnight Duplicate Graphic Reports & Resilient Photo Updates (#213)**

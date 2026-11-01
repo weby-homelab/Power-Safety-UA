@@ -2406,10 +2406,11 @@ def check_quiet_mode_eligibility():
 
 async def schedule_loop():
     weekly_sent_date = None
+    last_weekly_attempt_ts = 0.0
     last_prune_date = None
 
     async def _schedule_iteration():
-        nonlocal weekly_sent_date, last_prune_date
+        nonlocal weekly_sent_date, last_weekly_attempt_ts, last_prune_date
 
         now = datetime.datetime.now(KYIV_TZ)
         now_str = now.strftime("%H:%M")
@@ -2441,11 +2442,20 @@ async def schedule_loop():
             await update_quiet_status()
 
         # Weekly Report Retry Window: Monday 00:15 - 00:25 Europe/Kyiv
-        if now.weekday() == 0 and now.hour == 0 and 15 <= now.minute <= 25:
+        if (
+            now.weekday() == 0
+            and now.hour == 0
+            and 15 <= now.minute <= 25
+            and weekly_sent_date != today_date
+        ):
             completed_week_target = (now - datetime.timedelta(days=1)).strftime(
                 "%Y-%m-%d"
             )
-            if not is_weekly_delivered(completed_week_target):
+            now_ts = time.time()
+            if not is_weekly_delivered(completed_week_target) and (
+                now_ts - last_weekly_attempt_ts >= 180.0
+            ):
+                last_weekly_attempt_ts = now_ts
                 try:
                     base_dir = os.path.dirname(os.path.abspath(__file__))
                     subprocess.run(
