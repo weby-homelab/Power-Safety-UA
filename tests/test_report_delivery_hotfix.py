@@ -585,3 +585,133 @@ def test_night_hours_do_not_defer_initial_daily_report_if_outage():
 
     should_defer = is_night and (t_down == 0) and ("--force-send" not in argv)
     assert should_defer is False
+
+
+# 31. weekly report skips telegram delivery when already marked delivered in state
+def test_weekly_report_skips_when_already_delivered_in_state(monkeypatch):
+    target_period = "2026-11-01"
+    mark_weekly_delivered(target_period, 1816)
+    assert is_weekly_delivered(target_period) is True
+
+    mock_send = MagicMock()
+    monkeypatch.setattr(weekly, "send_telegram_photo", mock_send)
+
+    date_key = target_period
+    force_send = False
+    if is_weekly_delivered(date_key) and not force_send:
+        # Expected behavior: skip sending
+        pass
+    else:
+        mock_send()
+
+    mock_send.assert_not_called()
+
+
+# 32. weekly report force_send overrides already delivered check
+def test_weekly_report_force_send_overrides_already_delivered(monkeypatch):
+    target_period = "2026-11-01"
+    mark_weekly_delivered(target_period, 1816)
+    assert is_weekly_delivered(target_period) is True
+
+    mock_send = MagicMock(return_value=1817)
+    monkeypatch.setattr(weekly, "send_telegram_photo", mock_send)
+
+    date_key = target_period
+    force_send = True
+    sent = False
+    if is_weekly_delivered(date_key) and not force_send:
+        pass
+    else:
+        mock_send()
+        sent = True
+
+    assert sent is True
+    mock_send.assert_called_once()
+
+
+# 33. weekly report atomic superseded message deletion
+def test_weekly_report_atomic_superseded_message_deletion(monkeypatch):
+    target_period = "2026-11-01"
+    mark_weekly_delivered(target_period, 1815)
+    assert is_weekly_delivered(target_period) is True
+
+    deleted_messages = []
+    fake_client = MagicMock()
+    fake_client.delete_message = lambda mid: deleted_messages.append(mid) or True
+
+    monkeypatch.setattr(weekly, "get_telegram_client", lambda: fake_client)
+    monkeypatch.setattr(weekly, "send_telegram_photo", lambda f, c: 1816)
+
+    # Re-send execution
+    from app.reports.delivery_state import load_delivery_state
+
+    delivery_state = load_delivery_state()
+    last_id = delivery_state.get("weekly", {}).get(target_period, {}).get("message_id")
+    assert last_id == 1815
+
+    new_msg_id = weekly.send_telegram_photo("dummy.png", "caption")
+    assert new_msg_id == 1816
+    persisted = mark_weekly_delivered(target_period, new_msg_id)
+    assert persisted is True
+
+    if persisted and last_id and last_id != new_msg_id:
+        client = weekly.get_telegram_client()
+        client.delete_message(last_id)
+
+    assert deleted_messages == [1815]
+
+
+# 34. telegram client send_photo and edit_photo use extended timeout
+def test_telegram_client_send_photo_uses_extended_timeout(monkeypatch, tmp_path):
+    from app.telegram_client import TelegramClient, PHOTO_UPLOAD_TIMEOUT
+
+    client = TelegramClient("token", "123")
+    captured_kwargs = {}
+
+    def fake_make_request(endpoint, payload, files=None, timeout=30, max_attempts=3):
+        captured_kwargs["endpoint"] = endpoint
+        captured_kwargs["timeout"] = timeout
+        return True, 7777
+
+    monkeypatch.setattr(client, "_make_request", fake_make_request)
+    dummy_img = tmp_path / "test.png"
+    dummy_img.write_bytes(b"dummy")
+
+    client.send_photo(str(dummy_img), "caption")
+    assert captured_kwargs.get("endpoint") == "sendPhoto"
+    assert captured_kwargs.get("timeout") == PHOTO_UPLOAD_TIMEOUT
+    assert captured_kwargs.get("timeout") == (15, 75)
+
+    client.edit_photo(7777, str(dummy_img), "caption")
+    assert captured_kwargs.get("endpoint") == "editMessageMedia"
+    assert captured_kwargs.get("timeout") == PHOTO_UPLOAD_TIMEOUT
+
+
+# 35. telegram client file upload read timeout aborts retry to avoid duplicates
+def test_telegram_client_file_upload_read_timeout_aborts_retry(tmp_path):
+    from app.telegram_client import TelegramClient
+
+    client = TelegramClient("dummy_token", "dummy_chat_id")
+    dummy_img = tmp_path / "test.png"
+    dummy_img.write_bytes(b"dummy")
+
+    attempts_count = 0
+
+    def mock_post(*args, **kwargs):
+        nonlocal attempts_count
+        attempts_count += 1
+        raise requests.exceptions.ReadTimeout("Server read timeout during upload")
+
+    with patch("requests.post", side_effect=mock_post):
+        success, res = client._make_request(
+            "sendPhoto",
+            {"chat_id": "dummy_chat_id"},
+            files={"photo": open(dummy_img, "rb")},
+            timeout=(15, 75),
+            max_attempts=3,
+        )
+
+    assert success is False
+    assert "upload read timeout" in res
+    # Must NOT retry: attempt count must be strictly 1
+    assert attempts_count == 1

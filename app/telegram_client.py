@@ -7,6 +7,9 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+# Dedicated timeout for multipart photo uploads: 15s connect, 75s read
+PHOTO_UPLOAD_TIMEOUT = (15, 75)
+
 
 def _sanitize_error(value: object, token: Optional[str] = None) -> str:
     if value is None:
@@ -35,7 +38,8 @@ class TelegramClient:
     def _make_request(self, endpoint, payload, files=None, timeout=30, max_attempts=3):
         url = f"https://api.telegram.org/bot{self._real_token}/{endpoint}"
         start_time = time.time()
-        max_total_retry_time = 25.0
+        timeout_val = timeout[1] if isinstance(timeout, (tuple, list)) else timeout
+        max_total_retry_time = max(25.0, float(timeout_val) * max_attempts + 15.0)
 
         for attempt in range(1, max_attempts + 1):
             if files:
@@ -127,6 +131,16 @@ class TelegramClient:
                 requests.exceptions.Timeout,
                 requests.exceptions.ConnectionError,
             ) as e:
+                # If a ReadTimeout occurs during multipart file upload, the payload was already uploaded.
+                # Retrying sendPhoto / editMessageMedia blindly risks delivering a duplicate photo.
+                if files and isinstance(e, requests.exceptions.ReadTimeout):
+                    logger.warning(
+                        "Telegram upload read timeout; aborting retry to prevent duplicate sends",
+                        endpoint=endpoint,
+                        attempt=attempt,
+                    )
+                    return False, self._sanitize("upload read timeout")
+
                 backoff = attempt * 1.0
                 elapsed = time.time() - start_time
                 if (
@@ -207,7 +221,10 @@ class TelegramClient:
         try:
             with open(photo_path, "rb") as f:
                 success, res = self._make_request(
-                    "sendPhoto", payload, files={"photo": f}
+                    "sendPhoto",
+                    payload,
+                    files={"photo": f},
+                    timeout=PHOTO_UPLOAD_TIMEOUT,
                 )
                 if not success:
                     logger.warning("Failed to send photo", error=self._sanitize(res))
@@ -233,7 +250,10 @@ class TelegramClient:
         try:
             with open(photo_path, "rb") as f:
                 success, res = self._make_request(
-                    "editMessageMedia", payload, files={"chart": f}
+                    "editMessageMedia",
+                    payload,
+                    files={"chart": f},
+                    timeout=PHOTO_UPLOAD_TIMEOUT,
                 )
                 if success:
                     return message_id

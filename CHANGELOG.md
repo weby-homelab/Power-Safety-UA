@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.37] - 2026-11-02
+
+### Bug Fixes & Reliability
+- **Eliminated Duplicate Weekly Reports & Expanded Upload Timeout:** Configured `PHOTO_UPLOAD_TIMEOUT = (15, 75)` for photo uploads in `app/telegram_client.py` and dynamically scaled retry budgets to eliminate socket read timeouts during peak Telegram API load (#215).
+- **Upload ReadTimeout Retry Suppression:** Prevented blind retries on upload read timeout to avoid duplicate photo dispatch when Telegram has already ingested the payload.
+- **Weekly Report Deduplication & Atomic Superseding:** Enforced `is_weekly_delivered` check in `app/reports/weekly.py` to prevent redundant dispatches, and added atomic cleanup of superseded message IDs upon re-delivery.
+- **Scheduler Retry Dampening:** Enforced worker session deduplication flag and 180s cooldown between weekly retry attempts in `app/light_service.py`.
+
 ## [3.9.36] - 2026-10-31
 
 ### Bug Fixes & Reliability

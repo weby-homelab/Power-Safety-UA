@@ -37,7 +37,11 @@ def get_telegram_config():
 
 
 from app.telegram_client import TelegramClient  # noqa: E402
-from app.reports.delivery_state import mark_weekly_delivered  # noqa: E402
+from app.reports.delivery_state import (  # noqa: E402
+    is_weekly_delivered,
+    load_delivery_state,
+    mark_weekly_delivered,
+)
 from app.metrics import report_generation_errors  # noqa: E402
 
 
@@ -979,17 +983,27 @@ if __name__ == "__main__":
 #тиждень #статистика_світла"""
 
     exit_code = 0
+    date_key = target_date.strftime("%Y-%m-%d")
     if args.no_send or args.output:
         logger.info("Telegram sending skipped (--no-send or --output).")
     elif not weekly_reports_enabled:
         logger.info("Telegram weekly report is disabled in configuration.")
+    elif is_weekly_delivered(date_key) and not args.force_send:
+        logger.info(
+            "Weekly report already delivered to Telegram. Skipping send.",
+            target_date=date_key,
+        )
     else:
+        # Check if an earlier message exists for this weekly target period to supersede
+        delivery_state = load_delivery_state()
+        last_id = delivery_state.get("weekly", {}).get(date_key, {}).get("message_id")
+
         # Scheduled weekly summary: IGNORE Quiet Mode, send once if enabled
         logger.info("Sending weekly report to Telegram...", target_date=target_date)
         msg_id = send_telegram_photo(filename, caption)
         if msg_id:
             logger.info("Weekly report sent successfully.", message_id=msg_id)
-            persisted = mark_weekly_delivered(target_date.strftime("%Y-%m-%d"), msg_id)
+            persisted = mark_weekly_delivered(date_key, msg_id)
             if not persisted:
                 logger.error(
                     "Failed to persist weekly delivery state. Preserving retry eligibility.",
@@ -999,6 +1013,14 @@ if __name__ == "__main__":
                 report_generation_errors.labels(report_type="weekly").inc()
                 exit_code = 1
             else:
+                # Atomic message replacement: clean up superseded message if different
+                if last_id and last_id != msg_id:
+                    logger.info(
+                        "Deleting superseded weekly report message",
+                        message_id=last_id,
+                    )
+                    client = get_telegram_client()
+                    client.delete_message(last_id)
                 exit_code = 0
         else:
             logger.error("Failed to send weekly report to Telegram.")
